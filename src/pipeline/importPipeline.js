@@ -5,11 +5,11 @@
 const fetch = require("node-fetch");
 
 // Services
-const { transformProduct } = require("../services/productTransformer");
-const { optimizeTitle } = require("../services/titleOptimizer");
-const { generateTags } = require("../services/tagGenerator");
-const { suggestCategory } = require("../services/categorySuggestor");
-const { checkSkuLimit } = require("../services/skuLimiter");
+const transformProduct = require("../services/productTransformer");
+const optimizeTitle = require("../services/titleOptimizer");
+const generateTags = require("../services/tagGenerator");
+const suggestCategory = require("../services/categorySuggestor");
+const checkSkuLimit = require("../services/skuLimiter");
 const productRegistry = require("../services/productRegistry");
 
 // Internal modules
