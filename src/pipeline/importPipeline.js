@@ -8,7 +8,7 @@ const fetch = require("node-fetch");
 const { transformProduct } = require("../services/productTransformer");
 const optimizeTitle = require("../services/titleOptimizer");
 const { generateTags } = require("../services/tagGenerator");
-const { suggestCategory } = require("../services/categorySuggestor");
+const suggestCategory = require("../services/categorySuggestor");
 const { checkSkuLimit } = require("../services/skuLimiter");
 const productRegistry = require("../services/productRegistry");
 
@@ -54,7 +54,9 @@ async function callCategoryBrain(product) {
       confidence: data.confidence
     };
 
-  } catch (err) {
+  }
+
+  catch (err) {
 
     console.error("CATEGORY BRAIN ERROR:", err);
 
