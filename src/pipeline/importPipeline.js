@@ -1,13 +1,14 @@
 // ============================================
 // ZEUS IMPORT PIPELINE
-// Orchestrates product import flow
 // ============================================
 
-// Services (existing)
-const productTransformer = require("../services/productTransformer");
-const titleOptimizer = require("../services/titleOptimizer");
-const tagGenerator = require("../services/tagGenerator");
-const categorySuggestor = require("../services/categorySuggestor");
+const fetch = require("node-fetch");
+
+// Services
+const { transformProduct } = require("../services/productTransformer");
+const { optimizeTitle } = require("../services/titleOptimizer");
+const { generateTags } = require("../services/tagGenerator");
+const { suggestCategory } = require("../services/categorySuggestor");
 const { checkSkuLimit } = require("../services/skuLimiter");
 const productRegistry = require("../services/productRegistry");
 
@@ -15,14 +16,16 @@ const productRegistry = require("../services/productRegistry");
 const detectOrigin = require("./originDetector");
 const applyPolicy = require("./policyEngine");
 
-// Category Brain endpoint
+// Category Brain
 const CATEGORY_BRAIN_URL = process.env.CATEGORY_BRAIN_URL;
+
 
 // ============================================
 // CATEGORY BRAIN CALL
 // ============================================
 
 async function callCategoryBrain(product) {
+
   try {
 
     if (!CATEGORY_BRAIN_URL) {
@@ -40,8 +43,7 @@ async function callCategoryBrain(product) {
       body: JSON.stringify({
         title: product.title,
         description: product.description,
-        tags: product.tags || [],
-        attributes: product.attributes || {}
+        tags: product.tags || []
       })
     });
 
@@ -62,7 +64,9 @@ async function callCategoryBrain(product) {
     };
 
   }
+
 }
+
 
 // ============================================
 // IMPORT PIPELINE
@@ -72,38 +76,28 @@ async function importPipeline(payload, jobId) {
 
   try {
 
-    // ----------------------------------------
     // 1 ORIGIN DETECTION
-    // ----------------------------------------
-
     const origin = detectOrigin(payload);
-
     payload.origin = origin;
 
-    // ----------------------------------------
-    // 2 POLICY LAYER
-    // ----------------------------------------
 
+    // 2 POLICY LAYER
     let product = applyPolicy(payload, origin);
 
-    // ----------------------------------------
-    // 3 TRANSFORM PRODUCT
-    // ----------------------------------------
 
-    product = await productTransformer(product);
+    // 3 PRODUCT TRANSFORMER
+    product = transformProduct(product);
 
-    // ----------------------------------------
-    // 4 OPTIMIZATION
-    // ----------------------------------------
 
-    product.title = await titleOptimizer(product.title);
+    // 4 TITLE OPTIMIZATION
+    product.title = optimizeTitle(product.title);
 
-    product.tags = await tagGenerator(product);
 
-    // ----------------------------------------
-    // 5 SKU LIMITER
-    // ----------------------------------------
+    // 5 TAG GENERATION
+    product.tags = generateTags(product.title);
 
+
+    // 6 SKU LIMITER
     const user = {
       optimized_skus: 0,
       sku_limit: 100
@@ -115,33 +109,23 @@ async function importPipeline(payload, jobId) {
       throw new Error("SKU limit reached");
     }
 
-    // ----------------------------------------
-    // 6 CATEGORY SUGGESTION
-    // ----------------------------------------
 
-    const suggestion = await categorySuggestor(product);
+    // 7 CATEGORY SUGGESTION
+    const suggestion = suggestCategory(product);
 
     product.suggestedCategory = suggestion.category;
 
-    // ----------------------------------------
-    // 7 CATEGORY BRAIN
-    // ----------------------------------------
 
+    // 8 CATEGORY BRAIN
     const categoryResult = await callCategoryBrain(product);
 
     product.category = categoryResult.category;
-
     product.categoryConfidence = categoryResult.confidence;
 
-    // ----------------------------------------
-    // 8 REGISTRY
-    // ----------------------------------------
 
-    await productRegistry.register(product, jobId);
+    // 9 REGISTRY
+    productRegistry.saveProduct(jobId, product);
 
-    // ----------------------------------------
-    // RESPONSE
-    // ----------------------------------------
 
     return {
 
@@ -154,7 +138,9 @@ async function importPipeline(payload, jobId) {
 
     };
 
-  } catch (err) {
+  }
+
+  catch (err) {
 
     console.error("IMPORT PIPELINE ERROR:", err);
 
