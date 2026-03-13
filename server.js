@@ -19,6 +19,20 @@ Permite recibir JSON en POST
 app.use(express.json());
 
 /*
+====================================================
+STATUS CHECK
+Health check para infraestructura
+====================================================
+*/
+app.get("/status", (req, res) => {
+  res.json({
+    system: "ZEUS CORE ENGINE",
+    service: "core-engine",
+    status: "running"
+  });
+});
+
+/*
 ROOT CHECK
 Verifica que ZEUS esté activo
 */
