@@ -80,22 +80,17 @@ async function importPipeline(payload, jobId) {
     const origin = detectOrigin(payload);
     payload.origin = origin;
 
-
     // 2 POLICY LAYER
     let product = applyPolicy(payload, origin);
-
 
     // 3 PRODUCT TRANSFORMER
     product = transformProduct(product);
 
-
     // 4 TITLE OPTIMIZATION
     product.title = optimizeTitle(product.title);
 
-
     // 5 TAG GENERATION
     product.tags = generateTags(product.title);
-
 
     // 6 SKU LIMITER
     const user = {
@@ -109,12 +104,10 @@ async function importPipeline(payload, jobId) {
       throw new Error("SKU limit reached");
     }
 
-
     // 7 CATEGORY SUGGESTION
     const suggestion = suggestCategory(product);
 
     product.suggestedCategory = suggestion.category;
-
 
     // 8 CATEGORY BRAIN
     const categoryResult = await callCategoryBrain(product);
@@ -122,10 +115,8 @@ async function importPipeline(payload, jobId) {
     product.category = categoryResult.category;
     product.categoryConfidence = categoryResult.confidence;
 
-
     // 9 REGISTRY
     productRegistry.saveProduct(jobId, product);
-
 
     return {
 
