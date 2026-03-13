@@ -1,16 +1,12 @@
 const { optimizeTitle } = require("./titleOptimizer");
 const { generateTags } = require("./tagGenerator");
+const { suggestCategory } = require("./categorySuggestor");
 
 /*
 ZEUS PRODUCT TRANSFORMER
 
-Este módulo recibe datos de producto desde cualquier conector:
-- Shopify
-- WooCommerce
-- USAdrop
-- Importadores
-
-y devuelve una estructura optimizada lista para ecommerce.
+Este módulo centraliza la transformación del producto
+y orquesta los distintos servicios internos del motor.
 */
 
 function transformProduct(product) {
@@ -28,13 +24,23 @@ function transformProduct(product) {
   const tags = generateTags(optimizedTitle);
 
   /*
-  Respuesta del motor
+  Paso 3 — Sugerir categoría
+  */
+  const categoryData = suggestCategory({
+    title: optimizedTitle,
+    description
+  });
+
+  /*
+  Resultado final del motor ZEUS
   */
   return {
     engine: "ZEUS",
     originalTitle: title,
     optimizedTitle: optimizedTitle,
-    suggestedTags: tags
+    suggestedTags: tags,
+    suggestedCategory: categoryData.suggestedCategory,
+    categoryConfidence: categoryData.confidence
   };
 
 }
