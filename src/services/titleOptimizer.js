@@ -1,12 +1,14 @@
 function optimizeTitle(title) {
 
-  return title
-    .replace(/1\s*(piece|pcs|set)/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  if (!title) {
+    return "Untitled Product"
+  }
 
+  return String(title)
+    .replace(/\n/g, " ")
+    .replace(/\r/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
 }
 
-module.exports = {
-  optimizeTitle
-};
+module.exports = optimizeTitle
