@@ -5,7 +5,7 @@
 const fetch = require("node-fetch");
 
 // Services
-const transformProduct = require("../services/productTransformer");
+const { transformProduct } = require("../services/productTransformer");
 const optimizeTitle = require("../services/titleOptimizer");
 const generateTags = require("../services/tagGenerator");
 const suggestCategory = require("../services/categorySuggestor");
