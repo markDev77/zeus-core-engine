@@ -2,6 +2,7 @@ const express = require("express");
 
 const { transformProduct } = require("./src/services/productTransformer");
 const { createJob } = require("./src/services/jobManager");
+const { checkSkuLimit } = require("./src/services/skuLimiter");
 
 const app = express();
 
@@ -38,6 +39,26 @@ app.post("/optimize/product", (req, res) => {
   }
 
   /*
+  Usuario simulado
+  (después vendrá de la base de datos)
+  */
+  const user = {
+    optimized_skus: 10,
+    sku_limit: 100
+  };
+
+  /*
+  Verificar límite de SKUs
+  */
+  const limitCheck = checkSkuLimit(user);
+
+  if (!limitCheck.allowed) {
+    return res.status(403).json({
+      error: "SKU limit reached"
+    });
+  }
+
+  /*
   Registrar job
   */
   const job = createJob({
@@ -62,7 +83,7 @@ app.post("/optimize/product", (req, res) => {
 });
 
 /*
-GET endpoint solo para verificación en navegador
+GET endpoint solo para verificación
 */
 app.get("/optimize/product", (req, res) => {
   res.json({
