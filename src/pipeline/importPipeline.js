@@ -3,14 +3,12 @@
 // Orchestrates product import flow
 // ============================================
 
-const fetch = require("node-fetch");
-
 // Services (existing)
 const productTransformer = require("../services/productTransformer");
 const titleOptimizer = require("../services/titleOptimizer");
 const tagGenerator = require("../services/tagGenerator");
 const categorySuggestor = require("../services/categorySuggestor");
-const skuLimiter = require("../services/skuLimiter");
+const { checkSkuLimit } = require("../services/skuLimiter");
 const productRegistry = require("../services/productRegistry");
 
 // Internal modules
@@ -25,11 +23,9 @@ const CATEGORY_BRAIN_URL = process.env.CATEGORY_BRAIN_URL;
 // ============================================
 
 async function callCategoryBrain(product) {
-
   try {
 
     if (!CATEGORY_BRAIN_URL) {
-      console.warn("CATEGORY_BRAIN_URL not configured");
       return {
         category: product.suggestedCategory || null,
         confidence: 0
@@ -66,7 +62,6 @@ async function callCategoryBrain(product) {
     };
 
   }
-
 }
 
 // ============================================
@@ -109,7 +104,16 @@ async function importPipeline(payload, jobId) {
     // 5 SKU LIMITER
     // ----------------------------------------
 
-    product = await skuLimiter(product);
+    const user = {
+      optimized_skus: 0,
+      sku_limit: 100
+    };
+
+    const limitCheck = checkSkuLimit(user);
+
+    if (!limitCheck.allowed) {
+      throw new Error("SKU limit reached");
+    }
 
     // ----------------------------------------
     // 6 CATEGORY SUGGESTION
