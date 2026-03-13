@@ -1,4 +1,4 @@
-const { optimizeTitle } = require("./titleOptimizer");
+const optimizeTitle = require("./titleOptimizer");
 const { generateTags } = require("./tagGenerator");
 const { suggestCategory } = require("./categorySuggestor");
 
