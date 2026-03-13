@@ -1,6 +1,7 @@
 const express = require("express");
 
 const { transformProduct } = require("./src/services/productTransformer");
+const { createJob } = require("./src/services/jobManager");
 
 const app = express();
 
@@ -37,14 +38,26 @@ app.post("/optimize/product", (req, res) => {
   }
 
   /*
-  Llamamos al motor ZEUS
+  Registrar job
+  */
+  const job = createJob({
+    title,
+    description
+  });
+
+  /*
+  Ejecutar transformación
   */
   const result = transformProduct({
     title,
     description
   });
 
-  res.json(result);
+  res.json({
+    jobId: job.id,
+    status: "processed",
+    result: result
+  });
 
 });
 
