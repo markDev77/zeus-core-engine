@@ -8,7 +8,7 @@ const fetch = require("node-fetch");
 const { transformProduct } = require("../services/productTransformer");
 const optimizeTitle = require("../services/titleOptimizer");
 const { generateTags } = require("../services/tagGenerator");
-const suggestCategory = require("../services/categorySuggestor");
+const { suggestCategory } = require("../services/categorySuggestor");
 const { checkSkuLimit } = require("../services/skuLimiter");
 const productRegistry = require("../services/productRegistry");
 
@@ -100,7 +100,7 @@ async function importPipeline(payload, jobId) {
 
     const suggestion = suggestCategory(product);
 
-    product.suggestedCategory = suggestion.category;
+    product.suggestedCategory = suggestion.suggestedCategory;
 
     const categoryResult = await callCategoryBrain(product);
 
