@@ -2,10 +2,15 @@ const express = require("express");
 
 const app = express();
 
+/*
+MIDDLEWARE
+Permite recibir JSON en POST
+*/
 app.use(express.json());
 
 /*
 ROOT CHECK
+Verifica que ZEUS esté activo
 */
 app.get("/", (req, res) => {
   res.json({
@@ -16,6 +21,8 @@ app.get("/", (req, res) => {
 
 /*
 ZEUS PRODUCT OPTIMIZATION ENDPOINT
+POST
+Aquí llegará información de producto desde Shopify, Woo o importadores
 */
 app.post("/optimize/product", (req, res) => {
 
@@ -27,7 +34,9 @@ app.post("/optimize/product", (req, res) => {
     });
   }
 
-  // Simple optimization logic (base layer)
+  /*
+  Lógica básica de optimización inicial
+  */
   const optimizedTitle = title
     .replace(/1\s*(piece|pcs|set)/gi, "")
     .replace(/\s+/g, " ")
@@ -39,12 +48,24 @@ app.post("/optimize/product", (req, res) => {
     .slice(0,5);
 
   res.json({
+    engine: "ZEUS",
     originalTitle: title,
-    optimizedTitle,
-    suggestedTags: tags,
-    engine: "ZEUS"
+    optimizedTitle: optimizedTitle,
+    suggestedTags: tags
   });
 
+});
+
+/*
+GET endpoint solo para verificación en navegador
+*/
+app.get("/optimize/product", (req, res) => {
+  res.json({
+    engine: "ZEUS",
+    endpoint: "/optimize/product",
+    method: "POST",
+    status: "active"
+  });
 });
 
 const PORT = process.env.PORT || 10000;
