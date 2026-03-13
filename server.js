@@ -3,6 +3,7 @@ const express = require("express");
 const { transformProduct } = require("./src/services/productTransformer");
 const { createJob } = require("./src/services/jobManager");
 const { checkSkuLimit } = require("./src/services/skuLimiter");
+const productRegistry = require("./src/services/productRegistry");
 
 const app = express();
 
@@ -74,6 +75,11 @@ app.post("/optimize/product", (req, res) => {
     description
   });
 
+  /*
+  Guardar resultado en registry
+  */
+  productRegistry.saveProduct(job.id, result);
+
   res.json({
     jobId: job.id,
     status: "processed",
@@ -92,6 +98,34 @@ app.get("/optimize/product", (req, res) => {
     method: "POST",
     status: "active"
   });
+});
+
+/*
+CONSULTAR JOB POR ID
+*/
+app.get("/jobs/:id", (req, res) => {
+
+  const job = productRegistry.getProduct(req.params.id);
+
+  if (!job) {
+    return res.status(404).json({
+      error: "Job not found"
+    });
+  }
+
+  res.json(job);
+
+});
+
+/*
+LISTAR TODOS LOS JOBS
+*/
+app.get("/jobs", (req, res) => {
+
+  const jobs = productRegistry.getAllProducts();
+
+  res.json(jobs);
+
 });
 
 const PORT = process.env.PORT || 10000;
