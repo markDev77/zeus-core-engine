@@ -3,8 +3,6 @@
 // Applies business rules depending on origin
 // ============================================
 
-const skuLimiter = require("../services/skuLimiter");
-
 // --------------------------------------------
 
 function applyPolicy(product, origin) {
@@ -35,9 +33,6 @@ function applyPolicy(product, origin) {
 
     }
 
-    // sku limiter
-    updatedProduct = skuLimiter(updatedProduct);
-
   }
 
   // ----------------------------------------
@@ -49,7 +44,6 @@ function applyPolicy(product, origin) {
     origin === "woo_native"
   ) {
 
-    // No import policy applied
     return updatedProduct;
 
   }
@@ -60,7 +54,6 @@ function applyPolicy(product, origin) {
 
   if (origin === "supplier_api") {
 
-    // Future supplier policies
     return updatedProduct;
 
   }
