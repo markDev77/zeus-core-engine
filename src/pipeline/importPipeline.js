@@ -4,19 +4,39 @@
 
 const fetch = require("node-fetch");
 
-// Services
+// ============================================
+// SERVICES
+// ============================================
+
+// productTransformer exporta { transformProduct }
 const { transformProduct } = require("../services/productTransformer");
+
+// titleOptimizer exporta module.exports = optimizeTitle
 const optimizeTitle = require("../services/titleOptimizer");
-const generateTags = require("../services/tagGenerator");
+
+// tagGenerator exporta { generateTags }
+const { generateTags } = require("../services/tagGenerator");
+
+// categorySuggestor exporta module.exports = suggestCategory
 const suggestCategory = require("../services/categorySuggestor");
+
+// skuLimiter exporta module.exports = checkSkuLimit
 const checkSkuLimit = require("../services/skuLimiter");
+
+// registry
 const productRegistry = require("../services/productRegistry");
 
-// Internal modules
+// ============================================
+// INTERNAL MODULES
+// ============================================
+
 const detectOrigin = require("./originDetector");
 const applyPolicy = require("./policyEngine");
 
-// Category Brain
+// ============================================
+// CATEGORY BRAIN
+// ============================================
+
 const CATEGORY_BRAIN_URL = process.env.CATEGORY_BRAIN_URL;
 
 
@@ -76,23 +96,23 @@ async function importPipeline(payload, jobId) {
 
   try {
 
-    // 1 ORIGIN DETECTION
+    // 1️⃣ ORIGIN DETECTION
     const origin = detectOrigin(payload);
     payload.origin = origin;
 
-    // 2 POLICY LAYER
+    // 2️⃣ POLICY LAYER
     let product = applyPolicy(payload, origin);
 
-    // 3 PRODUCT TRANSFORMER
+    // 3️⃣ PRODUCT TRANSFORMER
     product = transformProduct(product);
 
-    // 4 TITLE OPTIMIZATION
+    // 4️⃣ TITLE OPTIMIZATION
     product.title = optimizeTitle(product.title);
 
-    // 5 TAG GENERATION
+    // 5️⃣ TAG GENERATION
     product.tags = generateTags(product.title);
 
-    // 6 SKU LIMITER
+    // 6️⃣ SKU LIMITER
     const user = {
       optimized_skus: 0,
       sku_limit: 100
@@ -104,18 +124,18 @@ async function importPipeline(payload, jobId) {
       throw new Error("SKU limit reached");
     }
 
-    // 7 CATEGORY SUGGESTION
+    // 7️⃣ CATEGORY SUGGESTION
     const suggestion = suggestCategory(product);
 
     product.suggestedCategory = suggestion.category;
 
-    // 8 CATEGORY BRAIN
+    // 8️⃣ CATEGORY BRAIN
     const categoryResult = await callCategoryBrain(product);
 
     product.category = categoryResult.category;
     product.categoryConfidence = categoryResult.confidence;
 
-    // 9 REGISTRY
+    // 9️⃣ REGISTRY
     productRegistry.saveProduct(jobId, product);
 
     return {
