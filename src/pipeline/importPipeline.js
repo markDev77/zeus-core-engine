@@ -3,6 +3,8 @@
 // Orchestrates product import flow
 // ============================================
 
+const fetch = require("node-fetch");
+
 // Services (existing)
 const productTransformer = require("../services/productTransformer");
 const titleOptimizer = require("../services/titleOptimizer");
@@ -23,7 +25,17 @@ const CATEGORY_BRAIN_URL = process.env.CATEGORY_BRAIN_URL;
 // ============================================
 
 async function callCategoryBrain(product) {
+
   try {
+
+    if (!CATEGORY_BRAIN_URL) {
+      console.warn("CATEGORY_BRAIN_URL not configured");
+      return {
+        category: product.suggestedCategory || null,
+        confidence: 0
+      };
+    }
+
     const response = await fetch(`${CATEGORY_BRAIN_URL}/process`, {
       method: "POST",
       headers: {
@@ -54,6 +66,7 @@ async function callCategoryBrain(product) {
     };
 
   }
+
 }
 
 // ============================================
