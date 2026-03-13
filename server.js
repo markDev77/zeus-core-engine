@@ -10,6 +10,11 @@ NEW IMPORT PIPELINE
 */
 const importPipeline = require("./src/pipeline/importPipeline");
 
+/*
+USADROP IMPORTER
+*/
+const { importUsadropProducts } = require("./src/importers/usadropImporter");
+
 const app = express();
 
 /*
@@ -172,6 +177,43 @@ app.post("/import/product", async (req, res) => {
   } catch (error) {
 
     console.error("IMPORT PIPELINE ERROR:", error);
+
+    res.status(500).json({
+      status: "error",
+      message: error.message
+    });
+
+  }
+
+});
+
+/*
+====================================================
+USADROP IMPORT TRIGGER
+====================================================
+Dispara importación desde USAdrop API
+====================================================
+*/
+
+app.post("/import/usadrop", async (req, res) => {
+
+  try {
+
+    console.log("ZEUS USADROP IMPORT START");
+
+    const result = await importUsadropProducts();
+
+    res.json({
+      engine: "ZEUS",
+      importer: "USAdrop",
+      status: "completed",
+      imported: result.imported || 0,
+      failed: result.failed || 0
+    });
+
+  } catch (error) {
+
+    console.error("USADROP IMPORT ERROR:", error);
 
     res.status(500).json({
       status: "error",
