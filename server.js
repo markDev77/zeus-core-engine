@@ -5,6 +5,11 @@ const { createJob } = require("./src/services/jobManager");
 const { checkSkuLimit } = require("./src/services/skuLimiter");
 const productRegistry = require("./src/services/productRegistry");
 
+/*
+NEW IMPORT PIPELINE
+*/
+const importPipeline = require("./src/pipeline/importPipeline");
+
 const app = express();
 
 /*
@@ -25,9 +30,10 @@ app.get("/", (req, res) => {
 });
 
 /*
+====================================================
 ZEUS PRODUCT OPTIMIZATION ENDPOINT
-POST
-Aquí llegará información de producto desde Shopify, Woo o importadores
+Endpoint actual — NO se modifica
+====================================================
 */
 app.post("/optimize/product", (req, res) => {
 
@@ -101,7 +107,71 @@ app.get("/optimize/product", (req, res) => {
 });
 
 /*
+====================================================
+NEW IMPORT PIPELINE ENDPOINT
+====================================================
+Este endpoint ejecuta el pipeline completo:
+
+origin detection
+policy layer
+optimizer
+category brain
+registry
+====================================================
+*/
+
+app.post("/import/product", async (req, res) => {
+
+  try {
+
+    const payload = req.body;
+
+    if (!payload) {
+      return res.status(400).json({
+        error: "Product payload required"
+      });
+    }
+
+    /*
+    Crear job de importación
+    */
+
+    const job = createJob({
+      type: "import",
+      payload: payload
+    });
+
+    /*
+    Ejecutar pipeline completo
+    */
+
+    const result = await importPipeline(payload, job.id);
+
+    /*
+    Guardar resultado final
+    */
+
+    productRegistry.saveProduct(job.id, result);
+
+    res.json(result);
+
+  } catch (error) {
+
+    console.error("IMPORT PIPELINE ERROR:", error);
+
+    res.status(500).json({
+      status: "error",
+      message: error.message
+    });
+
+  }
+
+});
+
+/*
+====================================================
 CONSULTAR JOB POR ID
+====================================================
 */
 app.get("/jobs/:id", (req, res) => {
 
@@ -118,7 +188,9 @@ app.get("/jobs/:id", (req, res) => {
 });
 
 /*
+====================================================
 LISTAR TODOS LOS JOBS
+====================================================
 */
 app.get("/jobs", (req, res) => {
 
