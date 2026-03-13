@@ -1,5 +1,7 @@
 const express = require("express");
 
+const { transformProduct } = require("./src/services/productTransformer");
+
 const app = express();
 
 /*
@@ -35,24 +37,14 @@ app.post("/optimize/product", (req, res) => {
   }
 
   /*
-  Lógica básica de optimización inicial
+  Llamamos al motor ZEUS
   */
-  const optimizedTitle = title
-    .replace(/1\s*(piece|pcs|set)/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const tags = optimizedTitle
-    .toLowerCase()
-    .split(" ")
-    .slice(0,5);
-
-  res.json({
-    engine: "ZEUS",
-    originalTitle: title,
-    optimizedTitle: optimizedTitle,
-    suggestedTags: tags
+  const result = transformProduct({
+    title,
+    description
   });
+
+  res.json(result);
 
 });
 
