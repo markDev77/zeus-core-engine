@@ -5,6 +5,7 @@ const { transformProduct } = require("./src/services/productTransformer");
 const { createJob } = require("./src/services/jobManager");
 const { checkSkuLimit } = require("./src/services/skuLimiter");
 const productRegistry = require("./src/services/productRegistry");
+const { resolveStoreProfile } = require("./src/services/storeProfileResolver");
 
 /*
 IMPORT PIPELINE
@@ -51,9 +52,7 @@ app.use(express.json());
 SHOPIFY WEBHOOK HMAC VERIFICATION
 ====================================================
 */
-
 function verifyShopifyWebhook(req) {
-
   const hmacHeader = req.headers["x-shopify-hmac-sha256"];
 
   if (!hmacHeader) {
@@ -66,18 +65,13 @@ function verifyShopifyWebhook(req) {
     .digest("base64");
 
   try {
-
     return crypto.timingSafeEqual(
       Buffer.from(generatedHash),
       Buffer.from(hmacHeader)
     );
-
   } catch {
-
     return false;
-
   }
-
 }
 
 /*
@@ -85,7 +79,6 @@ function verifyShopifyWebhook(req) {
 STRIPE WEBHOOK ROUTE
 ====================================================
 */
-
 app.use("/", stripeWebhook);
 
 /*
@@ -93,7 +86,6 @@ app.use("/", stripeWebhook);
 SHOPIFY INSTALL ROUTES
 ====================================================
 */
-
 app.use("/", installRoutes);
 
 /*
@@ -101,28 +93,22 @@ app.use("/", installRoutes);
 STATUS CHECK
 ====================================================
 */
-
 app.get("/status", (req, res) => {
-
   res.json({
     system: "ZEUS CORE ENGINE",
     service: "core-engine",
     status: "running"
   });
-
 });
 
 /*
 ROOT CHECK
 */
-
 app.get("/", (req, res) => {
-
   res.json({
     system: "ZEUS CORE ENGINE",
     status: "running"
   });
-
 });
 
 /*
@@ -130,17 +116,13 @@ app.get("/", (req, res) => {
 ZEUS PRODUCT OPTIMIZATION
 ====================================================
 */
-
 app.post("/optimize/product", (req, res) => {
-
   const { title, description } = req.body;
 
   if (!title) {
-
     return res.status(400).json({
       error: "Product title required"
     });
-
   }
 
   const user = {
@@ -151,42 +133,72 @@ app.post("/optimize/product", (req, res) => {
   const limitCheck = checkSkuLimit(user);
 
   if (!limitCheck.allowed) {
-
     return res.status(403).json({
       error: "SKU limit reached"
     });
-
   }
+
+  const storeContext = resolveStoreProfile({
+    payload: req.body,
+    headers: req.headers
+  });
 
   const job = createJob({
     title,
-    description
+    description,
+    storeProfile: storeContext.profile,
+    store: storeContext.store
   });
 
   const result = transformProduct({
     title,
-    description
+    description,
+    storeProfile: storeContext.profile,
+    storeContext: storeContext.store
   });
 
-  productRegistry.saveProduct(job.id, result);
-
-  res.json({
+  const response = {
     jobId: job.id,
     status: "processed",
-    result: result
+    store: storeContext.store,
+    storeProfile: storeContext.profile,
+    storeProfileResolution: storeContext.resolution,
+    result
+  };
+
+  productRegistry.saveProduct(job.id, {
+    status: "processed",
+    engine: "ZEUS",
+    origin: "optimize",
+    store: storeContext.store,
+    storeProfile: storeContext.profile,
+    storeProfileResolution: storeContext.resolution,
+    category: result.category,
+    confidence: result.categoryConfidence,
+    product: {
+      engine: result.engine,
+      originalTitle: result.originalTitle,
+      optimizedTitle: result.optimizedTitle,
+      suggestedTags: result.suggestedTags,
+      suggestedCategory: result.suggestedCategory,
+      categoryConfidence: result.categoryConfidence,
+      title: result.title,
+      description: result.description,
+      tags: result.tags,
+      category: result.category
+    }
   });
 
+  res.json(response);
 });
 
 app.get("/optimize/product", (req, res) => {
-
   res.json({
     engine: "ZEUS",
     endpoint: "/optimize/product",
     method: "POST",
     status: "active"
   });
-
 });
 
 /*
@@ -194,43 +206,43 @@ app.get("/optimize/product", (req, res) => {
 IMPORT PIPELINE
 ====================================================
 */
-
 app.post("/import/product", async (req, res) => {
-
   try {
-
     const payload = req.body;
 
     if (!payload) {
-
       return res.status(400).json({
         error: "Product payload required"
       });
-
     }
 
     const job = createJob({
       type: "import",
-      payload: payload
+      payload
     });
 
-    const result = await importPipeline(payload, job.id);
+    const source = payload.source || "external";
+
+    const result = await importPipeline(
+      payload,
+      job.id,
+      source,
+      {
+        headers: req.headers
+      }
+    );
 
     productRegistry.saveProduct(job.id, result);
 
     res.json(result);
-
   } catch (error) {
-
     console.error("IMPORT PIPELINE ERROR:", error);
 
     res.status(500).json({
       status: "error",
       message: error.message
     });
-
   }
-
 });
 
 /*
@@ -238,11 +250,8 @@ app.post("/import/product", async (req, res) => {
 USADROP IMPORT TRIGGER
 ====================================================
 */
-
 app.post("/import/usadrop", async (req, res) => {
-
   try {
-
     console.log("ZEUS USADROP IMPORT START");
 
     const result = await importUsadropProducts();
@@ -254,18 +263,14 @@ app.post("/import/usadrop", async (req, res) => {
       imported: result.imported || 0,
       failed: result.failed || 0
     });
-
   } catch (error) {
-
     console.error("USADROP IMPORT ERROR:", error);
 
     res.status(500).json({
       status: "error",
       message: error.message
     });
-
   }
-
 });
 
 /*
@@ -277,11 +282,8 @@ SHOPIFY WEBHOOKS
 /*
 PRODUCT CREATED
 */
-
 app.post("/webhooks/products-create", async (req, res) => {
-
   try {
-
     if (!verifyShopifyWebhook(req)) {
       return res.status(401).send("Invalid webhook signature");
     }
@@ -304,19 +306,13 @@ app.post("/webhooks/products-create", async (req, res) => {
     /*
     LOOP PROTECTION
     */
-
     if (product.id) {
-
       const zeusUpdate = await isZeusUpdate(store, product.id);
 
       if (zeusUpdate) {
-
         console.log("ZEUS LOOP PROTECTION: ignoring webhook");
-
         return res.status(200).send("Ignored ZEUS update");
-
       }
-
     }
 
     const result = transformProduct({
@@ -329,16 +325,30 @@ app.post("/webhooks/products-create", async (req, res) => {
       payload: product
     });
 
-    productRegistry.saveProduct(job.id, result);
+    productRegistry.saveProduct(job.id, {
+      status: "processed",
+      origin: "shopify_webhook_create",
+      category: result.category,
+      confidence: result.categoryConfidence,
+      product: {
+        engine: result.engine,
+        originalTitle: result.originalTitle,
+        optimizedTitle: result.optimizedTitle,
+        suggestedTags: result.suggestedTags,
+        suggestedCategory: result.suggestedCategory,
+        categoryConfidence: result.categoryConfidence,
+        title: result.title,
+        description: result.description,
+        tags: result.tags,
+        category: result.category
+      }
+    });
 
     /*
     SYNC ENGINE
     */
-
     if (product.id) {
-
       try {
-
         await updateShopifyProduct(
           store,
           product.id,
@@ -353,35 +363,23 @@ app.post("/webhooks/products-create", async (req, res) => {
         await markZeusUpdate(store, product.id);
 
         console.log("ZEUS SYNC ENGINE UPDATED PRODUCT:", product.id);
-
       } catch (error) {
-
         console.error("ZEUS SYNC ENGINE ERROR:", error.message);
-
       }
-
     }
 
     res.status(200).send("Webhook processed");
-
   } catch (error) {
-
     console.error("WEBHOOK CREATE ERROR:", error);
-
     res.status(500).send("Webhook error");
-
   }
-
 });
 
 /*
 PRODUCT UPDATED
 */
-
 app.post("/webhooks/products-update", async (req, res) => {
-
   try {
-
     if (!verifyShopifyWebhook(req)) {
       return res.status(401).send("Invalid webhook signature");
     }
@@ -402,17 +400,12 @@ app.post("/webhooks/products-update", async (req, res) => {
     };
 
     if (product.id) {
-
       const zeusUpdate = await isZeusUpdate(store, product.id);
 
       if (zeusUpdate) {
-
         console.log("ZEUS LOOP PROTECTION: ignoring webhook");
-
         return res.status(200).send("Ignored ZEUS update");
-
       }
-
     }
 
     const result = transformProduct({
@@ -425,12 +418,27 @@ app.post("/webhooks/products-update", async (req, res) => {
       payload: product
     });
 
-    productRegistry.saveProduct(job.id, result);
+    productRegistry.saveProduct(job.id, {
+      status: "processed",
+      origin: "shopify_webhook_update",
+      category: result.category,
+      confidence: result.categoryConfidence,
+      product: {
+        engine: result.engine,
+        originalTitle: result.originalTitle,
+        optimizedTitle: result.optimizedTitle,
+        suggestedTags: result.suggestedTags,
+        suggestedCategory: result.suggestedCategory,
+        categoryConfidence: result.categoryConfidence,
+        title: result.title,
+        description: result.description,
+        tags: result.tags,
+        category: result.category
+      }
+    });
 
     if (product.id) {
-
       try {
-
         await updateShopifyProduct(
           store,
           product.id,
@@ -445,35 +453,23 @@ app.post("/webhooks/products-update", async (req, res) => {
         await markZeusUpdate(store, product.id);
 
         console.log("ZEUS SYNC ENGINE UPDATED PRODUCT:", product.id);
-
       } catch (error) {
-
         console.error("ZEUS SYNC ENGINE ERROR:", error.message);
-
       }
-
     }
 
     res.status(200).send("Webhook processed");
-
   } catch (error) {
-
     console.error("WEBHOOK UPDATE ERROR:", error);
-
     res.status(500).send("Webhook error");
-
   }
-
 });
 
 /*
 INVENTORY UPDATED
 */
-
 app.post("/webhooks/inventory-update", async (req, res) => {
-
   try {
-
     if (!verifyShopifyWebhook(req)) {
       return res.status(401).send("Invalid webhook signature");
     }
@@ -484,21 +480,20 @@ app.post("/webhooks/inventory-update", async (req, res) => {
 
     const job = createJob({
       type: "shopify-inventory-update",
-      payload: payload
+      payload
     });
 
-    productRegistry.saveProduct(job.id, payload);
+    productRegistry.saveProduct(job.id, {
+      status: "processed",
+      origin: "shopify_inventory_update",
+      product: payload
+    });
 
     res.status(200).send("Inventory webhook processed");
-
   } catch (error) {
-
     console.error("WEBHOOK INVENTORY ERROR:", error);
-
     res.status(500).send("Webhook error");
-
   }
-
 });
 
 /*
@@ -506,9 +501,7 @@ app.post("/webhooks/inventory-update", async (req, res) => {
 CONSULTAR JOB
 ====================================================
 */
-
 app.get("/jobs/:id", (req, res) => {
-
   const job = productRegistry.getProduct(req.params.id);
 
   if (!job) {
@@ -518,7 +511,6 @@ app.get("/jobs/:id", (req, res) => {
   }
 
   res.json(job);
-
 });
 
 /*
@@ -526,19 +518,13 @@ app.get("/jobs/:id", (req, res) => {
 LISTAR JOBS
 ====================================================
 */
-
 app.get("/jobs", (req, res) => {
-
   const jobs = productRegistry.getAllProducts();
-
   res.json(jobs);
-
 });
 
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () => {
-
   console.log("ZEUS CORE ENGINE RUNNING ON", PORT);
-
 });
