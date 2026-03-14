@@ -1,130 +1,79 @@
-/**
- * ZEUS Category Brain
- * Core classification engine
- * Governs product taxonomy decisions
- */
+const zeusTaxonomy = require("../data/zeusTaxonomy");
 
-const CATEGORY_RULES = [
-  {
-    category: "pet_supplies",
-    keywords: [
-      "dog",
-      "cat",
-      "pet",
-      "collar",
-      "leash",
-      "pet collar",
-      "dog toy",
-      "pet toy",
-      "pet training"
-    ]
-  },
-  {
-    category: "electronics",
-    keywords: [
-      "earbuds",
-      "headphones",
-      "bluetooth",
-      "charger",
-      "usb",
-      "power bank",
-      "speaker"
-    ]
-  },
-  {
-    category: "home_kitchen",
-    keywords: [
-      "kitchen",
-      "knife",
-      "pan",
-      "cook",
-      "storage",
-      "organizer"
-    ]
-  },
-  {
-    category: "beauty",
-    keywords: [
-      "skin",
-      "beauty",
-      "cosmetic",
-      "face",
-      "serum",
-      "cream",
-      "makeup"
-    ]
-  }
-];
-
-const CONFIDENCE_HIGH = 0.85;
-const CONFIDENCE_MEDIUM = 0.60;
-
-/**
- * Normalize text
- */
-function normalizeText(text) {
-  if (!text) return "";
+function normalize(text) {
   return text.toLowerCase();
 }
 
-/**
- * Score category match
- */
-function scoreCategory(text, rule) {
-  let matches = [];
+function scoreCategory(title, keywords) {
 
-  for (const keyword of rule.keywords) {
-    if (text.includes(keyword)) {
-      matches.push(keyword);
+  let score = 0;
+
+  for (const word of keywords) {
+
+    if (title.includes(word)) {
+      score += 1;
     }
+
   }
 
-  const score = matches.length / rule.keywords.length;
+  return score;
 
-  return {
-    score,
-    matches
-  };
 }
 
-/**
- * Suggest category
- */
-function suggestCategory(product) {
-  const title = normalizeText(product.title || "");
-  const description = normalizeText(product.description || "");
-  const tags = normalizeText((product.tags || []).join(" "));
+function suggestCategory(title, clientCategories = []) {
 
-  const fullText = `${title} ${description} ${tags}`;
+  const normalized = normalize(title);
 
-  let bestCategory = null;
+  let bestCategory = "general";
   let bestScore = 0;
-  let bestMatches = [];
 
-  for (const rule of CATEGORY_RULES) {
-    const result = scoreCategory(fullText, rule);
+  for (const [category, data] of Object.entries(zeusTaxonomy)) {
 
-    if (result.score > bestScore) {
-      bestScore = result.score;
-      bestCategory = rule.category;
-      bestMatches = result.matches;
+    const score = scoreCategory(normalized, data.keywords);
+
+    if (score > bestScore) {
+
+      bestScore = score;
+      bestCategory = category;
+
     }
+
   }
 
-  let decision = "MANUAL_REVIEW";
+  let confidence = 0;
 
-  if (bestScore >= CONFIDENCE_HIGH) {
-    decision = "AUTO_ASSIGN";
-  } else if (bestScore >= CONFIDENCE_MEDIUM) {
-    decision = "SUGGEST_REVIEW";
+  if (bestScore > 0) {
+    confidence = Math.min(0.5 + bestScore * 0.1, 0.95);
+  }
+
+  let mappedToClient = false;
+
+  if (clientCategories.length > 0) {
+
+    for (const clientCat of clientCategories) {
+
+      if (
+        clientCat.toLowerCase().includes(bestCategory)
+      ) {
+
+        bestCategory = clientCat;
+        mappedToClient = true;
+
+        break;
+
+      }
+
+    }
+
   }
 
   return {
-    category: bestCategory || "general",
-    confidence: Number(bestScore.toFixed(2)),
-    matchedTerms: bestMatches,
-    decision
+    category: bestCategory,
+    confidence: confidence,
+    source: mappedToClient ? "client_tree" : "zeus_taxonomy",
+    mappedToClient
   };
+
 }
 
 module.exports = {
