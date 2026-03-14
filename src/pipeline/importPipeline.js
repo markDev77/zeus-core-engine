@@ -13,7 +13,7 @@ async function runImportPipeline(input) {
   /*
   Category Brain
   */
-  const classification = await categoryBrain.classifyProduct({
+  const classification = await categoryBrain.suggestCategory({
     title: transformed.title,
     description: transformed.description,
     tags: transformed.tags
