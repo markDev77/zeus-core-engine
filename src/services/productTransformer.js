@@ -1,75 +1,78 @@
-/**
- * ZEUS Product Transformer
- * Responsible for optimization pipeline
- */
+const { detectLanguage } = require("./languageDetector");
+const { translateText } = require("./translationEngine");
 
-const { suggestCategory } = require("./categoryBrain");
+/*
+========================================
+ZEUS PRODUCT TRANSFORMER
+========================================
+Transforma producto antes del Category Brain.
+Ahora soporta:
+- detección de idioma
+- traducción regional
+========================================
+*/
 
-/**
- * Normalize title
- */
-function normalizeTitle(title) {
-  if (!title) return "Untitled Product";
-
+function cleanTitle(title = "") {
   return title
-    .replace(/^\d+\s*(piece|pcs|pc|set)/i, "")
+    .replace(/^\d+\s*(piece|pcs|set)/i, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
-/**
- * Extract tags
- */
-function generateTags(title) {
-  if (!title) return [];
-
+function generateTags(title = "") {
   const words = title
     .toLowerCase()
     .split(" ")
     .filter(w => w.length > 3);
 
-  return [...new Set(words)].slice(0, 6);
+  return [...new Set(words)].slice(0, 5);
 }
 
-/**
- * Main transformer
- */
-function transformProduct(inputProduct) {
-  const originalTitle = inputProduct.title || "";
+function transformProduct(input = {}) {
+  const originalTitle = input.title || "";
+  const description = input.description || "";
 
-  const optimizedTitle = normalizeTitle(originalTitle);
+  const storeProfile = input.storeProfile || {
+    language: "en-US"
+  };
 
-  const suggestedTags = generateTags(optimizedTitle);
+  const targetLanguage = storeProfile.language || "en-US";
 
-  const categoryResult = suggestCategory({
-    title: optimizedTitle,
-    description: inputProduct.description || "",
-    tags: suggestedTags
-  });
+  const cleanedTitle = cleanTitle(originalTitle);
+
+  /*
+  LANGUAGE DETECTION
+  */
+  const detectedLanguage = detectLanguage(cleanedTitle + " " + description);
+
+  /*
+  TRANSLATION
+  */
+  const translatedTitle = translateText(
+    cleanedTitle,
+    detectedLanguage,
+    targetLanguage
+  );
+
+  const translatedDescription = translateText(
+    description,
+    detectedLanguage,
+    targetLanguage
+  );
+
+  const tags = generateTags(translatedTitle);
 
   return {
     engine: "ZEUS",
-
-    originalTitle,
-
-    optimizedTitle,
-
-    suggestedTags,
-
-    suggestedCategory: categoryResult.category,
-
-    categoryConfidence: categoryResult.confidence,
-
-    categoryDecision: categoryResult.decision,
-
-    matchedTerms: categoryResult.matchedTerms,
-
-    title: optimizedTitle,
-
-    description: inputProduct.description || "",
-
-    tags: suggestedTags,
-
-    category: categoryResult.category
+    originalTitle: originalTitle,
+    optimizedTitle: translatedTitle,
+    suggestedTags: tags,
+    suggestedCategory: "general",
+    categoryConfidence: 0,
+    title: translatedTitle,
+    description: translatedDescription,
+    tags: tags,
+    category: "general"
   };
 }
 
