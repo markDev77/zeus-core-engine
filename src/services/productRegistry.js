@@ -16,6 +16,15 @@ function saveProduct(jobId, result = {}) {
       result.category ||
       (result.product && result.product.category) ||
       null,
+    baseCategory:
+      result.baseCategory ||
+      (result.product && result.product.baseCategory) ||
+      result.category ||
+      null,
+    regionalCategory:
+      result.regionalCategory ||
+      (result.product && result.product.regionalCategory) ||
+      null,
     confidence:
       result.confidence ||
       (result.product && result.product.categoryConfidence) ||
@@ -25,6 +34,9 @@ function saveProduct(jobId, result = {}) {
       optimizedTitle: result.optimizedTitle || null,
       suggestedTags: result.suggestedTags || [],
       suggestedCategory: result.suggestedCategory || null,
+      suggestedRegionalCategory: result.suggestedRegionalCategory || null,
+      baseCategory: result.baseCategory || null,
+      regionalCategory: result.regionalCategory || null,
       categoryConfidence: result.categoryConfidence || null,
       title: result.title || null,
       description: result.description || null,
