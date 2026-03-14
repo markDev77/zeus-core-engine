@@ -241,6 +241,24 @@ app.post("/optimize/product", (req, res) => {
     storeProfileResolution: storeContext.resolution,
     baseCategory: result.category,
     regionalCategory: categoryMapping.regionalCategory,
-    result: {
-      ...result,
-      baseCategory: r
+    result: result
+  };
+
+  res.json(response);
+
+});
+
+/*
+====================================================
+SERVER
+====================================================
+*/
+
+const PORT = process.env.PORT || 10000;
+
+app.listen(PORT, () => {
+
+  console.log("ZEUS CORE ENGINE running");
+  console.log("PORT:", PORT);
+
+});
