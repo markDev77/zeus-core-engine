@@ -9,6 +9,7 @@ const {
 } = require("../auth/shopifyOAuth");
 
 const { registerStore } = require("../services/storeRegistry");
+const { getRegionProfile } = require("../data/regionProfiles");
 
 /*
 SHOPIFY WEBHOOK REGISTRAR
@@ -23,16 +24,30 @@ Luego se puede mover a Redis o DB
 */
 const pendingStates = new Map();
 
+function normalizePlatformCountry(rawCountry) {
+  if (!rawCountry || typeof rawCountry !== "string") {
+    return "US";
+  }
+
+  return rawCountry.trim().toUpperCase();
+}
+
 /*
 ----------------------------------------
 INSTALL ROUTE
 ----------------------------------------
 GET /install?shop=store.myshopify.com
+----------------------------------------
+Opcionales:
+country=MX
+language=es-MX
+currency=MXN
+marketplace=shopify
+clientId=enterprise_x
+storeId=mi_store
 */
 router.get("/install", (req, res) => {
-
   try {
-
     const shop = normalizeShopDomain(req.query.shop);
 
     if (!shop) {
@@ -41,22 +56,26 @@ router.get("/install", (req, res) => {
 
     const state = generateState();
 
-    pendingStates.set(shop, state);
+    pendingStates.set(shop, {
+      state,
+      profileSeed: {
+        country: normalizePlatformCountry(req.query.country || "US"),
+        language: req.query.language || null,
+        currency: req.query.currency || null,
+        marketplace: req.query.marketplace || "shopify",
+        clientId: req.query.clientId || null,
+        storeId: req.query.storeId || null
+      }
+    });
 
     const installUrl = generateInstallUrl(shop, state);
 
     return res.redirect(installUrl);
-
   } catch (error) {
-
     console.error("INSTALL ERROR:", error);
-
     return res.status(500).send("INSTALL ERROR");
-
   }
-
 });
-
 
 /*
 ----------------------------------------
@@ -65,9 +84,7 @@ SHOPIFY OAUTH CALLBACK
 GET /auth/callback
 */
 router.get("/auth/callback", async (req, res) => {
-
   try {
-
     const { shop, code, state } = req.query;
 
     const safeShop = normalizeShopDomain(shop);
@@ -79,7 +96,6 @@ router.get("/auth/callback", async (req, res) => {
     /*
     Validate HMAC
     */
-
     const validHmac = verifyHmac(req.query);
 
     if (!validHmac) {
@@ -89,31 +105,47 @@ router.get("/auth/callback", async (req, res) => {
     /*
     Validate state
     */
+    const pendingState = pendingStates.get(safeShop);
 
-    const expectedState = pendingStates.get(safeShop);
-
-    if (!expectedState || expectedState !== state) {
+    if (!pendingState || pendingState.state !== state) {
       return res.status(400).send("Invalid OAuth state");
     }
 
     /*
     Exchange code for access token
     */
-
     const tokenData = await exchangeToken(safeShop, code);
-
     const accessToken = tokenData.access_token;
+
+    const regionProfile = getRegionProfile(
+      pendingState.profileSeed.country || "US"
+    );
 
     /*
     Register store inside ZEUS
     */
-
-    registerStore(safeShop, accessToken);
+    const store = registerStore(safeShop, accessToken, {
+      storeId: pendingState.profileSeed.storeId || safeShop,
+      clientId: pendingState.profileSeed.clientId || null,
+      platform: "shopify",
+      storeDomain: safeShop,
+      country: regionProfile.country,
+      language: pendingState.profileSeed.language || regionProfile.language,
+      currency: pendingState.profileSeed.currency || regionProfile.currency,
+      marketplace: pendingState.profileSeed.marketplace || regionProfile.marketplace,
+      catalogOrigin: regionProfile.catalogOrigin,
+      translationMode: regionProfile.translationMode,
+      marketSignalMode: regionProfile.marketSignalMode,
+      seoLocale: regionProfile.seoLocale,
+      titleStyle: regionProfile.titleStyle,
+      descriptionStyle: regionProfile.descriptionStyle,
+      tagStyle: regionProfile.tagStyle,
+      categoryLocale: regionProfile.categoryLocale
+    });
 
     /*
     REGISTER SHOPIFY WEBHOOKS AUTOMATICALLY
     */
-
     await registerWebhooks(safeShop, accessToken);
 
     pendingStates.delete(safeShop);
@@ -123,16 +155,15 @@ router.get("/auth/callback", async (req, res) => {
     return res.send(`
       <h2>ZEUS installed successfully</h2>
       <p>Store: ${safeShop}</p>
+      <p>Store ID: ${store.storeId}</p>
+      <p>Country: ${store.profile.country}</p>
+      <p>Language: ${store.profile.language}</p>
+      <p>Currency: ${store.profile.currency}</p>
     `);
-
   } catch (error) {
-
     console.error("OAUTH ERROR:", error);
-
     return res.status(500).send(`OAuth Error: ${error.message}`);
-
   }
-
 });
 
 module.exports = router;
