@@ -2,9 +2,9 @@ const { transformProduct } = require("../services/productTransformer");
 const { suggestCategory } = require("../services/categoryBrain");
 const { createJob } = require("../services/jobManager");
 const productRegistry = require("../services/productRegistry");
+const { resolveStoreProfile } = require("../services/storeProfileResolver");
 
-async function importPipeline(productInput, jobId = null, source = "external") {
-
+async function importPipeline(productInput, jobId = null, source = "external", context = {}) {
   if (!jobId) {
     const job = createJob({
       source,
@@ -16,8 +16,16 @@ async function importPipeline(productInput, jobId = null, source = "external") {
   }
 
   try {
+    const storeContext = resolveStoreProfile({
+      payload: productInput,
+      headers: context.headers || {}
+    });
 
-    const transformed = transformProduct(productInput);
+    const transformed = transformProduct({
+      ...productInput,
+      storeProfile: storeContext.profile,
+      storeContext: storeContext.store
+    });
 
     const categoryResult = suggestCategory({
       title: transformed.optimizedTitle || transformed.title || productInput.title || "",
@@ -31,19 +39,15 @@ async function importPipeline(productInput, jobId = null, source = "external") {
       finalCategory = categoryResult.category;
     }
 
-    const registryResult = productRegistry.saveProduct(jobId, {
-      source,
-      title: transformed.title,
-      category: finalCategory,
-      timestamp: Date.now()
-    });
-
-    return {
+    const response = {
       jobId,
       status: "processed",
       origin: source,
       category: finalCategory,
       confidence: categoryResult.confidence,
+      store: storeContext.store,
+      storeProfile: storeContext.profile,
+      storeProfileResolution: storeContext.resolution,
       product: {
         engine: "ZEUS",
         originalTitle: transformed.originalTitle,
@@ -55,20 +59,22 @@ async function importPipeline(productInput, jobId = null, source = "external") {
         description: transformed.description,
         tags: transformed.tags,
         category: finalCategory
-      },
-      registry: registryResult
+      }
     };
 
-  } catch (error) {
+    const registryResult = productRegistry.saveProduct(jobId, response);
 
+    return {
+      ...response,
+      registry: registryResult
+    };
+  } catch (error) {
     return {
       jobId,
       status: "failed",
       error: error.message
     };
-
   }
-
 }
 
 module.exports = importPipeline;
