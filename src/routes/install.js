@@ -10,6 +10,11 @@ const {
 
 const { registerStore } = require("../services/storeRegistry");
 
+/*
+SHOPIFY WEBHOOK REGISTRAR
+*/
+const { registerWebhooks } = require("../services/shopifyWebhookRegistrar");
+
 const router = express.Router();
 
 /*
@@ -104,6 +109,12 @@ router.get("/auth/callback", async (req, res) => {
     */
 
     registerStore(safeShop, accessToken);
+
+    /*
+    REGISTER SHOPIFY WEBHOOKS AUTOMATICALLY
+    */
+
+    await registerWebhooks(safeShop, accessToken);
 
     pendingStates.delete(safeShop);
 
