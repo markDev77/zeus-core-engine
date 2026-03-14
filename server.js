@@ -30,15 +30,14 @@ app.use(express.json());
 
 /*
 ====================================================
-SHOPIFY INSTALL ROUTE
+SHOPIFY INSTALL ROUTES
 ====================================================
 */
-app.use("/install", installRoutes);
+app.use("/", installRoutes);
 
 /*
 ====================================================
 STATUS CHECK
-Health check para infraestructura
 ====================================================
 */
 app.get("/status", (req, res) => {
@@ -51,7 +50,6 @@ app.get("/status", (req, res) => {
 
 /*
 ROOT CHECK
-Verifica que ZEUS esté activo
 */
 app.get("/", (req, res) => {
   res.json({
@@ -62,7 +60,7 @@ app.get("/", (req, res) => {
 
 /*
 ====================================================
-ZEUS PRODUCT OPTIMIZATION ENDPOINT
+ZEUS PRODUCT OPTIMIZATION
 ====================================================
 */
 app.post("/optimize/product", (req, res) => {
@@ -108,9 +106,6 @@ app.post("/optimize/product", (req, res) => {
 
 });
 
-/*
-GET endpoint solo para verificación
-*/
 app.get("/optimize/product", (req, res) => {
   res.json({
     engine: "ZEUS",
@@ -199,7 +194,7 @@ app.post("/import/usadrop", async (req, res) => {
 
 /*
 ====================================================
-CONSULTAR JOB POR ID
+CONSULTAR JOB
 ====================================================
 */
 app.get("/jobs/:id", (req, res) => {
@@ -218,7 +213,7 @@ app.get("/jobs/:id", (req, res) => {
 
 /*
 ====================================================
-LISTAR TODOS LOS JOBS
+LISTAR JOBS
 ====================================================
 */
 app.get("/jobs", (req, res) => {
