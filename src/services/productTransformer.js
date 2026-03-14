@@ -3,6 +3,7 @@ const { translateText } = require("./translationEngine");
 const { optimizeRegionalTitle } = require("./regionalTitleOptimizer");
 const { optimizeRegionalDescription } = require("./regionalDescriptionOptimizer");
 const { generateRegionalTags } = require("./regionalTagGenerator");
+const { mapRegionalCategory } = require("./regionalCategoryMapper");
 
 /*
 ========================================
@@ -15,6 +16,7 @@ Ahora soporta:
 - regional title optimizer
 - regional description optimizer
 - regional tag generator
+- regional category mapper base
 ========================================
 */
 
@@ -33,6 +35,42 @@ function generateBaseTags(title = "") {
     .filter(word => word.length > 3);
 
   return [...new Set(words)].slice(0, 5);
+}
+
+function inferBaseCategory(translatedTitle = "", translatedDescription = "") {
+  const categorySource = `${translatedTitle} ${translatedDescription}`.toLowerCase();
+
+  if (
+    categorySource.includes("perro") ||
+    categorySource.includes("gato") ||
+    categorySource.includes("dog") ||
+    categorySource.includes("cat") ||
+    categorySource.includes("mascota") ||
+    categorySource.includes("pet")
+  ) {
+    return "pet_supplies";
+  }
+
+  if (
+    categorySource.includes("kitchen") ||
+    categorySource.includes("cocina") ||
+    categorySource.includes("home") ||
+    categorySource.includes("hogar")
+  ) {
+    return "home_kitchen";
+  }
+
+  if (
+    categorySource.includes("wireless") ||
+    categorySource.includes("bluetooth") ||
+    categorySource.includes("electronic") ||
+    categorySource.includes("electrónico") ||
+    categorySource.includes("electrónica")
+  ) {
+    return "electronics";
+  }
+
+  return "general";
 }
 
 function transformProduct(input = {}) {
@@ -73,19 +111,10 @@ function transformProduct(input = {}) {
   /*
   BASE CATEGORY HINT
   */
-  let categoryHint = "general";
-  const categorySource = `${translatedTitle} ${translatedDescription}`.toLowerCase();
-
-  if (
-    categorySource.includes("perro") ||
-    categorySource.includes("gato") ||
-    categorySource.includes("dog") ||
-    categorySource.includes("cat") ||
-    categorySource.includes("mascota") ||
-    categorySource.includes("pet")
-  ) {
-    categoryHint = "pet_supplies";
-  }
+  const baseCategory = inferBaseCategory(
+    translatedTitle,
+    translatedDescription
+  );
 
   /*
   REGIONAL OPTIMIZATION
@@ -94,14 +123,14 @@ function transformProduct(input = {}) {
     translatedTitle,
     translatedDescription,
     storeProfile,
-    category: categoryHint
+    category: baseCategory
   });
 
   const optimizedDescription = optimizeRegionalDescription({
     optimizedTitle,
     translatedDescription,
     storeProfile,
-    category: categoryHint
+    category: baseCategory
   });
 
   const baseTags = generateBaseTags(optimizedTitle);
@@ -110,8 +139,13 @@ function transformProduct(input = {}) {
     optimizedTitle,
     optimizedDescription,
     storeProfile,
-    category: categoryHint,
+    category: baseCategory,
     existingTags: baseTags
+  });
+
+  const categoryMapping = mapRegionalCategory({
+    baseCategory,
+    storeProfile
   });
 
   return {
@@ -123,12 +157,14 @@ function transformProduct(input = {}) {
     translatedDescription,
     optimizedTitle,
     suggestedTags: optimizedTags,
-    suggestedCategory: categoryHint,
+    suggestedCategory: baseCategory,
+    regionalCategory: categoryMapping.regionalCategory,
+    baseCategory: categoryMapping.baseCategory,
     categoryConfidence: 0,
     title: optimizedTitle,
     description: optimizedDescription,
     tags: optimizedTags,
-    category: categoryHint
+    category: baseCategory
   };
 }
 
