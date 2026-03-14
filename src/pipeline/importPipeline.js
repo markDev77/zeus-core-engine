@@ -3,6 +3,7 @@ const { suggestCategory } = require("../services/categoryBrain");
 const { createJob } = require("../services/jobManager");
 const productRegistry = require("../services/productRegistry");
 const { resolveStoreProfile } = require("../services/storeProfileResolver");
+const { mapRegionalCategory } = require("../services/regionalCategoryMapper");
 
 async function importPipeline(productInput, jobId = null, source = "external", context = {}) {
   if (!jobId) {
@@ -39,11 +40,18 @@ async function importPipeline(productInput, jobId = null, source = "external", c
       finalCategory = categoryResult.category;
     }
 
+    const regionalCategoryMapping = mapRegionalCategory({
+      baseCategory: finalCategory,
+      storeProfile: storeContext.profile
+    });
+
     const response = {
       jobId,
       status: "processed",
       origin: source,
       category: finalCategory,
+      baseCategory: finalCategory,
+      regionalCategory: regionalCategoryMapping.regionalCategory,
       confidence: categoryResult.confidence,
       store: storeContext.store,
       storeProfile: storeContext.profile,
@@ -54,6 +62,9 @@ async function importPipeline(productInput, jobId = null, source = "external", c
         optimizedTitle: transformed.optimizedTitle,
         suggestedTags: transformed.suggestedTags,
         suggestedCategory: categoryResult.category,
+        suggestedRegionalCategory: regionalCategoryMapping.regionalCategory,
+        baseCategory: finalCategory,
+        regionalCategory: regionalCategoryMapping.regionalCategory,
         categoryConfidence: categoryResult.confidence,
         title: transformed.title,
         description: transformed.description,
