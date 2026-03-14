@@ -6,7 +6,7 @@
 
 const { transformProduct } = require("../services/productTransformer");
 const { suggestCategory } = require("../services/categoryBrain");
-const jobManager = require("../services/jobManager");
+const { createJob, updateJob } = require("../services/jobManager");
 const productRegistry = require("../services/productRegistry");
 
 async function importPipeline(productInput, jobId = null, source = "external") {
@@ -19,7 +19,7 @@ async function importPipeline(productInput, jobId = null, source = "external") {
 
   if (!jobId) {
 
-    const job = jobManager.createJob({
+    const job = createJob({
       source,
       status: "processing",
       timestamp: Date.now()
@@ -63,9 +63,7 @@ async function importPipeline(productInput, jobId = null, source = "external") {
     let finalCategory = transformed.category;
 
     if (!transformed.category || transformed.category === "general") {
-
       finalCategory = categoryResult.category;
-
     }
 
     /*
@@ -89,7 +87,7 @@ async function importPipeline(productInput, jobId = null, source = "external") {
     ====================================================
     */
 
-    jobManager.updateJob(jobId, {
+    updateJob(jobId, {
       status: "processed",
       completedAt: Date.now()
     });
@@ -138,7 +136,7 @@ async function importPipeline(productInput, jobId = null, source = "external") {
 
     if (jobId) {
 
-      jobManager.updateJob(jobId, {
+      updateJob(jobId, {
         status: "failed",
         error: error.message
       });
