@@ -1,19 +1,24 @@
 const crypto = require("crypto");
 const fetch = require("node-fetch");
 
-const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID;
-const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET;
-const SHOPIFY_REDIRECT_URI = process.env.SHOPIFY_REDIRECT_URI;
+/*
+====================================================
+SHOPIFY ENV VARIABLES
+====================================================
+*/
+
+const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_API_KEY;
+const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_API_SECRET;
+const SHOPIFY_REDIRECT_URI = `${process.env.SHOPIFY_APP_URL}/auth/callback`;
 
 const SHOPIFY_SCOPES =
   process.env.SHOPIFY_SCOPES ||
   "read_products,write_products,read_inventory,write_inventory";
 
-
 /*
-----------------------------------------
+====================================================
 NORMALIZE SHOP DOMAIN
-----------------------------------------
+====================================================
 */
 
 function normalizeShopDomain(shop) {
@@ -32,11 +37,10 @@ function normalizeShopDomain(shop) {
 
 }
 
-
 /*
-----------------------------------------
+====================================================
 GENERATE STATE
-----------------------------------------
+====================================================
 */
 
 function generateState() {
@@ -45,11 +49,10 @@ function generateState() {
 
 }
 
-
 /*
-----------------------------------------
+====================================================
 GENERATE INSTALL URL
-----------------------------------------
+====================================================
 */
 
 function generateInstallUrl(shop, state) {
@@ -67,63 +70,51 @@ function generateInstallUrl(shop, state) {
 
 }
 
-
 /*
-----------------------------------------
+====================================================
 TOKEN EXCHANGE
-----------------------------------------
+====================================================
 */
 
 async function exchangeToken(shop, code) {
 
   const response = await fetch(
-
     `https://${shop}/admin/oauth/access_token`,
-
     {
       method: "POST",
-
       headers: {
         "Content-Type": "application/json"
       },
-
       body: JSON.stringify({
         client_id: SHOPIFY_CLIENT_ID,
         client_secret: SHOPIFY_CLIENT_SECRET,
         code
       })
-
     }
-
   );
 
   const data = await response.json();
 
   if (!response.ok) {
-
     throw new Error(
       data.error_description ||
       data.error ||
       "Shopify token exchange failed"
     );
-
   }
 
   if (!data.access_token) {
-
     throw new Error("Shopify did not return access_token");
-
   }
 
   return data;
 
 }
 
-
 /*
-----------------------------------------
+====================================================
 VERIFY HMAC
-----------------------------------------
+====================================================
 */
 
 function verifyHmac(query) {
@@ -145,12 +136,10 @@ function verifyHmac(query) {
     })
     .join("&");
 
-
   const generatedHash = crypto
     .createHmac("sha256", SHOPIFY_CLIENT_SECRET)
     .update(message)
     .digest("hex");
-
 
   return crypto.timingSafeEqual(
     Buffer.from(generatedHash),
@@ -159,6 +148,11 @@ function verifyHmac(query) {
 
 }
 
+/*
+====================================================
+EXPORTS
+====================================================
+*/
 
 module.exports = {
 
