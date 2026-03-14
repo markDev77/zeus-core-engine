@@ -41,19 +41,42 @@ const stripeWebhook = require("./src/routes/stripeWebhook");
 const app = express();
 
 /*
-IMPORTANT
-Stripe webhook requires raw body
+====================================================
+BODY PARSERS
+====================================================
 */
-app.use("/stripe/webhook", express.raw({ type: "application/json" }));
 
+/*
+Shopify OAuth and API routes need JSON parser first
+*/
 app.use(express.json());
+
+/*
+====================================================
+SHOPIFY INSTALL ROUTES (OAUTH)
+====================================================
+*/
+
+app.use("/", installRoutes);
+
+/*
+====================================================
+STRIPE WEBHOOK
+====================================================
+Stripe requires raw body, so it must be AFTER oauth routes
+*/
+
+app.use("/stripe/webhook", express.raw({ type: "application/json" }));
+app.use("/", stripeWebhook);
 
 /*
 ====================================================
 SHOPIFY WEBHOOK HMAC VERIFICATION
 ====================================================
 */
+
 function verifyShopifyWebhook(req) {
+
   const hmacHeader = req.headers["x-shopify-hmac-sha256"];
 
   if (!hmacHeader) {
@@ -73,40 +96,32 @@ function verifyShopifyWebhook(req) {
   } catch {
     return false;
   }
+
 }
-
-/*
-====================================================
-STRIPE WEBHOOK ROUTE
-====================================================
-*/
-app.use("/", stripeWebhook);
-
-/*
-====================================================
-SHOPIFY INSTALL ROUTES
-====================================================
-*/
-app.use("/", installRoutes);
 
 /*
 ====================================================
 STATUS CHECK
 ====================================================
 */
+
 app.get("/status", (req, res) => {
+
   res.json({
     system: "ZEUS CORE ENGINE",
     service: "core-engine",
     status: "running"
   });
+
 });
 
 app.get("/", (req, res) => {
+
   res.json({
     system: "ZEUS CORE ENGINE",
     status: "running"
   });
+
 });
 
 /*
@@ -114,14 +129,17 @@ app.get("/", (req, res) => {
 ZEUS PRODUCT OPTIMIZATION
 ====================================================
 */
+
 app.post("/optimize/product", (req, res) => {
 
   const { title, description } = req.body;
 
   if (!title) {
+
     return res.status(400).json({
       error: "Product title required"
     });
+
   }
 
   const user = {
@@ -132,9 +150,11 @@ app.post("/optimize/product", (req, res) => {
   const limitCheck = checkSkuLimit(user);
 
   if (!limitCheck.allowed) {
+
     return res.status(403).json({
       error: "SKU limit reached"
     });
+
   }
 
   const storeContext = resolveStoreProfile({
@@ -187,6 +207,7 @@ app.post("/optimize/product", (req, res) => {
 IMPORT PIPELINE
 ====================================================
 */
+
 app.post("/import/product", async (req, res) => {
 
   try {
@@ -194,9 +215,11 @@ app.post("/import/product", async (req, res) => {
     const payload = req.body;
 
     if (!payload) {
+
       return res.status(400).json({
         error: "Product payload required"
       });
+
     }
 
     const job = createJob({
@@ -228,6 +251,7 @@ app.post("/import/product", async (req, res) => {
 USADROP IMPORT TRIGGER
 ====================================================
 */
+
 app.post("/import/usadrop", async (req, res) => {
 
   try {
@@ -262,14 +286,17 @@ app.post("/import/usadrop", async (req, res) => {
 CONSULTAR JOB
 ====================================================
 */
+
 app.get("/jobs/:id", (req, res) => {
 
   const job = productRegistry.getProduct(req.params.id);
 
   if (!job) {
+
     return res.status(404).json({
       error: "Job not found"
     });
+
   }
 
   res.json(job);
@@ -281,6 +308,7 @@ app.get("/jobs/:id", (req, res) => {
 LISTAR JOBS
 ====================================================
 */
+
 app.get("/jobs", (req, res) => {
 
   const jobs = productRegistry.getAllProducts();
@@ -292,5 +320,7 @@ app.get("/jobs", (req, res) => {
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () => {
+
   console.log("ZEUS CORE ENGINE RUNNING ON", PORT);
+
 });
