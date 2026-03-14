@@ -2,7 +2,10 @@ const fetch = require("node-fetch");
 
 const DEFAULT_TIMEOUT_MS = Number(process.env.USADROP_TIMEOUT_MS || 30000);
 const DEFAULT_PAGE_SIZE = Number(process.env.USADROP_PAGE_SIZE || 50);
-const DEFAULT_IMPORT_URL = process.env.ZEUS_IMPORT_PRODUCT_URL || "http://localhost:10000/import/product";
+const DEFAULT_IMPORT_URL =
+  process.env.ZEUS_IMPORT_PRODUCT_URL ||
+  "http://localhost:10000/import/product";
+
 const DEFAULT_USADROP_BASE_URL = (process.env.USADROP_BASE_URL || "").replace(/\/$/, "");
 
 function buildUsadropHeaders(extraHeaders = {}) {
@@ -163,13 +166,9 @@ function normalizeVariant(variant, fallbackProduct = {}) {
 }
 
 function extractProductList(payload) {
-  if (Array.isArray(payload)) {
-    return payload;
-  }
+  if (Array.isArray(payload)) return payload;
 
-  if (!payload || typeof payload !== "object") {
-    return [];
-  }
+  if (!payload || typeof payload !== "object") return [];
 
   return (
     payload.products ||
@@ -190,9 +189,7 @@ function extractProductList(payload) {
 }
 
 function normalizeUsadropProduct(rawProduct) {
-  if (!rawProduct || typeof rawProduct !== "object") {
-    return null;
-  }
+  if (!rawProduct || typeof rawProduct !== "object") return null;
 
   const sku = pickFirst(
     rawProduct.sku,
@@ -257,7 +254,12 @@ function normalizeUsadropProduct(rawProduct) {
     source: "usadrop",
     supplier: "usadrop",
     vendor: "USAdrop",
-    externalId: pickFirst(rawProduct.id, rawProduct.productId, rawProduct.product_id, sku),
+    externalId: pickFirst(
+      rawProduct.id,
+      rawProduct.productId,
+      rawProduct.product_id,
+      sku
+    ),
     sku: sku ? String(sku).trim() : null,
     title: title ? String(title).trim() : "Untitled Product",
     description: String(description || "").trim(),
@@ -325,6 +327,7 @@ async function fetchUsadropProducts(options = {}) {
 
   const response = await fetchJson(url.toString(), requestOptions);
   const rawProducts = extractProductList(response);
+
   const normalizedProducts = rawProducts
     .map(normalizeUsadropProduct)
     .filter(Boolean);
@@ -363,7 +366,10 @@ async function importUsadropProducts(options = {}) {
 
   for (const product of fetched.products) {
     try {
-      const pipelineResult = await sendProductToImportPipeline(product, options);
+      const pipelineResult = await sendProductToImportPipeline(
+        product,
+        options
+      );
 
       results.push({
         ok: true,
