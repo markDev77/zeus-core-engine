@@ -1,48 +1,76 @@
-const optimizeTitle = require("./titleOptimizer");
-const { generateTags } = require("./tagGenerator");
-const { suggestCategory } = require("./categorySuggestor");
+/**
+ * ZEUS Product Transformer
+ * Responsible for optimization pipeline
+ */
 
-/*
-ZEUS PRODUCT TRANSFORMER
+const { suggestCategory } = require("./categoryBrain");
 
-Este módulo centraliza la transformación del producto
-y orquesta los distintos servicios internos del motor.
-*/
+/**
+ * Normalize title
+ */
+function normalizeTitle(title) {
+  if (!title) return "Untitled Product";
 
-function transformProduct(product) {
+  return title
+    .replace(/^\d+\s*(piece|pcs|pc|set)/i, "")
+    .trim();
+}
 
-  const { title, description } = product;
+/**
+ * Extract tags
+ */
+function generateTags(title) {
+  if (!title) return [];
 
-  /*
-  Paso 1 — Optimizar título
-  */
-  const optimizedTitle = optimizeTitle(title);
+  const words = title
+    .toLowerCase()
+    .split(" ")
+    .filter(w => w.length > 3);
 
-  /*
-  Paso 2 — Generar tags
-  */
-  const tags = generateTags(optimizedTitle);
+  return [...new Set(words)].slice(0, 6);
+}
 
-  /*
-  Paso 3 — Sugerir categoría
-  */
-  const categoryData = suggestCategory({
+/**
+ * Main transformer
+ */
+function transformProduct(inputProduct) {
+  const originalTitle = inputProduct.title || "";
+
+  const optimizedTitle = normalizeTitle(originalTitle);
+
+  const suggestedTags = generateTags(optimizedTitle);
+
+  const categoryResult = suggestCategory({
     title: optimizedTitle,
-    description
+    description: inputProduct.description || "",
+    tags: suggestedTags
   });
 
-  /*
-  Resultado final del motor ZEUS
-  */
   return {
     engine: "ZEUS",
-    originalTitle: title,
-    optimizedTitle: optimizedTitle,
-    suggestedTags: tags,
-    suggestedCategory: categoryData.suggestedCategory,
-    categoryConfidence: categoryData.confidence
-  };
 
+    originalTitle,
+
+    optimizedTitle,
+
+    suggestedTags,
+
+    suggestedCategory: categoryResult.category,
+
+    categoryConfidence: categoryResult.confidence,
+
+    categoryDecision: categoryResult.decision,
+
+    matchedTerms: categoryResult.matchedTerms,
+
+    title: optimizedTitle,
+
+    description: inputProduct.description || "",
+
+    tags: suggestedTags,
+
+    category: categoryResult.category
+  };
 }
 
 module.exports = {

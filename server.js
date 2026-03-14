@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 
 const { transformProduct } = require("./src/services/productTransformer");
 const { createJob } = require("./src/services/jobManager");
@@ -6,7 +7,7 @@ const { checkSkuLimit } = require("./src/services/skuLimiter");
 const productRegistry = require("./src/services/productRegistry");
 
 /*
-NEW IMPORT PIPELINE
+IMPORT PIPELINE
 */
 const importPipeline = require("./src/pipeline/importPipeline");
 
@@ -20,19 +21,79 @@ SHOPIFY INSTALL ROUTES
 */
 const installRoutes = require("./src/routes/install");
 
+/*
+SHOPIFY PRODUCT UPDATER (SYNC ENGINE)
+*/
+const { updateShopifyProduct } = require("./src/services/shopifyProductUpdater");
+
+/*
+LOOP PROTECTION
+*/
+const { isZeusUpdate, markZeusUpdate } = require("./src/services/loopProtection");
+
+/*
+STRIPE BILLING
+*/
+const stripeWebhook = require("./src/routes/stripeWebhook");
+
 const app = express();
 
 /*
-MIDDLEWARE
-Permite recibir JSON en POST
+IMPORTANT
+Stripe webhook requires raw body
 */
+app.use("/stripe/webhook", express.raw({ type: "application/json" }));
+
 app.use(express.json());
+
+/*
+====================================================
+SHOPIFY WEBHOOK HMAC VERIFICATION
+====================================================
+*/
+
+function verifyShopifyWebhook(req) {
+
+  const hmacHeader = req.headers["x-shopify-hmac-sha256"];
+
+  if (!hmacHeader) {
+    return false;
+  }
+
+  const generatedHash = crypto
+    .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
+    .update(JSON.stringify(req.body), "utf8")
+    .digest("base64");
+
+  try {
+
+    return crypto.timingSafeEqual(
+      Buffer.from(generatedHash),
+      Buffer.from(hmacHeader)
+    );
+
+  } catch {
+
+    return false;
+
+  }
+
+}
+
+/*
+====================================================
+STRIPE WEBHOOK ROUTE
+====================================================
+*/
+
+app.use("/", stripeWebhook);
 
 /*
 ====================================================
 SHOPIFY INSTALL ROUTES
 ====================================================
 */
+
 app.use("/", installRoutes);
 
 /*
@@ -40,22 +101,28 @@ app.use("/", installRoutes);
 STATUS CHECK
 ====================================================
 */
+
 app.get("/status", (req, res) => {
+
   res.json({
     system: "ZEUS CORE ENGINE",
     service: "core-engine",
     status: "running"
   });
+
 });
 
 /*
 ROOT CHECK
 */
+
 app.get("/", (req, res) => {
+
   res.json({
     system: "ZEUS CORE ENGINE",
     status: "running"
   });
+
 });
 
 /*
@@ -63,14 +130,17 @@ app.get("/", (req, res) => {
 ZEUS PRODUCT OPTIMIZATION
 ====================================================
 */
+
 app.post("/optimize/product", (req, res) => {
 
   const { title, description } = req.body;
 
   if (!title) {
+
     return res.status(400).json({
       error: "Product title required"
     });
+
   }
 
   const user = {
@@ -81,9 +151,11 @@ app.post("/optimize/product", (req, res) => {
   const limitCheck = checkSkuLimit(user);
 
   if (!limitCheck.allowed) {
+
     return res.status(403).json({
       error: "SKU limit reached"
     });
+
   }
 
   const job = createJob({
@@ -107,12 +179,14 @@ app.post("/optimize/product", (req, res) => {
 });
 
 app.get("/optimize/product", (req, res) => {
+
   res.json({
     engine: "ZEUS",
     endpoint: "/optimize/product",
     method: "POST",
     status: "active"
   });
+
 });
 
 /*
@@ -128,9 +202,11 @@ app.post("/import/product", async (req, res) => {
     const payload = req.body;
 
     if (!payload) {
+
       return res.status(400).json({
         error: "Product payload required"
       });
+
     }
 
     const job = createJob({
@@ -194,9 +270,243 @@ app.post("/import/usadrop", async (req, res) => {
 
 /*
 ====================================================
+SHOPIFY WEBHOOKS
+====================================================
+*/
+
+/*
+PRODUCT CREATED
+*/
+
+app.post("/webhooks/products-create", async (req, res) => {
+
+  try {
+
+    if (!verifyShopifyWebhook(req)) {
+      return res.status(401).send("Invalid webhook signature");
+    }
+
+    const product = req.body;
+
+    if (!product || !product.title) {
+      return res.status(400).json({
+        error: "Invalid product payload"
+      });
+    }
+
+    console.log("SHOPIFY WEBHOOK: PRODUCT CREATE");
+
+    const store = {
+      shop: req.headers["x-shopify-shop-domain"],
+      accessToken: process.env.SHOPIFY_ACCESS_TOKEN
+    };
+
+    /*
+    LOOP PROTECTION
+    */
+
+    if (product.id) {
+
+      const zeusUpdate = await isZeusUpdate(store, product.id);
+
+      if (zeusUpdate) {
+
+        console.log("ZEUS LOOP PROTECTION: ignoring webhook");
+
+        return res.status(200).send("Ignored ZEUS update");
+
+      }
+
+    }
+
+    const result = transformProduct({
+      title: product.title,
+      description: product.body_html || ""
+    });
+
+    const job = createJob({
+      type: "shopify-product-create",
+      payload: product
+    });
+
+    productRegistry.saveProduct(job.id, result);
+
+    /*
+    SYNC ENGINE
+    */
+
+    if (product.id) {
+
+      try {
+
+        await updateShopifyProduct(
+          store,
+          product.id,
+          {
+            title: result.title,
+            description: result.description,
+            tags: result.tags,
+            category: result.category
+          }
+        );
+
+        await markZeusUpdate(store, product.id);
+
+        console.log("ZEUS SYNC ENGINE UPDATED PRODUCT:", product.id);
+
+      } catch (error) {
+
+        console.error("ZEUS SYNC ENGINE ERROR:", error.message);
+
+      }
+
+    }
+
+    res.status(200).send("Webhook processed");
+
+  } catch (error) {
+
+    console.error("WEBHOOK CREATE ERROR:", error);
+
+    res.status(500).send("Webhook error");
+
+  }
+
+});
+
+/*
+PRODUCT UPDATED
+*/
+
+app.post("/webhooks/products-update", async (req, res) => {
+
+  try {
+
+    if (!verifyShopifyWebhook(req)) {
+      return res.status(401).send("Invalid webhook signature");
+    }
+
+    const product = req.body;
+
+    if (!product || !product.title) {
+      return res.status(400).json({
+        error: "Invalid product payload"
+      });
+    }
+
+    console.log("SHOPIFY WEBHOOK: PRODUCT UPDATE");
+
+    const store = {
+      shop: req.headers["x-shopify-shop-domain"],
+      accessToken: process.env.SHOPIFY_ACCESS_TOKEN
+    };
+
+    if (product.id) {
+
+      const zeusUpdate = await isZeusUpdate(store, product.id);
+
+      if (zeusUpdate) {
+
+        console.log("ZEUS LOOP PROTECTION: ignoring webhook");
+
+        return res.status(200).send("Ignored ZEUS update");
+
+      }
+
+    }
+
+    const result = transformProduct({
+      title: product.title,
+      description: product.body_html || ""
+    });
+
+    const job = createJob({
+      type: "shopify-product-update",
+      payload: product
+    });
+
+    productRegistry.saveProduct(job.id, result);
+
+    if (product.id) {
+
+      try {
+
+        await updateShopifyProduct(
+          store,
+          product.id,
+          {
+            title: result.title,
+            description: result.description,
+            tags: result.tags,
+            category: result.category
+          }
+        );
+
+        await markZeusUpdate(store, product.id);
+
+        console.log("ZEUS SYNC ENGINE UPDATED PRODUCT:", product.id);
+
+      } catch (error) {
+
+        console.error("ZEUS SYNC ENGINE ERROR:", error.message);
+
+      }
+
+    }
+
+    res.status(200).send("Webhook processed");
+
+  } catch (error) {
+
+    console.error("WEBHOOK UPDATE ERROR:", error);
+
+    res.status(500).send("Webhook error");
+
+  }
+
+});
+
+/*
+INVENTORY UPDATED
+*/
+
+app.post("/webhooks/inventory-update", async (req, res) => {
+
+  try {
+
+    if (!verifyShopifyWebhook(req)) {
+      return res.status(401).send("Invalid webhook signature");
+    }
+
+    const payload = req.body;
+
+    console.log("SHOPIFY WEBHOOK: INVENTORY UPDATE");
+
+    const job = createJob({
+      type: "shopify-inventory-update",
+      payload: payload
+    });
+
+    productRegistry.saveProduct(job.id, payload);
+
+    res.status(200).send("Inventory webhook processed");
+
+  } catch (error) {
+
+    console.error("WEBHOOK INVENTORY ERROR:", error);
+
+    res.status(500).send("Webhook error");
+
+  }
+
+});
+
+/*
+====================================================
 CONSULTAR JOB
 ====================================================
 */
+
 app.get("/jobs/:id", (req, res) => {
 
   const job = productRegistry.getProduct(req.params.id);
@@ -216,6 +526,7 @@ app.get("/jobs/:id", (req, res) => {
 LISTAR JOBS
 ====================================================
 */
+
 app.get("/jobs", (req, res) => {
 
   const jobs = productRegistry.getAllProducts();
@@ -227,5 +538,7 @@ app.get("/jobs", (req, res) => {
 const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () => {
+
   console.log("ZEUS CORE ENGINE RUNNING ON", PORT);
+
 });
