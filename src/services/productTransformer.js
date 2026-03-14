@@ -1,5 +1,8 @@
 const { detectLanguage } = require("./languageDetector");
 const { translateText } = require("./translationEngine");
+const { optimizeRegionalTitle } = require("./regionalTitleOptimizer");
+const { optimizeRegionalDescription } = require("./regionalDescriptionOptimizer");
+const { generateRegionalTags } = require("./regionalTagGenerator");
 
 /*
 ========================================
@@ -9,31 +12,38 @@ Transforma producto antes del Category Brain.
 Ahora soporta:
 - detección de idioma
 - traducción regional
+- regional title optimizer
+- regional description optimizer
+- regional tag generator
 ========================================
 */
 
 function cleanTitle(title = "") {
-  return title
-    .replace(/^\d+\s*(piece|pcs|set)/i, "")
+  return String(title || "")
+    .replace(/^\d+\s*(piece|pcs|set|juego|pieza|piezas)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function generateTags(title = "") {
-  const words = title
+function generateBaseTags(title = "") {
+  const words = String(title || "")
     .toLowerCase()
     .split(" ")
-    .filter(w => w.length > 3);
+    .map(word => word.trim())
+    .filter(word => word.length > 3);
 
   return [...new Set(words)].slice(0, 5);
 }
 
 function transformProduct(input = {}) {
   const originalTitle = input.title || "";
-  const description = input.description || "";
+  const originalDescription = input.description || "";
 
   const storeProfile = input.storeProfile || {
-    language: "en-US"
+    country: "US",
+    language: "en-US",
+    currency: "USD",
+    marketplace: "shopify"
   };
 
   const targetLanguage = storeProfile.language || "en-US";
@@ -43,7 +53,7 @@ function transformProduct(input = {}) {
   /*
   LANGUAGE DETECTION
   */
-  const detectedLanguage = detectLanguage(cleanedTitle + " " + description);
+  const detectedLanguage = detectLanguage(`${cleanedTitle} ${originalDescription}`);
 
   /*
   TRANSLATION
@@ -55,24 +65,70 @@ function transformProduct(input = {}) {
   );
 
   const translatedDescription = translateText(
-    description,
+    originalDescription,
     detectedLanguage,
     targetLanguage
   );
 
-  const tags = generateTags(translatedTitle);
+  /*
+  BASE CATEGORY HINT
+  */
+  let categoryHint = "general";
+  const categorySource = `${translatedTitle} ${translatedDescription}`.toLowerCase();
+
+  if (
+    categorySource.includes("perro") ||
+    categorySource.includes("gato") ||
+    categorySource.includes("dog") ||
+    categorySource.includes("cat") ||
+    categorySource.includes("mascota") ||
+    categorySource.includes("pet")
+  ) {
+    categoryHint = "pet_supplies";
+  }
+
+  /*
+  REGIONAL OPTIMIZATION
+  */
+  const optimizedTitle = optimizeRegionalTitle({
+    translatedTitle,
+    translatedDescription,
+    storeProfile,
+    category: categoryHint
+  });
+
+  const optimizedDescription = optimizeRegionalDescription({
+    optimizedTitle,
+    translatedDescription,
+    storeProfile,
+    category: categoryHint
+  });
+
+  const baseTags = generateBaseTags(optimizedTitle);
+
+  const optimizedTags = generateRegionalTags({
+    optimizedTitle,
+    optimizedDescription,
+    storeProfile,
+    category: categoryHint,
+    existingTags: baseTags
+  });
 
   return {
     engine: "ZEUS",
-    originalTitle: originalTitle,
-    optimizedTitle: translatedTitle,
-    suggestedTags: tags,
-    suggestedCategory: "general",
+    originalTitle,
+    detectedLanguage,
+    targetLanguage,
+    translatedTitle,
+    translatedDescription,
+    optimizedTitle,
+    suggestedTags: optimizedTags,
+    suggestedCategory: categoryHint,
     categoryConfidence: 0,
-    title: translatedTitle,
-    description: translatedDescription,
-    tags: tags,
-    category: "general"
+    title: optimizedTitle,
+    description: optimizedDescription,
+    tags: optimizedTags,
+    category: categoryHint
   };
 }
 
