@@ -1,139 +1,124 @@
-// ============================================
-// ZEUS IMPORT PIPELINE
-// ============================================
+/**
+ * ZEUS Import Pipeline
+ * Handles product ingestion from external sources (USAdrop, etc)
+ * and processes them through ZEUS optimization engine.
+ */
 
-const fetch = require("node-fetch");
-
-// SERVICES
 const { transformProduct } = require("../services/productTransformer");
-const optimizeTitle = require("../services/titleOptimizer");
-const { generateTags } = require("../services/tagGenerator");
-const suggestCategory = require("../services/categorySuggestor");
-const { checkSkuLimit } = require("../services/skuLimiter");
+const { suggestCategory } = require("../services/categoryBrain");
+const jobManager = require("../services/jobManager");
 const productRegistry = require("../services/productRegistry");
 
-// INTERNAL MODULES
-const detectOrigin = require("./originDetector");
-const applyPolicy = require("./policyEngine");
+async function processImport(productInput, source = "external") {
 
-// CATEGORY BRAIN
-const CATEGORY_BRAIN_URL = process.env.CATEGORY_BRAIN_URL;
-
-
-// ============================================
-// CATEGORY BRAIN CALL
-// ============================================
-
-async function callCategoryBrain(product) {
+  const jobId = jobManager.createJob({
+    source,
+    status: "processing",
+    timestamp: Date.now()
+  });
 
   try {
 
-    if (!CATEGORY_BRAIN_URL) {
-      return {
-        category: product.suggestedCategory || null,
-        confidence: 0
-      };
-    }
+    /**
+     * STEP 1
+     * Transform product through ZEUS Optimizer
+     */
 
-    const response = await fetch(`${CATEGORY_BRAIN_URL}/process`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        title: product.title,
-        description: product.description,
-        tags: product.tags || []
-      })
+    const transformed = transformProduct(productInput);
+
+    /**
+     * STEP 2
+     * Category Brain evaluation
+     */
+
+    const categoryResult = suggestCategory({
+      title: transformed.optimizedTitle || transformed.title,
+      description: transformed.description || "",
+      tags: transformed.tags || []
     });
 
-    const data = await response.json();
+    /**
+     * STEP 3
+     * Apply business rules
+     */
 
-    return {
-      category: data.finalCategory,
-      confidence: data.confidence
-    };
+    let finalCategory = transformed.category;
 
-  }
-
-  catch (err) {
-
-    console.error("CATEGORY BRAIN ERROR:", err);
-
-    return {
-      category: product.suggestedCategory || null,
-      confidence: 0
-    };
-
-  }
-
-}
-
-
-// ============================================
-// IMPORT PIPELINE
-// ============================================
-
-async function importPipeline(payload, jobId) {
-
-  try {
-
-    const origin = detectOrigin(payload);
-    payload.origin = origin;
-
-    let product = applyPolicy(payload, origin);
-
-    product = transformProduct(product);
-
-    product.title = optimizeTitle(product.title);
-
-    product.tags = generateTags(product.title);
-
-    const user = {
-      optimized_skus: 0,
-      sku_limit: 100
-    };
-
-    const limitCheck = checkSkuLimit(user);
-
-    if (!limitCheck.allowed) {
-      throw new Error("SKU limit reached");
+    if (!transformed.category || transformed.category === "general") {
+      finalCategory = categoryResult.category;
     }
 
-    const suggestion = suggestCategory(product);
+    /**
+     * STEP 4
+     * Register product
+     */
 
-    product.suggestedCategory = suggestion.suggestedCategory;
+    const registryResult = productRegistry.registerProduct({
+      source,
+      title: transformed.title,
+      category: finalCategory,
+      timestamp: Date.now()
+    });
 
-    const categoryResult = await callCategoryBrain(product);
+    /**
+     * STEP 5
+     * Update job status
+     */
 
-    product.category = categoryResult.category;
-    product.categoryConfidence = categoryResult.confidence;
-
-    productRegistry.saveProduct(jobId, product);
-
-    return {
-      jobId: jobId,
+    jobManager.updateJob(jobId, {
       status: "processed",
-      origin: origin,
-      category: product.category,
-      confidence: product.categoryConfidence,
-      product: product
-    };
+      completedAt: Date.now()
+    });
 
-  }
-
-  catch (err) {
-
-    console.error("IMPORT PIPELINE ERROR:", err);
+    /**
+     * STEP 6
+     * Return pipeline result
+     */
 
     return {
-      jobId: jobId,
-      status: "error",
-      error: err.message
+      jobId,
+      status: "processed",
+      origin: source,
+
+      category: finalCategory,
+      confidence: categoryResult.confidence,
+
+      product: {
+        engine: "ZEUS",
+
+        originalTitle: transformed.originalTitle,
+        optimizedTitle: transformed.optimizedTitle,
+
+        suggestedTags: transformed.suggestedTags,
+
+        suggestedCategory: categoryResult.category,
+        categoryConfidence: categoryResult.confidence,
+
+        title: transformed.title,
+        description: transformed.description,
+        tags: transformed.tags,
+
+        category: finalCategory
+      },
+
+      registry: registryResult
     };
 
-  }
+  } catch (error) {
 
+    jobManager.updateJob(jobId, {
+      status: "failed",
+      error: error.message
+    });
+
+    return {
+      jobId,
+      status: "failed",
+      error: error.message
+    };
+  }
 }
 
-module.exports = importPipeline;
+module.exports = {
+  processImport
+};
