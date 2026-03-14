@@ -194,6 +194,124 @@ app.post("/import/usadrop", async (req, res) => {
 
 /*
 ====================================================
+SHOPIFY WEBHOOKS
+====================================================
+*/
+
+/*
+PRODUCT CREATED
+*/
+app.post("/webhooks/products-create", async (req, res) => {
+
+  try {
+
+    const product = req.body;
+
+    if (!product || !product.title) {
+      return res.status(400).json({
+        error: "Invalid product payload"
+      });
+    }
+
+    console.log("SHOPIFY WEBHOOK: PRODUCT CREATE");
+
+    const result = transformProduct({
+      title: product.title,
+      description: product.body_html || ""
+    });
+
+    const job = createJob({
+      type: "shopify-product-create",
+      payload: product
+    });
+
+    productRegistry.saveProduct(job.id, result);
+
+    res.status(200).send("Webhook processed");
+
+  } catch (error) {
+
+    console.error("WEBHOOK CREATE ERROR:", error);
+
+    res.status(500).send("Webhook error");
+
+  }
+
+});
+
+/*
+PRODUCT UPDATED
+*/
+app.post("/webhooks/products-update", async (req, res) => {
+
+  try {
+
+    const product = req.body;
+
+    if (!product || !product.title) {
+      return res.status(400).json({
+        error: "Invalid product payload"
+      });
+    }
+
+    console.log("SHOPIFY WEBHOOK: PRODUCT UPDATE");
+
+    const result = transformProduct({
+      title: product.title,
+      description: product.body_html || ""
+    });
+
+    const job = createJob({
+      type: "shopify-product-update",
+      payload: product
+    });
+
+    productRegistry.saveProduct(job.id, result);
+
+    res.status(200).send("Webhook processed");
+
+  } catch (error) {
+
+    console.error("WEBHOOK UPDATE ERROR:", error);
+
+    res.status(500).send("Webhook error");
+
+  }
+
+});
+
+/*
+INVENTORY UPDATED
+*/
+app.post("/webhooks/inventory-update", async (req, res) => {
+
+  try {
+
+    const payload = req.body;
+
+    console.log("SHOPIFY WEBHOOK: INVENTORY UPDATE");
+
+    const job = createJob({
+      type: "shopify-inventory-update",
+      payload: payload
+    });
+
+    productRegistry.saveProduct(job.id, payload);
+
+    res.status(200).send("Inventory webhook processed");
+
+  } catch (error) {
+
+    console.error("WEBHOOK INVENTORY ERROR:", error);
+
+    res.status(500).send("Webhook error");
+
+  }
+
+});
+
+/*
+====================================================
 CONSULTAR JOB
 ====================================================
 */
