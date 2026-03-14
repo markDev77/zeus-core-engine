@@ -1,91 +1,60 @@
 const { transformProduct } = require("../services/productTransformer");
-const { suggestCategory } = require("../services/categoryBrain");
-const { createJob } = require("../services/jobManager");
-const productRegistry = require("../services/productRegistry");
-const { resolveStoreProfile } = require("../services/storeProfileResolver");
+const { classifyProduct } = require("../services/categoryBrain");
 const { mapRegionalCategory } = require("../services/regionalCategoryMapper");
+const { syncProduct } = require("../services/syncEngine");
 
-async function importPipeline(productInput, jobId = null, source = "external", context = {}) {
-  if (!jobId) {
-    const job = createJob({
-      source,
-      status: "processing",
-      timestamp: Date.now()
-    });
+async function runImportPipeline(input) {
 
-    jobId = job.id;
-  }
+const transformed = transformProduct(input);
 
-  try {
-    const storeContext = resolveStoreProfile({
-      payload: productInput,
-      headers: context.headers || {}
-    });
+const classification = await classifyProduct({
 
-    const transformed = transformProduct({
-      ...productInput,
-      storeProfile: storeContext.profile,
-      storeContext: storeContext.store
-    });
+title:transformed.title,
+description:transformed.description,
+tags:transformed.tags
 
-    const categoryResult = suggestCategory({
-      title: transformed.optimizedTitle || transformed.title || productInput.title || "",
-      description: transformed.description || productInput.description || "",
-      tags: transformed.tags || []
-    });
+});
 
-    let finalCategory = transformed.category;
+const baseCategory = classification.category;
+const confidence = classification.confidence;
 
-    if (!transformed.category || transformed.category === "general") {
-      finalCategory = categoryResult.category;
-    }
+const regionalCategory = mapRegionalCategory({
 
-    const regionalCategoryMapping = mapRegionalCategory({
-      baseCategory: finalCategory,
-      storeProfile: storeContext.profile
-    });
+baseCategory,
+storeProfile:input.storeProfile
 
-    const response = {
-      jobId,
-      status: "processed",
-      origin: source,
-      category: finalCategory,
-      baseCategory: finalCategory,
-      regionalCategory: regionalCategoryMapping.regionalCategory,
-      confidence: categoryResult.confidence,
-      store: storeContext.store,
-      storeProfile: storeContext.profile,
-      storeProfileResolution: storeContext.resolution,
-      product: {
-        engine: "ZEUS",
-        originalTitle: transformed.originalTitle,
-        optimizedTitle: transformed.optimizedTitle,
-        suggestedTags: transformed.suggestedTags,
-        suggestedCategory: categoryResult.category,
-        suggestedRegionalCategory: regionalCategoryMapping.regionalCategory,
-        baseCategory: finalCategory,
-        regionalCategory: regionalCategoryMapping.regionalCategory,
-        categoryConfidence: categoryResult.confidence,
-        title: transformed.title,
-        description: transformed.description,
-        tags: transformed.tags,
-        category: finalCategory
-      }
-    };
+});
 
-    const registryResult = productRegistry.saveProduct(jobId, response);
+const product = {
 
-    return {
-      ...response,
-      registry: registryResult
-    };
-  } catch (error) {
-    return {
-      jobId,
-      status: "failed",
-      error: error.message
-    };
-  }
+...transformed,
+
+baseCategory,
+regionalCategory,
+
+category:baseCategory,
+
+categoryConfidence:confidence
+
+};
+
+await syncProduct({
+
+platform:input.platform,
+store:input.store,
+product
+
+});
+
+return {
+product,
+baseCategory,
+regionalCategory,
+confidence
+};
+
 }
 
-module.exports = importPipeline;
+module.exports = {
+runImportPipeline
+};
