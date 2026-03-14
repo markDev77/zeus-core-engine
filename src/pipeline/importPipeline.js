@@ -9,49 +9,71 @@ const { suggestCategory } = require("../services/categoryBrain");
 const jobManager = require("../services/jobManager");
 const productRegistry = require("../services/productRegistry");
 
-async function processImport(productInput, source = "external") {
+async function importPipeline(productInput, jobId = null, source = "external") {
 
-  const jobId = jobManager.createJob({
-    source,
-    status: "processing",
-    timestamp: Date.now()
-  });
+  /*
+  ====================================================
+  CREATE JOB IF NOT PROVIDED
+  ====================================================
+  */
+
+  if (!jobId) {
+
+    const job = jobManager.createJob({
+      source,
+      status: "processing",
+      timestamp: Date.now()
+    });
+
+    jobId = job.id;
+
+  }
 
   try {
 
-    /**
-     * STEP 1
-     * Transform product through ZEUS Optimizer
-     */
+    /*
+    ====================================================
+    STEP 1
+    TRANSFORM PRODUCT THROUGH ZEUS OPTIMIZER
+    ====================================================
+    */
 
     const transformed = transformProduct(productInput);
 
-    /**
-     * STEP 2
-     * Category Brain evaluation
-     */
+    /*
+    ====================================================
+    STEP 2
+    CATEGORY BRAIN EVALUATION
+    ====================================================
+    */
 
     const categoryResult = suggestCategory({
-      title: transformed.optimizedTitle || transformed.title,
-      description: transformed.description || "",
+      title: transformed.optimizedTitle || transformed.title || productInput.title || "",
+      description: transformed.description || productInput.description || "",
       tags: transformed.tags || []
     });
 
-    /**
-     * STEP 3
-     * Apply business rules
-     */
+    /*
+    ====================================================
+    STEP 3
+    APPLY BUSINESS RULES
+    ====================================================
+    */
 
     let finalCategory = transformed.category;
 
     if (!transformed.category || transformed.category === "general") {
+
       finalCategory = categoryResult.category;
+
     }
 
-    /**
-     * STEP 4
-     * Register product
-     */
+    /*
+    ====================================================
+    STEP 4
+    REGISTER PRODUCT
+    ====================================================
+    */
 
     const registryResult = productRegistry.registerProduct({
       source,
@@ -60,22 +82,27 @@ async function processImport(productInput, source = "external") {
       timestamp: Date.now()
     });
 
-    /**
-     * STEP 5
-     * Update job status
-     */
+    /*
+    ====================================================
+    STEP 5
+    UPDATE JOB STATUS
+    ====================================================
+    */
 
     jobManager.updateJob(jobId, {
       status: "processed",
       completedAt: Date.now()
     });
 
-    /**
-     * STEP 6
-     * Return pipeline result
-     */
+    /*
+    ====================================================
+    STEP 6
+    RETURN PIPELINE RESULT
+    ====================================================
+    */
 
     return {
+
       jobId,
       status: "processed",
       origin: source,
@@ -84,6 +111,7 @@ async function processImport(productInput, source = "external") {
       confidence: categoryResult.confidence,
 
       product: {
+
         engine: "ZEUS",
 
         originalTitle: transformed.originalTitle,
@@ -99,26 +127,34 @@ async function processImport(productInput, source = "external") {
         tags: transformed.tags,
 
         category: finalCategory
+
       },
 
       registry: registryResult
+
     };
 
   } catch (error) {
 
-    jobManager.updateJob(jobId, {
-      status: "failed",
-      error: error.message
-    });
+    if (jobId) {
+
+      jobManager.updateJob(jobId, {
+        status: "failed",
+        error: error.message
+      });
+
+    }
 
     return {
+
       jobId,
       status: "failed",
       error: error.message
+
     };
+
   }
+
 }
 
-module.exports = {
-  processImport
-};
+module.exports = importPipeline;
