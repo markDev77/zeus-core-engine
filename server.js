@@ -26,6 +26,11 @@ SHOPIFY PRODUCT UPDATER (SYNC ENGINE)
 */
 const { updateShopifyProduct } = require("./src/services/shopifyProductUpdater");
 
+/*
+LOOP PROTECTION
+*/
+const { isZeusUpdate, markZeusUpdate } = require("./src/services/loopProtection");
+
 const app = express();
 
 app.use(express.json());
@@ -259,22 +264,41 @@ app.post("/webhooks/products-create", async (req, res) => {
   try {
 
     if (!verifyShopifyWebhook(req)) {
-
       return res.status(401).send("Invalid webhook signature");
-
     }
 
     const product = req.body;
 
     if (!product || !product.title) {
-
       return res.status(400).json({
         error: "Invalid product payload"
       });
-
     }
 
     console.log("SHOPIFY WEBHOOK: PRODUCT CREATE");
+
+    const store = {
+      shop: req.headers["x-shopify-shop-domain"],
+      accessToken: process.env.SHOPIFY_ACCESS_TOKEN
+    };
+
+    /*
+    LOOP PROTECTION
+    */
+
+    if (product.id) {
+
+      const zeusUpdate = await isZeusUpdate(store, product.id);
+
+      if (zeusUpdate) {
+
+        console.log("ZEUS LOOP PROTECTION: ignoring webhook");
+
+        return res.status(200).send("Ignored ZEUS update");
+
+      }
+
+    }
 
     const result = transformProduct({
       title: product.title,
@@ -289,19 +313,12 @@ app.post("/webhooks/products-create", async (req, res) => {
     productRegistry.saveProduct(job.id, result);
 
     /*
-    ====================================================
-    ZEUS SYNC ENGINE
-    ====================================================
+    SYNC ENGINE
     */
 
     if (product.id) {
 
       try {
-
-        const store = {
-          shop: req.headers["x-shopify-shop-domain"],
-          accessToken: process.env.SHOPIFY_ACCESS_TOKEN
-        };
 
         await updateShopifyProduct(
           store,
@@ -313,6 +330,8 @@ app.post("/webhooks/products-create", async (req, res) => {
             category: result.category
           }
         );
+
+        await markZeusUpdate(store, product.id);
 
         console.log("ZEUS SYNC ENGINE UPDATED PRODUCT:", product.id);
 
@@ -345,22 +364,41 @@ app.post("/webhooks/products-update", async (req, res) => {
   try {
 
     if (!verifyShopifyWebhook(req)) {
-
       return res.status(401).send("Invalid webhook signature");
-
     }
 
     const product = req.body;
 
     if (!product || !product.title) {
-
       return res.status(400).json({
         error: "Invalid product payload"
       });
-
     }
 
     console.log("SHOPIFY WEBHOOK: PRODUCT UPDATE");
+
+    const store = {
+      shop: req.headers["x-shopify-shop-domain"],
+      accessToken: process.env.SHOPIFY_ACCESS_TOKEN
+    };
+
+    /*
+    LOOP PROTECTION
+    */
+
+    if (product.id) {
+
+      const zeusUpdate = await isZeusUpdate(store, product.id);
+
+      if (zeusUpdate) {
+
+        console.log("ZEUS LOOP PROTECTION: ignoring webhook");
+
+        return res.status(200).send("Ignored ZEUS update");
+
+      }
+
+    }
 
     const result = transformProduct({
       title: product.title,
@@ -378,11 +416,6 @@ app.post("/webhooks/products-update", async (req, res) => {
 
       try {
 
-        const store = {
-          shop: req.headers["x-shopify-shop-domain"],
-          accessToken: process.env.SHOPIFY_ACCESS_TOKEN
-        };
-
         await updateShopifyProduct(
           store,
           product.id,
@@ -393,6 +426,8 @@ app.post("/webhooks/products-update", async (req, res) => {
             category: result.category
           }
         );
+
+        await markZeusUpdate(store, product.id);
 
         console.log("ZEUS SYNC ENGINE UPDATED PRODUCT:", product.id);
 
@@ -425,9 +460,7 @@ app.post("/webhooks/inventory-update", async (req, res) => {
   try {
 
     if (!verifyShopifyWebhook(req)) {
-
       return res.status(401).send("Invalid webhook signature");
-
     }
 
     const payload = req.body;
@@ -464,11 +497,9 @@ app.get("/jobs/:id", (req, res) => {
   const job = productRegistry.getProduct(req.params.id);
 
   if (!job) {
-
     return res.status(404).json({
       error: "Job not found"
     });
-
   }
 
   res.json(job);
