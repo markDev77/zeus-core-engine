@@ -21,6 +21,11 @@ SHOPIFY INSTALL ROUTES
 */
 const installRoutes = require("./src/routes/install");
 
+/*
+SHOPIFY PRODUCT UPDATER (SYNC ENGINE)
+*/
+const { updateShopifyProduct } = require("./src/services/shopifyProductUpdater");
+
 const app = express();
 
 /*
@@ -262,6 +267,13 @@ app.post("/webhooks/products-create", async (req, res) => {
 
     productRegistry.saveProduct(job.id, result);
 
+    /*
+    PREPARACIÓN PARA SYNC ENGINE
+    */
+    if (product.id) {
+      console.log("ZEUS SYNC ENGINE READY FOR PRODUCT:", product.id);
+    }
+
     res.status(200).send("Webhook processed");
 
   } catch (error) {
@@ -306,6 +318,10 @@ app.post("/webhooks/products-update", async (req, res) => {
     });
 
     productRegistry.saveProduct(job.id, result);
+
+    if (product.id) {
+      console.log("ZEUS SYNC ENGINE READY FOR PRODUCT:", product.id);
+    }
 
     res.status(200).send("Webhook processed");
 
