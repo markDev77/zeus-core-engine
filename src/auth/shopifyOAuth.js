@@ -9,11 +9,35 @@ SHOPIFY ENV VARIABLES
 
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_API_KEY;
 const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_API_SECRET;
-const SHOPIFY_REDIRECT_URI = `${process.env.SHOPIFY_APP_URL}/auth/callback`;
+const SHOPIFY_APP_URL = process.env.SHOPIFY_APP_URL;
+
+const SHOPIFY_REDIRECT_URI = `${SHOPIFY_APP_URL}/auth/callback`;
 
 const SHOPIFY_SCOPES =
   process.env.SHOPIFY_SCOPES ||
   "read_products,write_products,read_inventory,write_inventory";
+
+/*
+====================================================
+ENV VALIDATION
+====================================================
+*/
+
+function validateEnv() {
+
+  if (!SHOPIFY_CLIENT_ID) {
+    throw new Error("Missing env variable SHOPIFY_API_KEY");
+  }
+
+  if (!SHOPIFY_CLIENT_SECRET) {
+    throw new Error("Missing env variable SHOPIFY_API_SECRET");
+  }
+
+  if (!SHOPIFY_APP_URL) {
+    throw new Error("Missing env variable SHOPIFY_APP_URL");
+  }
+
+}
 
 /*
 ====================================================
@@ -57,6 +81,8 @@ GENERATE INSTALL URL
 
 function generateInstallUrl(shop, state) {
 
+  validateEnv();
+
   const params = new URLSearchParams({
 
     client_id: SHOPIFY_CLIENT_ID,
@@ -66,7 +92,11 @@ function generateInstallUrl(shop, state) {
 
   });
 
-  return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
+  const installUrl = `https://${shop}/admin/oauth/authorize?${params.toString()}`;
+
+  console.log("SHOPIFY OAUTH URL:", installUrl);
+
+  return installUrl;
 
 }
 
@@ -77,6 +107,8 @@ TOKEN EXCHANGE
 */
 
 async function exchangeToken(shop, code) {
+
+  validateEnv();
 
   const response = await fetch(
     `https://${shop}/admin/oauth/access_token`,
