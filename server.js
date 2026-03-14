@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 
 const { transformProduct } = require("./src/services/productTransformer");
 const { createJob } = require("./src/services/jobManager");
@@ -27,6 +28,36 @@ MIDDLEWARE
 Permite recibir JSON en POST
 */
 app.use(express.json());
+
+/*
+====================================================
+SHOPIFY WEBHOOK HMAC VERIFICATION
+====================================================
+*/
+
+function verifyShopifyWebhook(req) {
+
+  const hmacHeader = req.headers["x-shopify-hmac-sha256"];
+
+  if (!hmacHeader) {
+    return false;
+  }
+
+  const generatedHash = crypto
+    .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
+    .update(JSON.stringify(req.body), "utf8")
+    .digest("base64");
+
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(generatedHash),
+      Buffer.from(hmacHeader)
+    );
+  } catch {
+    return false;
+  }
+
+}
 
 /*
 ====================================================
@@ -205,6 +236,10 @@ app.post("/webhooks/products-create", async (req, res) => {
 
   try {
 
+    if (!verifyShopifyWebhook(req)) {
+      return res.status(401).send("Invalid webhook signature");
+    }
+
     const product = req.body;
 
     if (!product || !product.title) {
@@ -246,6 +281,10 @@ app.post("/webhooks/products-update", async (req, res) => {
 
   try {
 
+    if (!verifyShopifyWebhook(req)) {
+      return res.status(401).send("Invalid webhook signature");
+    }
+
     const product = req.body;
 
     if (!product || !product.title) {
@@ -286,6 +325,10 @@ INVENTORY UPDATED
 app.post("/webhooks/inventory-update", async (req, res) => {
 
   try {
+
+    if (!verifyShopifyWebhook(req)) {
+      return res.status(401).send("Invalid webhook signature");
+    }
 
     const payload = req.body;
 
