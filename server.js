@@ -6,6 +6,7 @@ const { createJob } = require("./src/services/jobManager");
 const { checkSkuLimit } = require("./src/services/skuLimiter");
 const productRegistry = require("./src/services/productRegistry");
 const { resolveStoreProfile } = require("./src/services/storeProfileResolver");
+const { mapRegionalCategory } = require("./src/services/regionalCategoryMapper");
 
 /*
 IMPORT PIPELINE
@@ -157,13 +158,24 @@ app.post("/optimize/product", (req, res) => {
     storeContext: storeContext.store
   });
 
+  const categoryMapping = mapRegionalCategory({
+    baseCategory: result.category,
+    storeProfile: storeContext.profile
+  });
+
   const response = {
     jobId: job.id,
     status: "processed",
     store: storeContext.store,
     storeProfile: storeContext.profile,
     storeProfileResolution: storeContext.resolution,
-    result
+    baseCategory: result.category,
+    regionalCategory: categoryMapping.regionalCategory,
+    result: {
+      ...result,
+      baseCategory: result.category,
+      regionalCategory: categoryMapping.regionalCategory
+    }
   };
 
   productRegistry.saveProduct(job.id, {
@@ -174,6 +186,8 @@ app.post("/optimize/product", (req, res) => {
     storeProfile: storeContext.profile,
     storeProfileResolution: storeContext.resolution,
     category: result.category,
+    baseCategory: result.category,
+    regionalCategory: categoryMapping.regionalCategory,
     confidence: result.categoryConfidence,
     product: {
       engine: result.engine,
@@ -181,6 +195,9 @@ app.post("/optimize/product", (req, res) => {
       optimizedTitle: result.optimizedTitle,
       suggestedTags: result.suggestedTags,
       suggestedCategory: result.suggestedCategory,
+      suggestedRegionalCategory: categoryMapping.regionalCategory,
+      baseCategory: result.category,
+      regionalCategory: categoryMapping.regionalCategory,
       categoryConfidence: result.categoryConfidence,
       title: result.title,
       description: result.description,
@@ -320,6 +337,11 @@ app.post("/webhooks/products-create", async (req, res) => {
       description: product.body_html || ""
     });
 
+    const categoryMapping = mapRegionalCategory({
+      baseCategory: result.category,
+      storeProfile: { country: "US", marketplace: "shopify", language: "en-US" }
+    });
+
     const job = createJob({
       type: "shopify-product-create",
       payload: product
@@ -329,6 +351,8 @@ app.post("/webhooks/products-create", async (req, res) => {
       status: "processed",
       origin: "shopify_webhook_create",
       category: result.category,
+      baseCategory: result.category,
+      regionalCategory: categoryMapping.regionalCategory,
       confidence: result.categoryConfidence,
       product: {
         engine: result.engine,
@@ -336,6 +360,9 @@ app.post("/webhooks/products-create", async (req, res) => {
         optimizedTitle: result.optimizedTitle,
         suggestedTags: result.suggestedTags,
         suggestedCategory: result.suggestedCategory,
+        suggestedRegionalCategory: categoryMapping.regionalCategory,
+        baseCategory: result.category,
+        regionalCategory: categoryMapping.regionalCategory,
         categoryConfidence: result.categoryConfidence,
         title: result.title,
         description: result.description,
@@ -413,6 +440,11 @@ app.post("/webhooks/products-update", async (req, res) => {
       description: product.body_html || ""
     });
 
+    const categoryMapping = mapRegionalCategory({
+      baseCategory: result.category,
+      storeProfile: { country: "US", marketplace: "shopify", language: "en-US" }
+    });
+
     const job = createJob({
       type: "shopify-product-update",
       payload: product
@@ -422,6 +454,8 @@ app.post("/webhooks/products-update", async (req, res) => {
       status: "processed",
       origin: "shopify_webhook_update",
       category: result.category,
+      baseCategory: result.category,
+      regionalCategory: categoryMapping.regionalCategory,
       confidence: result.categoryConfidence,
       product: {
         engine: result.engine,
@@ -429,6 +463,9 @@ app.post("/webhooks/products-update", async (req, res) => {
         optimizedTitle: result.optimizedTitle,
         suggestedTags: result.suggestedTags,
         suggestedCategory: result.suggestedCategory,
+        suggestedRegionalCategory: categoryMapping.regionalCategory,
+        baseCategory: result.category,
+        regionalCategory: categoryMapping.regionalCategory,
         categoryConfidence: result.categoryConfidence,
         title: result.title,
         description: result.description,
