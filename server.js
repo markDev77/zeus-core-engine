@@ -15,6 +15,11 @@ USADROP IMPORTER
 */
 const { importUsadropProducts } = require("./src/importers/usadropImporter");
 
+/*
+SHOPIFY INSTALL ROUTES
+*/
+const installRoutes = require("./src/routes/install");
+
 const app = express();
 
 /*
@@ -22,6 +27,13 @@ MIDDLEWARE
 Permite recibir JSON en POST
 */
 app.use(express.json());
+
+/*
+====================================================
+SHOPIFY INSTALL ROUTE
+====================================================
+*/
+app.use("/install", installRoutes);
 
 /*
 ====================================================
@@ -51,7 +63,6 @@ app.get("/", (req, res) => {
 /*
 ====================================================
 ZEUS PRODUCT OPTIMIZATION ENDPOINT
-Endpoint actual — NO se modifica
 ====================================================
 */
 app.post("/optimize/product", (req, res) => {
@@ -64,18 +75,11 @@ app.post("/optimize/product", (req, res) => {
     });
   }
 
-  /*
-  Usuario simulado
-  (después vendrá de la base de datos)
-  */
   const user = {
     optimized_skus: 10,
     sku_limit: 100
   };
 
-  /*
-  Verificar límite de SKUs
-  */
   const limitCheck = checkSkuLimit(user);
 
   if (!limitCheck.allowed) {
@@ -84,25 +88,16 @@ app.post("/optimize/product", (req, res) => {
     });
   }
 
-  /*
-  Registrar job
-  */
   const job = createJob({
     title,
     description
   });
 
-  /*
-  Ejecutar transformación
-  */
   const result = transformProduct({
     title,
     description
   });
 
-  /*
-  Guardar resultado en registry
-  */
   productRegistry.saveProduct(job.id, result);
 
   res.json({
@@ -127,15 +122,7 @@ app.get("/optimize/product", (req, res) => {
 
 /*
 ====================================================
-NEW IMPORT PIPELINE ENDPOINT
-====================================================
-Este endpoint ejecuta el pipeline completo:
-
-origin detection
-policy layer
-optimizer
-category brain
-registry
+IMPORT PIPELINE
 ====================================================
 */
 
@@ -151,24 +138,12 @@ app.post("/import/product", async (req, res) => {
       });
     }
 
-    /*
-    Crear job de importación
-    */
-
     const job = createJob({
       type: "import",
       payload: payload
     });
 
-    /*
-    Ejecutar pipeline completo
-    */
-
     const result = await importPipeline(payload, job.id);
-
-    /*
-    Guardar resultado final
-    */
 
     productRegistry.saveProduct(job.id, result);
 
@@ -190,8 +165,6 @@ app.post("/import/product", async (req, res) => {
 /*
 ====================================================
 USADROP IMPORT TRIGGER
-====================================================
-Dispara importación desde USAdrop API
 ====================================================
 */
 
