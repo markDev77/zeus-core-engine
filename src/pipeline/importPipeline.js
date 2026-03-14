@@ -1,60 +1,64 @@
 const { transformProduct } = require("../services/productTransformer");
-const { classifyProduct } = require("../services/categoryBrain");
+const categoryBrain = require("../services/categoryBrain");
 const { mapRegionalCategory } = require("../services/regionalCategoryMapper");
 const { syncProduct } = require("../services/syncEngine");
 
 async function runImportPipeline(input) {
 
-const transformed = transformProduct(input);
+  /*
+  Transform product
+  */
+  const transformed = transformProduct(input);
 
-const classification = await classifyProduct({
+  /*
+  Category Brain
+  */
+  const classification = await categoryBrain.classifyProduct({
+    title: transformed.title,
+    description: transformed.description,
+    tags: transformed.tags
+  });
 
-title:transformed.title,
-description:transformed.description,
-tags:transformed.tags
+  const baseCategory = classification.category;
+  const confidence = classification.confidence;
 
-});
+  /*
+  Regional category mapping
+  */
+  const regionalCategory = mapRegionalCategory({
+    baseCategory,
+    storeProfile: input.storeProfile
+  });
 
-const baseCategory = classification.category;
-const confidence = classification.confidence;
+  /*
+  Final product
+  */
+  const product = {
+    ...transformed,
+    baseCategory,
+    regionalCategory,
+    category: baseCategory,
+    categoryConfidence: confidence
+  };
 
-const regionalCategory = mapRegionalCategory({
+  /*
+  Sync Engine
+  */
+  await syncProduct({
+    platform: input.platform,
+    store: input.store,
+    product
+  });
 
-baseCategory,
-storeProfile:input.storeProfile
-
-});
-
-const product = {
-
-...transformed,
-
-baseCategory,
-regionalCategory,
-
-category:baseCategory,
-
-categoryConfidence:confidence
-
-};
-
-await syncProduct({
-
-platform:input.platform,
-store:input.store,
-product
-
-});
-
-return {
-product,
-baseCategory,
-regionalCategory,
-confidence
-};
+  return {
+    product,
+    baseCategory,
+    regionalCategory,
+    confidence
+  };
 
 }
 
 module.exports = {
-runImportPipeline
+  runImportPipeline
 };
