@@ -31,7 +31,18 @@ LOOP PROTECTION
 */
 const { isZeusUpdate, markZeusUpdate } = require("./src/services/loopProtection");
 
+/*
+STRIPE BILLING
+*/
+const stripeWebhook = require("./src/routes/stripeWebhook");
+
 const app = express();
+
+/*
+IMPORTANT
+Stripe webhook requires raw body
+*/
+app.use("/stripe/webhook", express.raw({ type: "application/json" }));
 
 app.use(express.json());
 
@@ -68,6 +79,14 @@ function verifyShopifyWebhook(req) {
   }
 
 }
+
+/*
+====================================================
+STRIPE WEBHOOK ROUTE
+====================================================
+*/
+
+app.use("/", stripeWebhook);
 
 /*
 ====================================================
@@ -381,10 +400,6 @@ app.post("/webhooks/products-update", async (req, res) => {
       shop: req.headers["x-shopify-shop-domain"],
       accessToken: process.env.SHOPIFY_ACCESS_TOKEN
     };
-
-    /*
-    LOOP PROTECTION
-    */
 
     if (product.id) {
 
