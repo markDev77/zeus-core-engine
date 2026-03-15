@@ -54,7 +54,7 @@ const app = express();
 
 /*
 ====================================================
-STRIPE WEBHOOK (RAW BODY REQUIRED)
+STRIPE WEBHOOK
 ====================================================
 */
 
@@ -66,7 +66,7 @@ app.post(
 
 /*
 ====================================================
-BODY PARSER NORMAL
+BODY PARSER
 ====================================================
 */
 
@@ -74,7 +74,7 @@ app.use(express.json());
 
 /*
 ====================================================
-SHOPIFY WEBHOOK RAW BODY
+SHOPIFY RAW WEBHOOK BODY
 ====================================================
 */
 
@@ -82,7 +82,7 @@ app.use("/webhooks", express.raw({ type: "application/json" }));
 
 /*
 ====================================================
-SHOPIFY OAUTH ROUTES
+SHOPIFY OAUTH
 ====================================================
 */
 
@@ -90,7 +90,7 @@ app.use("/", installRoutes);
 
 /*
 ====================================================
-STRIPE CHECKOUT ROUTE
+STRIPE CHECKOUT
 ====================================================
 */
 
@@ -106,7 +106,6 @@ function verifyShopifyWebhook(req) {
 
   /*
   TEST MODE
-  Permite pruebas manuales del webhook
   */
 
   if (process.env.ZEUS_ENV === "test") {
@@ -341,7 +340,14 @@ app.post("/webhooks/products-create", async (req, res) => {
 
   }
 
-  const product = JSON.parse(req.body.toString());
+  /*
+  SAFE BODY PARSE
+  */
+
+  const product =
+    Buffer.isBuffer(req.body)
+      ? JSON.parse(req.body.toString())
+      : req.body;
 
   const shop = req.headers["x-shopify-shop-domain"];
 
@@ -364,11 +370,9 @@ app.post("/webhooks/products-create", async (req, res) => {
     markZeusUpdate(product.id);
 
     await updateShopifyProduct({
-
       shop: shop,
       productId: product.id,
       data: optimized
-
     });
 
     console.log("ZEUS PRODUCT UPDATED:", product.id);
@@ -397,7 +401,10 @@ app.post("/webhooks/inventory-update", async (req, res) => {
 
   }
 
-  const inventory = JSON.parse(req.body.toString());
+  const inventory =
+    Buffer.isBuffer(req.body)
+      ? JSON.parse(req.body.toString())
+      : req.body;
 
   console.log("SHOPIFY INVENTORY UPDATE:", inventory.inventory_item_id);
 
