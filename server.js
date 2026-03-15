@@ -114,7 +114,6 @@ function verifyShopifyWebhook(req) {
   if (process.env.ZEUS_ENV === "test") {
 
     console.log("ZEUS WEBHOOK TEST MODE ACTIVE");
-
     return true;
 
   }
@@ -355,9 +354,7 @@ SHOPIFY PRODUCT CREATE WEBHOOK
 app.post("/webhooks/products-create", async (req, res) => {
 
   if (!verifyShopifyWebhook(req)) {
-
     return res.status(401).send("Invalid HMAC");
-
   }
 
   const product =
@@ -374,33 +371,41 @@ app.post("/webhooks/products-create", async (req, res) => {
     if (isZeusUpdate(product)) {
 
       console.log("ZEUS LOOP PREVENTED");
-
       return res.status(200).send("ok");
 
     }
+
+    /*
+    RESOLVE STORE FIRST
+    */
+
+    const store = getStore(shop);
+
+    if (!store) {
+
+      console.log("ZEUS STORE NOT REGISTERED:", shop);
+      return res.status(200).send("store_not_registered");
+
+    }
+
+    /*
+    CHECK BILLING AFTER STORE
+    */
 
     const billingCheck = checkBillingAccess(shop);
 
     if (!billingCheck.allowed) {
 
       console.log("ZEUS PLAN LIMIT BLOCKED:", shop, billingCheck.reason);
-
       return res.status(200).send("plan_limit_blocked");
 
     }
 
-    /*
-    OAUTH TOKEN RESOLUTION
-    */
-
-    const store = getStore(shop);
-
     let accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
 
-    if (store && store.token) {
+    if (store && store.accessToken) {
 
-      accessToken = store.token;
-
+      accessToken = store.accessToken;
       console.log("ZEUS STORE TOKEN FOUND:", shop);
 
     } else {
@@ -434,6 +439,7 @@ app.post("/webhooks/products-create", async (req, res) => {
 
     enqueueJob(
       async () => {
+
         const result = await runImportPipeline(payload);
 
         markZeusUpdate(product.id);
@@ -442,6 +448,7 @@ app.post("/webhooks/products-create", async (req, res) => {
           "ZEUS PIPELINE COMPLETE:",
           result.baseCategory || result.category || "n/a"
         );
+
       },
       `shopify-products-create-${product.id}`
     );
@@ -465,9 +472,7 @@ SHOPIFY INVENTORY UPDATE
 app.post("/webhooks/inventory-update", async (req, res) => {
 
   if (!verifyShopifyWebhook(req)) {
-
     return res.status(401).send("Invalid HMAC");
-
   }
 
   const inventory =
@@ -512,7 +517,6 @@ LIST JOBS
 app.get("/jobs", (req, res) => {
 
   const jobs = productRegistry.getAllProducts();
-
   res.json(jobs);
 
 });
