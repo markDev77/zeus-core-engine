@@ -375,10 +375,6 @@ app.post("/webhooks/products-create", async (req, res) => {
 
     }
 
-    /*
-    RESOLVE STORE FIRST
-    */
-
     const store = getStore(shop);
 
     if (!store) {
@@ -387,10 +383,6 @@ app.post("/webhooks/products-create", async (req, res) => {
       return res.status(200).send("store_not_registered");
 
     }
-
-    /*
-    CHECK BILLING AFTER STORE
-    */
 
     const billingCheck = checkBillingAccess(shop);
 
@@ -401,18 +393,20 @@ app.post("/webhooks/products-create", async (req, res) => {
 
     }
 
-    let accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+    /*
+    TOKEN CORRECTION
+    */
 
-    if (store && store.accessToken) {
+    if (!store.accessToken) {
 
-      accessToken = store.accessToken;
-      console.log("ZEUS STORE TOKEN FOUND:", shop);
-
-    } else {
-
-      console.log("ZEUS FALLBACK ENV TOKEN:", shop);
+      console.log("ZEUS STORE TOKEN MISSING:", shop);
+      return res.status(200).send("store_token_missing");
 
     }
+
+    const accessToken = store.accessToken;
+
+    console.log("ZEUS STORE TOKEN FOUND:", shop);
 
     const payload = {
 
