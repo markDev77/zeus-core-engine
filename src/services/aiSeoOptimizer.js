@@ -2,16 +2,10 @@
 ========================================
 ZEUS AI SEO OPTIMIZER
 ========================================
-Enriquece SEO usando IA controlada
-sin reemplazar el motor base de ZEUS
+IA SEO enrichment sin depender
+del SDK de OpenAI
 ========================================
 */
-
-const OpenAI = require("openai");
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
 
 async function aiSeoOptimizer(product = {}, storeProfile = {}) {
 
@@ -31,31 +25,24 @@ async function aiSeoOptimizer(product = {}, storeProfile = {}) {
   const originalHTML = product.description || "";
 
   const prompt = `
-You are an ecommerce SEO optimizer specialized in marketplace catalogs.
+You are an ecommerce SEO optimizer.
 
-IMPORTANT RULES
-
-1 Preserve any existing HTML from supplier descriptions
-2 If the description already contains HTML do NOT remove images or layout
-3 Expand the text around the HTML but keep supplier blocks intact
-4 Generate a high quality ecommerce description
-5 Optimize for SEO for the target market
-
-INPUT
-
-TITLE:
+Product title:
 ${product.title}
 
-DESCRIPTION:
+Product description:
 ${product.description}
 
-TARGET LANGUAGE:
-${language}
+Generate:
 
-MARKET:
-${region}
+1 Improved SEO title
+2 Long SEO description
+3 Keyword tags
 
-OUTPUT JSON ONLY
+Language: ${language}
+Market: ${region}
+
+Return JSON only:
 
 {
 "title":"",
@@ -68,19 +55,35 @@ OUTPUT JSON ONLY
 
   try {
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.35,
-      max_tokens: 700,
-      messages: [
-        {
-          role: "user",
-          content: prompt
-        }
-      ]
-    });
+    const response = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          temperature: 0.35,
+          max_tokens: 700,
+          messages: [
+            {
+              role: "user",
+              content: prompt
+            }
+          ]
+        })
+      }
+    );
 
-    const text = completion.choices[0].message.content;
+    const data = await response.json();
+
+    if (!data.choices) {
+      return product;
+    }
+
+    const text = data.choices[0].message.content;
 
     let result;
 
@@ -92,7 +95,7 @@ OUTPUT JSON ONLY
 
     let finalDescription = result.description || originalHTML;
 
-    if (originalHTML.includes("<img") || originalHTML.includes("<iframe")) {
+    if (originalHTML.includes("<img")) {
 
       finalDescription =
         originalHTML +
