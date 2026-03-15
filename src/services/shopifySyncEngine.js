@@ -15,9 +15,14 @@ async function updateShopifyProduct(store, productId, productData) {
 
       body_html: productData.description,
 
-      tags: productData.tags.join(", "),
+      tags: Array.isArray(productData.tags)
+        ? productData.tags.join(", ")
+        : "",
 
-      product_type: productData.category,
+      product_type:
+        typeof productData.category === "object"
+          ? productData.category?.name || "general"
+          : productData.category || "general",
 
       metafields: [
         {
@@ -57,6 +62,7 @@ async function updateShopifyProduct(store, productId, productData) {
     );
 
     throw error;
+
   }
 
 }
