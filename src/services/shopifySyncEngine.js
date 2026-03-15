@@ -10,14 +10,29 @@ async function updateShopifyProduct(store, productId, productData) {
   const payload = {
     product: {
       id: productId,
+
       title: productData.title,
+
       body_html: productData.description,
+
       tags: productData.tags.join(", "),
-      product_type: productData.category
+
+      product_type: productData.category,
+
+      metafields: [
+        {
+          namespace: "zeus",
+          key: "optimized",
+          type: "boolean",
+          value: "true"
+        }
+      ]
     }
   };
 
   try {
+
+    console.log("ZEUS SYNC START:", productId);
 
     const response = await axios.put(
       url,
@@ -30,14 +45,20 @@ async function updateShopifyProduct(store, productId, productData) {
       }
     );
 
+    console.log("ZEUS SYNC COMPLETE:", productId);
+
     return response.data;
 
   } catch (error) {
 
-    console.error("SHOPIFY UPDATE ERROR:", error.response?.data || error.message);
+    console.error(
+      "SHOPIFY UPDATE ERROR:",
+      error.response?.data || error.message
+    );
 
     throw error;
   }
+
 }
 
 module.exports = {
