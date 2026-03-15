@@ -6,41 +6,33 @@ CHECK IF PRODUCT UPDATED BY ZEUS
 ====================================================
 */
 
-async function isZeusUpdate(store, productId) {
-
-  const shop = store.shop;
-  const token = store.accessToken;
-
-  const url = `https://${shop}/admin/api/2024-01/products/${productId}/metafields.json`;
+async function isZeusUpdate(product) {
 
   try {
 
-    const response = await axios.get(
-      url,
-      {
-        headers: {
-          "X-Shopify-Access-Token": token,
-          "Content-Type": "application/json"
-        }
-      }
-    );
+    if (!product) return false;
 
-    const metafields = response.data.metafields || [];
+    const tags = product.tags;
 
-    const zeusField = metafields.find(
-      m => m.namespace === "zeus" && m.key === "updated"
-    );
+    if (!tags) return false;
 
-    if (!zeusField) {
-      return false;
+    if (typeof tags === "string") {
+
+      return tags.includes("ZEUS_UPDATED");
+
     }
 
-    return zeusField.value === "true";
+    if (Array.isArray(tags)) {
+
+      return tags.includes("ZEUS_UPDATED");
+
+    }
+
+    return false;
 
   } catch (error) {
 
-    console.error("LOOP CHECK ERROR:", error.message);
-
+    console.log("LOOP CHECK ERROR:", error.message);
     return false;
 
   }
@@ -53,40 +45,52 @@ MARK PRODUCT AS UPDATED BY ZEUS
 ====================================================
 */
 
-async function markZeusUpdate(store, productId) {
-
-  const shop = store.shop;
-  const token = store.accessToken;
-
-  const url = `https://${shop}/admin/api/2024-01/metafields.json`;
-
-  const payload = {
-    metafield: {
-      namespace: "zeus",
-      key: "updated",
-      value: "true",
-      type: "single_line_text_field",
-      owner_resource: "product",
-      owner_id: productId
-    }
-  };
+function markZeusUpdate(product) {
 
   try {
 
-    await axios.post(
-      url,
-      payload,
-      {
-        headers: {
-          "X-Shopify-Access-Token": token,
-          "Content-Type": "application/json"
-        }
+    if (!product) return product;
+
+    let tags = product.tags;
+
+    if (!tags) {
+
+      product.tags = "ZEUS_UPDATED";
+      return product;
+
+    }
+
+    if (typeof tags === "string") {
+
+      if (!tags.includes("ZEUS_UPDATED")) {
+
+        product.tags = tags + ",ZEUS_UPDATED";
+
       }
-    );
+
+      return product;
+
+    }
+
+    if (Array.isArray(tags)) {
+
+      if (!tags.includes("ZEUS_UPDATED")) {
+
+        tags.push("ZEUS_UPDATED");
+
+      }
+
+      product.tags = tags;
+      return product;
+
+    }
+
+    return product;
 
   } catch (error) {
 
-    console.error("LOOP MARK ERROR:", error.message);
+    console.log("LOOP MARK ERROR:", error.message);
+    return product;
 
   }
 
