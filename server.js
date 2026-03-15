@@ -38,6 +38,12 @@ LOOP PROTECTION
 const { isZeusUpdate, markZeusUpdate } = require("./src/services/loopProtection");
 
 /*
+JOB QUEUE
+*/
+
+const { enqueueJob, getQueueStatus } = require("./src/services/jobQueue");
+
+/*
 STRIPE
 */
 
@@ -152,7 +158,8 @@ app.get("/status", (req, res) => {
 
   res.json({
     system: "ZEUS CORE ENGINE",
-    status: "running"
+    status: "running",
+    queue: getQueueStatus()
   });
 
 });
@@ -161,7 +168,23 @@ app.get("/", (req, res) => {
 
   res.json({
     system: "ZEUS CORE ENGINE",
-    status: "running"
+    status: "running",
+    queue: getQueueStatus()
+  });
+
+});
+
+/*
+====================================================
+QUEUE STATUS
+====================================================
+*/
+
+app.get("/queue/status", (req, res) => {
+
+  res.json({
+    system: "ZEUS JOB QUEUE",
+    ...getQueueStatus()
   });
 
 });
@@ -372,15 +395,20 @@ app.post("/webhooks/products-create", async (req, res) => {
 
     };
 
-    const result = await runImportPipeline(payload);
+    enqueueJob(
+      async () => {
+        const result = await runImportPipeline(payload);
 
-    markZeusUpdate(product.id);
+        markZeusUpdate(product.id);
 
-    console.log("ZEUS PIPELINE COMPLETE:", result.category);
+        console.log("ZEUS PIPELINE COMPLETE:", result.baseCategory || result.category || "n/a");
+      },
+      `shopify-products-create-${product.id}`
+    );
 
   } catch (error) {
 
-    console.error("SHOPIFY PIPELINE FAILED:", error);
+    console.error("SHOPIFY PIPELINE ENQUEUE FAILED:", error);
 
   }
 
