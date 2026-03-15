@@ -4,7 +4,6 @@ ZEUS AI SEO OPTIMIZER
 ========================================
 Enriquece SEO usando IA controlada
 sin reemplazar el motor base de ZEUS
-Preserva HTML original del proveedor
 ========================================
 */
 
@@ -13,58 +12,6 @@ const OpenAI = require("openai");
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
-
-function extractSupplierHTML(description = "") {
-
-  if (!description) return {
-    cleanText: "",
-    supplierHTML: ""
-  };
-
-  const hasHTML =
-    description.includes("<img") ||
-    description.includes("<picture") ||
-    description.includes("<iframe") ||
-    description.includes("<video");
-
-  if (!hasHTML) {
-    return {
-      cleanText: description,
-      supplierHTML: ""
-    };
-  }
-
-  return {
-    cleanText: description.replace(/<img[^>]*>/g, ""),
-    supplierHTML: description
-  };
-}
-
-function buildFinalDescription({
-  seoDescription,
-  supplierHTML
-}) {
-
-  let finalHTML = "";
-
-  if (seoDescription) {
-    finalHTML += seoDescription;
-  }
-
-  if (supplierHTML) {
-
-    finalHTML += `
-
-<!-- SUPPLIER MEDIA CONTENT PRESERVED -->
-
-${supplierHTML}
-
-`;
-
-  }
-
-  return finalHTML;
-}
 
 async function aiSeoOptimizer(product = {}, storeProfile = {}) {
 
@@ -81,36 +28,40 @@ async function aiSeoOptimizer(product = {}, storeProfile = {}) {
     storeProfile.language ||
     "en";
 
-  const { cleanText, supplierHTML } =
-    extractSupplierHTML(product.description || "");
+  const originalHTML = product.description || "";
 
   const prompt = `
-You are an expert ecommerce SEO product copywriter.
+You are an ecommerce SEO optimizer specialized in marketplace catalogs.
 
-Create a high quality ecommerce product listing.
+IMPORTANT RULES
 
-Requirements:
+1 Preserve any existing HTML from supplier descriptions
+2 If the description already contains HTML do NOT remove images or layout
+3 Expand the text around the HTML but keep supplier blocks intact
+4 Generate a high quality ecommerce description
+5 Optimize for SEO for the target market
 
-- 600 to 900 words
-- strong SEO structure
-- HTML formatting
-- sections for benefits, features, usage and buying reasons
-- optimized for ecommerce search
+INPUT
 
-Product title:
+TITLE:
 ${product.title}
 
-Product base description:
-${cleanText}
+DESCRIPTION:
+${product.description}
 
-Language: ${language}
-Market region: ${region}
+TARGET LANGUAGE:
+${language}
 
-Return JSON only:
+MARKET:
+${region}
+
+OUTPUT JSON ONLY
 
 {
 "title":"",
 "description":"",
+"seoTitle":"",
+"seoDescription":"",
 "keywords":[]
 }
 `;
@@ -119,8 +70,8 @@ Return JSON only:
 
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.4,
-      max_tokens: 900,
+      temperature: 0.35,
+      max_tokens: 700,
       messages: [
         {
           role: "user",
@@ -139,15 +90,23 @@ Return JSON only:
       return product;
     }
 
-    const finalDescription = buildFinalDescription({
-      seoDescription: result.description,
-      supplierHTML
-    });
+    let finalDescription = result.description || originalHTML;
+
+    if (originalHTML.includes("<img") || originalHTML.includes("<iframe")) {
+
+      finalDescription =
+        originalHTML +
+        "\n\n" +
+        (result.description || "");
+
+    }
 
     return {
       ...product,
       title: result.title || product.title,
-      description: finalDescription || product.description,
+      description: finalDescription,
+      seoTitle: result.seoTitle || product.title,
+      seoDescription: result.seoDescription || "",
       tags: [
         ...(product.tags || []),
         ...(result.keywords || [])
