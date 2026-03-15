@@ -53,7 +53,7 @@ const app = express();
 
 /*
 ====================================================
-SHOPIFY WEBHOOK RAW BODY (MUY IMPORTANTE)
+SHOPIFY WEBHOOK RAW BODY
 ====================================================
 */
 
@@ -142,7 +142,7 @@ app.get("/", (req, res) => {
 
 /*
 ====================================================
-OPTIMIZE PRODUCT
+PRODUCT OPTIMIZATION API
 ====================================================
 */
 
@@ -292,7 +292,7 @@ app.post("/import/usadrop", async (req, res) => {
 
 /*
 ====================================================
-SHOPIFY PRODUCT CREATE
+SHOPIFY PRODUCT CREATE WEBHOOK
 ====================================================
 */
 
@@ -306,6 +306,8 @@ app.post("/webhooks/products-create", async (req, res) => {
 
   const product = JSON.parse(req.body.toString());
 
+  const shop = req.headers["x-shopify-shop-domain"];
+
   console.log("SHOPIFY PRODUCT CREATE:", product.id);
 
   try {
@@ -313,7 +315,6 @@ app.post("/webhooks/products-create", async (req, res) => {
     if (isZeusUpdate(product)) {
 
       console.log("ZEUS LOOP PREVENTED");
-
       return res.status(200).send("ok");
 
     }
@@ -327,15 +328,17 @@ app.post("/webhooks/products-create", async (req, res) => {
 
     await updateShopifyProduct({
 
-      shop: product.vendor,
+      shop: shop,
       productId: product.id,
       data: optimized
 
     });
 
+    console.log("ZEUS PRODUCT UPDATED:", product.id);
+
   } catch (error) {
 
-    console.error("WEBHOOK CREATE ERROR:", error);
+    console.log("SHOPIFY PRODUCT UPDATE FAILED:", error);
 
   }
 
