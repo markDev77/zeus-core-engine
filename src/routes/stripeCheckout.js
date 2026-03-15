@@ -50,25 +50,13 @@ router.post("/stripe/create-checkout", async (req, res) => {
     const session = await stripe.checkout.sessions.create({
 
       /*
-      subscription mode
+      Subscription mode
       */
 
       mode: "subscription",
 
       /*
-      reference store for ZEUS billing
-      */
-
-      client_reference_id: store || "unknown",
-
-      customer_creation: "always",
-
-      payment_method_types: ["card"],
-
-      billing_address_collection: "auto",
-
-      /*
-      product pricing
+      Pricing
       */
 
       line_items: [
@@ -79,8 +67,10 @@ router.post("/stripe/create-checkout", async (req, res) => {
       ],
 
       /*
-      metadata used later by webhook
+      Used later in webhook to map store
       */
+
+      client_reference_id: store || "unknown",
 
       metadata: {
         store: store || "unknown",
@@ -88,28 +78,23 @@ router.post("/stripe/create-checkout", async (req, res) => {
       },
 
       /*
-      redirect urls
+      Redirect URLs
       */
 
-      success_url: "https://zeusinfra.io/success?session_id={CHECKOUT_SESSION_ID}",
+      success_url:
+        "https://zeusinfra.io/success?session_id={CHECKOUT_SESSION_ID}",
 
-      cancel_url: "https://zeusinfra.io/cancel",
-
-      /*
-      optional but recommended
-      */
-
-      allow_promotion_codes: true
+      cancel_url:
+        "https://zeusinfra.io/cancel"
 
     });
 
     console.log("ZEUS STRIPE SESSION CREATED:", session.id);
 
-    /*
-    redirect directly to Stripe Checkout
-    */
-
-    return res.redirect(303, session.url);
+    return res.json({
+      checkoutUrl: session.url,
+      sessionId: session.id
+    });
 
   } catch (error) {
 
