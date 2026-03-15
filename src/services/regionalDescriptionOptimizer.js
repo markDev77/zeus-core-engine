@@ -1,9 +1,7 @@
 /*
 ========================================
-ZEUS REGIONAL DESCRIPTION OPTIMIZER
-========================================
-Optimiza descripción por idioma / país.
-Genera copy comercial simple para ecommerce.
+ZEUS REGIONAL DESCRIPTION OPTIMIZER v2
+SEO LONG DESCRIPTION HTML
 ========================================
 */
 
@@ -19,58 +17,117 @@ function capitalize(text = "") {
   return clean.charAt(0).toUpperCase() + clean.slice(1);
 }
 
-function buildSpanishPetDescription({ title = "", description = "" }) {
+function detectFeatures(source = "") {
+
+  const features = [];
+
+  if (source.includes("recargable") || source.includes("rechargeable"))
+    features.push("Batería recargable de larga duración");
+
+  if (source.includes("inalámbrico") || source.includes("wireless"))
+    features.push("Tecnología inalámbrica para mayor comodidad");
+
+  if (source.includes("eléctrico") || source.includes("electric"))
+    features.push("Sistema de entrenamiento eficiente");
+
+  if (source.includes("control remoto") || source.includes("remote"))
+    features.push("Incluye control remoto para entrenamiento");
+
+  return features;
+}
+
+function buildSpanishDescription({ title = "", description = "", category = "general" }) {
+
   const source = `${title} ${description}`.toLowerCase();
 
-  const benefits = [
-    "Ideal para mejorar el control y entrenamiento de tu mascota."
-  ];
+  const features = detectFeatures(source);
 
-  if (source.includes("recargable")) {
-    benefits.push("Diseño recargable para un uso más práctico.");
+  let html = "";
+
+  html += `<h2>${capitalize(title)}</h2>`;
+
+  html += `<p>${capitalize(description || title)}. Producto optimizado para ecommerce en México y Latinoamérica.</p>`;
+
+  html += `<h3>Beneficios principales</h3>`;
+
+  html += `<ul>`;
+
+  if (features.length === 0) {
+
+    html += `<li>Diseñado para ofrecer rendimiento confiable</li>`;
+    html += `<li>Uso práctico para el día a día</li>`;
+
+  } else {
+
+    features.forEach(f => {
+      html += `<li>${f}</li>`;
+    });
+
   }
 
-  if (source.includes("inalámbrico") || source.includes("inalambrico")) {
-    benefits.push("Funciona de forma inalámbrica para mayor comodidad.");
+  html += `</ul>`;
+
+  html += `<h3>Características del producto</h3>`;
+
+  html += `<p>${capitalize(title)} diseñado para ofrecer durabilidad, funcionalidad y facilidad de uso.</p>`;
+
+  if (category === "pet_supplies") {
+
+    html += `<h3>Uso recomendado</h3>`;
+    html += `<p>Ideal para mejorar rutinas de entrenamiento y control de comportamiento en mascotas.</p>`;
+
   }
 
-  if (source.includes("eléctrico") || source.includes("electrico")) {
-    benefits.push("Ayuda en rutinas de entrenamiento con respuesta eficiente.");
-  }
+  html += `<p>Optimizado automáticamente por ZEUS.</p>`;
 
-  return normalizeWhitespace(
-    `${capitalize(title)}. ${benefits.join(" ")}`
-  );
+  return normalizeWhitespace(html);
 }
 
-function buildSpanishGeneralDescription({ title = "", description = "" }) {
-  const cleanTitle = capitalize(title);
-  const cleanDescription = capitalize(description);
+function buildEnglishDescription({ title = "", description = "", category = "general" }) {
 
-  if (cleanDescription) {
-    return normalizeWhitespace(
-      `${cleanTitle}. ${cleanDescription}. Producto optimizado para ecommerce en México.`
-    );
+  const source = `${title} ${description}`.toLowerCase();
+
+  const features = detectFeatures(source);
+
+  let html = "";
+
+  html += `<h2>${capitalize(title)}</h2>`;
+
+  html += `<p>${capitalize(description || title)}. Optimized for ecommerce product listings.</p>`;
+
+  html += `<h3>Main Benefits</h3>`;
+
+  html += `<ul>`;
+
+  if (features.length === 0) {
+
+    html += `<li>Reliable performance design</li>`;
+    html += `<li>Practical everyday use</li>`;
+
+  } else {
+
+    features.forEach(f => {
+      html += `<li>${f}</li>`;
+    });
+
   }
 
-  return normalizeWhitespace(
-    `${cleanTitle}. Producto optimizado para ecommerce en México.`
-  );
-}
+  html += `</ul>`;
 
-function buildEnglishGeneralDescription({ title = "", description = "" }) {
-  const cleanTitle = capitalize(title);
-  const cleanDescription = capitalize(description);
+  html += `<h3>Product Details</h3>`;
 
-  if (cleanDescription) {
-    return normalizeWhitespace(
-      `${cleanTitle}. ${cleanDescription}. Optimized for ecommerce listing quality.`
-    );
+  html += `<p>${capitalize(title)} designed for durability and usability.</p>`;
+
+  if (category === "pet_supplies") {
+
+    html += `<h3>Recommended Use</h3>`;
+    html += `<p>Helps support pet training routines and behavior reinforcement.</p>`;
+
   }
 
-  return normalizeWhitespace(
-    `${cleanTitle}. Optimized for ecommerce listing quality.`
-  );
+  html += `<p>Automatically optimized by ZEUS.</p>`;
+
+  return normalizeWhitespace(html);
 }
 
 function optimizeRegionalDescription({
@@ -79,26 +136,25 @@ function optimizeRegionalDescription({
   storeProfile = {},
   category = "general"
 }) {
+
   const language = String(storeProfile.language || "en-US").toLowerCase();
 
   if (language.startsWith("es")) {
-    if (category === "pet_supplies") {
-      return buildSpanishPetDescription({
-        title: optimizedTitle,
-        description: translatedDescription
-      });
-    }
 
-    return buildSpanishGeneralDescription({
+    return buildSpanishDescription({
       title: optimizedTitle,
-      description: translatedDescription
+      description: translatedDescription,
+      category
     });
+
   }
 
-  return buildEnglishGeneralDescription({
+  return buildEnglishDescription({
     title: optimizedTitle,
-    description: translatedDescription
+    description: translatedDescription,
+    category
   });
+
 }
 
 module.exports = {
