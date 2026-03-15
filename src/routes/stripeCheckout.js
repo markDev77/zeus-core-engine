@@ -3,8 +3,7 @@ const router = express.Router();
 const Stripe = require("stripe");
 
 /*
-VALIDACIÓN DE VARIABLE DE ENTORNO
-Esto evita que Stripe se inicialice con una key incorrecta
+Verificar que la variable de entorno exista
 */
 if (!process.env.STRIPE_SECRET_KEY) {
   console.error("STRIPE_SECRET_KEY not configured");
@@ -12,19 +11,16 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 /*
-Inicialización segura de Stripe
+Inicializar Stripe
 */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16"
+  apiVersion: "2023-10-16",
 });
 
-
 /*
-CREATE CHECKOUT SESSION
-ZEUS SaaS Billing
+Endpoint para crear sesión de checkout
 */
 router.post("/stripe/create-checkout", async (req, res) => {
-
   try {
 
     const { priceId, store } = req.body;
@@ -57,7 +53,7 @@ router.post("/stripe/create-checkout", async (req, res) => {
 
     });
 
-    return res.json({
+    res.json({
       checkoutUrl: session.url
     });
 
@@ -65,12 +61,16 @@ router.post("/stripe/create-checkout", async (req, res) => {
 
     console.error("STRIPE CHECKOUT ERROR:", error);
 
-    return res.status(500).json({
-      error: "checkout_failed"
+    /*
+    Devolver error real para diagnóstico
+    */
+    res.status(500).json({
+      error: error.message,
+      type: error.type,
+      code: error.code
     });
 
   }
-
 });
 
 module.exports = router;
