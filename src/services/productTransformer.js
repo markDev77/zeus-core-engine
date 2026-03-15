@@ -2,22 +2,16 @@
 ========================================
 ZEUS PRODUCT TRANSFORMER
 ========================================
-Orquesta todo el pipeline de optimización
-sin contener lógica pesada.
-
-Servicios conectados:
-
-regionalTitleOptimizer
-regionalDescriptionOptimizer
-regionalTagGenerator
-marketSignalEngine
+Orquesta el pipeline completo de ZEUS.
+No contiene lógica pesada.
+Solo conecta servicios internos.
 ========================================
 */
 
 const { optimizeRegionalTitle } = require("./regionalTitleOptimizer")
 const { optimizeRegionalDescription } = require("./regionalDescriptionOptimizer")
 const { generateRegionalTags } = require("./regionalTagGenerator")
-const { detectMarketSignals } = require("./marketSignalEngine")
+const { detectMarketSignal } = require("./marketSignalEngine")
 
 function normalize(text = "") {
   return String(text || "").trim()
@@ -116,7 +110,7 @@ function transformProduct(input = {}, storeProfile = {}) {
     category: categoryData.category
   })
 
-  const marketSignal = detectMarketSignals({
+  const marketSignal = detectMarketSignal({
     title: regionalTitle,
     description
   })
