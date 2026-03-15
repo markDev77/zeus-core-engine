@@ -25,7 +25,6 @@ async function processShopifyProduct(payload) {
 
     /*
     LOOP PROTECTION
-    Evita reprocesar productos modificados por ZEUS
     */
 
     if (isZeusUpdate(payload)) {
@@ -40,7 +39,7 @@ async function processShopifyProduct(payload) {
     }
 
     /*
-    1 NORMALIZAR PAYLOAD SHOPIFY
+    1 NORMALIZE SHOPIFY PAYLOAD
     */
 
     const normalizedProduct = normalizeShopifyProduct(payload);
@@ -48,7 +47,39 @@ async function processShopifyProduct(payload) {
     console.log("NORMALIZED PRODUCT:", normalizedProduct);
 
     /*
-    2 ENVIAR A ZEUS PIPELINE
+    ========================================
+    BUILD PIPELINE INPUT
+    ========================================
+    */
+
+    const shopDomain = payload?.admin_graphql_api_id
+      ? payload.admin_graphql_api_id.split("/")[3]
+      : null;
+
+    const pipelineInput = {
+
+      title: normalizedProduct.title,
+      description: normalizedProduct.description,
+      tags: normalizedProduct.tags || [],
+
+      country: "US",
+
+      platform: "shopify",
+
+      store: {
+        shopDomain: payload?.shop_domain || process.env.SHOPIFY_STORE_DOMAIN,
+        accessToken: process.env.SHOPIFY_ACCESS_TOKEN,
+        productId: payload.id
+      },
+
+      source: "shopify"
+
+    };
+
+    /*
+    ========================================
+    SEND TO ZEUS PIPELINE
+    ========================================
     */
 
     const response = await fetch(`${ZEUS_CORE_URL}/import/product`, {
@@ -59,7 +90,7 @@ async function processShopifyProduct(payload) {
         "Content-Type": "application/json"
       },
 
-      body: JSON.stringify(normalizedProduct)
+      body: JSON.stringify(pipelineInput)
 
     });
 
@@ -74,14 +105,18 @@ async function processShopifyProduct(payload) {
     const optimizedProduct = zeusResult.product;
 
     /*
-    3 MARCAR PRODUCTO COMO OPTIMIZADO POR ZEUS
+    ========================================
+    MARK PRODUCT AS ZEUS OPTIMIZED
+    ========================================
     */
 
     optimizedProduct.tags = optimizedProduct.tags || [];
     optimizedProduct.tags.push("zeus-optimized");
 
     /*
-    4 ACTUALIZAR PRODUCTO EN SHOPIFY
+    ========================================
+    UPDATE SHOPIFY PRODUCT
+    ========================================
     */
 
     await updateProduct(payload.id, optimizedProduct);
