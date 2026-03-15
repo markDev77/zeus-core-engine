@@ -53,7 +53,15 @@ const app = express();
 
 /*
 ====================================================
-BODY PARSERS
+SHOPIFY WEBHOOK RAW BODY (MUY IMPORTANTE)
+====================================================
+*/
+
+app.use("/webhooks", express.raw({ type: "application/json" }));
+
+/*
+====================================================
+BODY PARSER NORMAL
 ====================================================
 */
 
@@ -61,7 +69,7 @@ app.use(express.json());
 
 /*
 ====================================================
-SHOPIFY OAUTH
+SHOPIFY OAUTH ROUTES
 ====================================================
 */
 
@@ -75,14 +83,6 @@ STRIPE WEBHOOK
 
 app.use("/stripe/webhook", express.raw({ type: "application/json" }));
 app.use("/", stripeWebhook);
-
-/*
-====================================================
-SHOPIFY WEBHOOK RAW BODY
-====================================================
-*/
-
-app.use("/webhooks", express.raw({ type: "application/json" }));
 
 /*
 ====================================================
@@ -126,7 +126,6 @@ app.get("/status", (req, res) => {
 
   res.json({
     system: "ZEUS CORE ENGINE",
-    service: "core-engine",
     status: "running"
   });
 
@@ -143,7 +142,7 @@ app.get("/", (req, res) => {
 
 /*
 ====================================================
-PRODUCT OPTIMIZATION
+OPTIMIZE PRODUCT
 ====================================================
 */
 
@@ -232,14 +231,6 @@ app.post("/import/product", async (req, res) => {
 
     const payload = req.body;
 
-    if (!payload) {
-
-      return res.status(400).json({
-        error: "Product payload required"
-      });
-
-    }
-
     const job = createJob({
       type: "import",
       payload
@@ -301,7 +292,7 @@ app.post("/import/usadrop", async (req, res) => {
 
 /*
 ====================================================
-SHOPIFY WEBHOOK PRODUCT CREATE
+SHOPIFY PRODUCT CREATE
 ====================================================
 */
 
@@ -313,7 +304,7 @@ app.post("/webhooks/products-create", async (req, res) => {
 
   }
 
-  const product = JSON.parse(req.body);
+  const product = JSON.parse(req.body.toString());
 
   console.log("SHOPIFY PRODUCT CREATE:", product.id);
 
@@ -321,8 +312,9 @@ app.post("/webhooks/products-create", async (req, res) => {
 
     if (isZeusUpdate(product)) {
 
-      console.log("ZEUS LOOP PROTECTION TRIGGERED");
-      return res.status(200).send("Loop prevented");
+      console.log("ZEUS LOOP PREVENTED");
+
+      return res.status(200).send("ok");
 
     }
 
@@ -353,7 +345,7 @@ app.post("/webhooks/products-create", async (req, res) => {
 
 /*
 ====================================================
-SHOPIFY WEBHOOK INVENTORY UPDATE
+SHOPIFY INVENTORY UPDATE
 ====================================================
 */
 
@@ -365,7 +357,7 @@ app.post("/webhooks/inventory-update", async (req, res) => {
 
   }
 
-  const inventory = JSON.parse(req.body);
+  const inventory = JSON.parse(req.body.toString());
 
   console.log("SHOPIFY INVENTORY UPDATE:", inventory.inventory_item_id);
 
