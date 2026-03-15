@@ -45,11 +45,8 @@ function buildSpanishDescription({ title = "", description = "", category = "gen
   let html = "";
 
   html += `<h2>${capitalize(title)}</h2>`;
-
   html += `<p>${capitalize(description || title)}. Producto optimizado para ecommerce en México y Latinoamérica.</p>`;
-
   html += `<h3>Beneficios principales</h3>`;
-
   html += `<ul>`;
 
   if (features.length === 0) {
@@ -68,7 +65,6 @@ function buildSpanishDescription({ title = "", description = "", category = "gen
   html += `</ul>`;
 
   html += `<h3>Características del producto</h3>`;
-
   html += `<p>${capitalize(title)} diseñado para ofrecer durabilidad, funcionalidad y facilidad de uso.</p>`;
 
   if (category === "pet_supplies") {
@@ -92,11 +88,8 @@ function buildEnglishDescription({ title = "", description = "", category = "gen
   let html = "";
 
   html += `<h2>${capitalize(title)}</h2>`;
-
   html += `<p>${capitalize(description || title)}. Optimized for ecommerce product listings.</p>`;
-
   html += `<h3>Main Benefits</h3>`;
-
   html += `<ul>`;
 
   if (features.length === 0) {
@@ -115,7 +108,6 @@ function buildEnglishDescription({ title = "", description = "", category = "gen
   html += `</ul>`;
 
   html += `<h3>Product Details</h3>`;
-
   html += `<p>${capitalize(title)} designed for durability and usability.</p>`;
 
   if (category === "pet_supplies") {
@@ -157,6 +149,36 @@ function optimizeRegionalDescription({
 
 }
 
+/*
+========================================
+PIPELINE ADAPTER
+Permite usar el optimizer desde
+Import Pipeline
+========================================
+*/
+
+function generateDescription({
+  title = "",
+  description = "",
+  category = "general",
+  country = "DEFAULT"
+} = {}) {
+
+  const storeProfile = {
+    language: country === "MX" ? "es-MX" : "en-US",
+    country
+  };
+
+  return optimizeRegionalDescription({
+    optimizedTitle: title,
+    translatedDescription: description,
+    storeProfile,
+    category
+  });
+
+}
+
 module.exports = {
-  optimizeRegionalDescription
+  optimizeRegionalDescription,
+  generateDescription
 };
