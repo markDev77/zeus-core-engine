@@ -1,4 +1,13 @@
-const axios = require("axios");
+/*
+====================================================
+ZEUS LOOP PROTECTION
+====================================================
+Evita que los updates hechos por ZEUS disparen
+de nuevo el webhook de Shopify.
+====================================================
+*/
+
+const zeusUpdates = new Map();
 
 /*
 ====================================================
@@ -6,25 +15,19 @@ CHECK IF PRODUCT UPDATED BY ZEUS
 ====================================================
 */
 
-async function isZeusUpdate(product) {
+function isZeusUpdate(product) {
 
   try {
 
     if (!product) return false;
 
-    const tags = product.tags;
+    const id = product.id;
 
-    if (!tags) return false;
+    if (!id) return false;
 
-    if (typeof tags === "string") {
+    if (zeusUpdates.has(id)) {
 
-      return tags.includes("ZEUS_UPDATED");
-
-    }
-
-    if (Array.isArray(tags)) {
-
-      return tags.includes("ZEUS_UPDATED");
+      return true;
 
     }
 
@@ -41,56 +44,31 @@ async function isZeusUpdate(product) {
 
 /*
 ====================================================
-MARK PRODUCT AS UPDATED BY ZEUS
+MARK PRODUCT UPDATED BY ZEUS
 ====================================================
 */
 
-function markZeusUpdate(product) {
+function markZeusUpdate(productId) {
 
   try {
 
-    if (!product) return product;
+    if (!productId) return;
 
-    let tags = product.tags;
+    zeusUpdates.set(productId, Date.now());
 
-    if (!tags) {
+    /*
+    limpiar después de 30 segundos
+    */
 
-      product.tags = "ZEUS_UPDATED";
-      return product;
+    setTimeout(() => {
 
-    }
+      zeusUpdates.delete(productId);
 
-    if (typeof tags === "string") {
-
-      if (!tags.includes("ZEUS_UPDATED")) {
-
-        product.tags = tags + ",ZEUS_UPDATED";
-
-      }
-
-      return product;
-
-    }
-
-    if (Array.isArray(tags)) {
-
-      if (!tags.includes("ZEUS_UPDATED")) {
-
-        tags.push("ZEUS_UPDATED");
-
-      }
-
-      product.tags = tags;
-      return product;
-
-    }
-
-    return product;
+    }, 30000);
 
   } catch (error) {
 
     console.log("LOOP MARK ERROR:", error.message);
-    return product;
 
   }
 
