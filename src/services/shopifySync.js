@@ -2,8 +2,7 @@
 ========================================
 ZEUS SHOPIFY SYNC
 ========================================
-Módulo único para actualizar productos
-en Shopify desde ZEUS
+Actualiza producto Shopify
 ========================================
 */
 
@@ -11,37 +10,13 @@ const axios = require("axios")
 
 const SHOPIFY_API_VERSION = "2024-04"
 
-function normalizeProductType(productType) {
-
-  if (!productType) return "general"
-
-  if (typeof productType === "string") return productType
-
-  if (typeof productType === "object") {
-
-    if (productType.regionalCategory)
-      return productType.regionalCategory
-
-    if (productType.baseCategory)
-      return productType.baseCategory
-
-    if (productType.name)
-      return productType.name
-
-  }
-
-  return "general"
-
-}
-
 async function updateShopifyProduct({
   shopDomain,
   accessToken,
   productId,
   title,
   description,
-  tags,
-  productType
+  tags
 }) {
 
   if (!shopDomain || !productId) {
@@ -55,9 +30,8 @@ async function updateShopifyProduct({
   const url =
     `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`
 
-  const normalizedType = normalizeProductType(productType)
-
   const payload = {
+
     product: {
 
       id: productId,
@@ -70,8 +44,6 @@ async function updateShopifyProduct({
         ? tags.join(", ")
         : "",
 
-      product_type: normalizedType,
-
       metafields: [
         {
           namespace: "zeus",
@@ -82,6 +54,7 @@ async function updateShopifyProduct({
       ]
 
     }
+
   }
 
   try {
@@ -100,7 +73,7 @@ async function updateShopifyProduct({
       }
     )
 
-    console.log("ZEUS SHOPIFY SYNC COMPLETE:", productId)
+    console.log("ZEUS PRODUCT UPDATED:", productId)
 
     return response.data
 
