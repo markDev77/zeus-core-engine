@@ -108,9 +108,21 @@ function verifyShopifyWebhook(req) {
 
   if (!hmacHeader) return false;
 
+  let bodyBuffer;
+
+  if (Buffer.isBuffer(req.body)) {
+
+    bodyBuffer = req.body;
+
+  } else {
+
+    bodyBuffer = Buffer.from(JSON.stringify(req.body));
+
+  }
+
   const generatedHash = crypto
     .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
-    .update(req.body)
+    .update(bodyBuffer)
     .digest("base64");
 
   try {
