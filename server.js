@@ -284,55 +284,7 @@ app.post("/import/product", async (req, res) => {
 
   try {
 
-    const incomingPayload = req.body || {};
-
-    const shopDomain =
-      incomingPayload.shopDomain ||
-      incomingPayload.store?.shopDomain ||
-      incomingPayload.store?.shop ||
-      null;
-
-    let payload = { ...incomingPayload };
-
-    if (shopDomain) {
-
-      const registeredStore = getStore(shopDomain);
-
-      if (registeredStore && registeredStore.accessToken) {
-
-        const productId =
-          incomingPayload.productId ||
-          incomingPayload.shopifyProductId ||
-          incomingPayload.id ||
-          incomingPayload.payload?.id ||
-          incomingPayload.data?.id ||
-          incomingPayload.product?.id ||
-          incomingPayload.store?.productId ||
-          null;
-
-        payload = {
-          ...incomingPayload,
-          store: {
-            ...(incomingPayload.store || {}),
-            shopDomain: registeredStore.shopDomain,
-            accessToken: registeredStore.accessToken,
-            productId
-          }
-        };
-
-        if (payload.accessToken) {
-          delete payload.accessToken;
-        }
-
-        console.log("ZEUS IMPORT TOKEN CANONICALIZED FROM STORE REGISTRY:", shopDomain);
-
-      } else {
-
-        console.log("ZEUS IMPORT WARNING: STORE NOT FOUND IN REGISTRY:", shopDomain);
-
-      }
-
-    }
+    const payload = req.body;
 
     const job = createJob({
       type: "import",
@@ -466,7 +418,7 @@ app.post("/webhooks/products-create", async (req, res) => {
 
       store: {
         shopDomain: store.shopDomain,
-        accessToken,
+        accessToken: store.accessToken,
         productId: product.id
       },
 
