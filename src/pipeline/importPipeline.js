@@ -97,6 +97,7 @@ async function runImportPipeline(input) {
     input.payload?.id ||
     input.data?.id ||
     input.product?.id ||
+    input.store?.productId ||
     null;
 
   console.log("ZEUS DETECTED PRODUCT ID:", productId);
