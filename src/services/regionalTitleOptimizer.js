@@ -14,6 +14,20 @@ function normalizeWhitespace(text = "") {
     .trim();
 }
 
+function cleanSupplierNoise(text = "") {
+
+  let cleaned = String(text || "");
+
+  cleaned = cleaned
+    .replace(/\b\d+\s*(piece|pieces|pcs|set|sets)\b/gi, "")
+    .replace(/\bnew\b/gi, "")
+    .replace(/\bbest\b/gi, "")
+    .replace(/\bpet\b$/gi, "")
+    .replace(/\bfor\b$/gi, "");
+
+  return normalizeWhitespace(cleaned);
+}
+
 function titleCaseSpanish(text = "") {
   const lowerWords = new Set([
     "de",
@@ -92,6 +106,7 @@ function dedupeWords(words = []) {
 }
 
 function optimizeSpanishPetTitle(baseTitle = "", description = "") {
+
   const source = `${baseTitle} ${description}`.toLowerCase();
 
   const features = [];
@@ -113,6 +128,7 @@ function optimizeSpanishPetTitle(baseTitle = "", description = "") {
     source.includes("collar") &&
     source.includes("perro")
   ) {
+
     const titleParts = dedupeWords([
       "Collar",
       "de entrenamiento",
@@ -127,6 +143,7 @@ function optimizeSpanishPetTitle(baseTitle = "", description = "") {
 }
 
 function optimizeSpanishGeneralTitle(baseTitle = "", description = "") {
+
   const source = `${baseTitle} ${description}`.toLowerCase();
 
   let title = normalizeWhitespace(baseTitle);
@@ -156,7 +173,9 @@ function optimizeSpanishGeneralTitle(baseTitle = "", description = "") {
 }
 
 function optimizeEnglishGeneralTitle(baseTitle = "", description = "") {
+
   const source = `${baseTitle} ${description}`.toLowerCase();
+
   let title = normalizeWhitespace(baseTitle);
 
   if (
@@ -164,6 +183,7 @@ function optimizeEnglishGeneralTitle(baseTitle = "", description = "") {
     source.includes("training") &&
     source.includes("collar")
   ) {
+
     const features = [];
 
     if (source.includes("rechargeable")) features.push("Rechargeable");
@@ -187,14 +207,19 @@ function optimizeRegionalTitle({
   storeProfile = {},
   category = "general"
 }) {
+
   const language = String(storeProfile.language || "en-US").toLowerCase();
-  const baseTitle = normalizeWhitespace(translatedTitle);
+
+  const cleanedTitle = cleanSupplierNoise(translatedTitle);
+
+  const baseTitle = normalizeWhitespace(cleanedTitle);
 
   if (!baseTitle) {
     return "";
   }
 
   if (language.startsWith("es")) {
+
     if (category === "pet_supplies") {
       return optimizeSpanishPetTitle(baseTitle, translatedDescription);
     }
