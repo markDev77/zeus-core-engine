@@ -1,12 +1,1 @@
-[
-  {
-    "shop": "eawi7g-hj.myshopify.com",
-    "token": "test",
-    "createdAt": "2026-03-15T00:00:00.000Z",
-    "billing": {
-      "plan": "starter",
-      "status": "active",
-      "sku_limit": 500
-    }
-  }
-]
+[]
