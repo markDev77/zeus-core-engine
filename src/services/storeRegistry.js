@@ -80,8 +80,8 @@ function registerStore(shopDomain, accessToken, metadata = {}) {
 
       billing: {
         plan: "free",
-        status: "inactive",
-        sku_limit: 50
+        status: "active",
+        sku_limit: 20
       }
 
     }
