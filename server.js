@@ -8,41 +8,37 @@ const productRegistry = require("./src/services/productRegistry");
 const { resolveStoreProfile } = require("./src/services/storeProfileResolver");
 const { mapRegionalCategory } = require("./src/services/regionalCategoryMapper");
 
-/*
-IMPORT PIPELINE
-*/
 const { runImportPipeline } = require("./src/pipeline/importPipeline");
-
-/*
-USADROP IMPORTER
-*/
 const { importUsadropProducts } = require("./src/importers/usadropImporter");
 
-/*
-SHOPIFY INSTALL ROUTES
-*/
 const installRoutes = require("./src/routes/install");
-
-/*
-SHOPIFY PRODUCT UPDATER
-*/
 const { updateShopifyProduct } = require("./src/services/shopifyProductUpdater");
 
-/*
-LOOP PROTECTION
-*/
 const { isZeusUpdate, markZeusUpdate } = require("./src/services/loopProtection");
 
-/*
-STRIPE BILLING
-*/
 const stripeWebhook = require("./src/routes/stripeWebhook");
 
 const app = express();
 
 /*
 ====================================================
-BODY PARSER
+SHOPIFY WEBHOOK RAW BODY
+====================================================
+*/
+
+app.use("/webhooks", express.raw({ type: "application/json" }));
+
+/*
+====================================================
+STRIPE WEBHOOK RAW BODY
+====================================================
+*/
+
+app.use("/stripe/webhook", express.raw({ type: "application/json" }));
+
+/*
+====================================================
+BODY PARSER NORMAL
 ====================================================
 */
 
@@ -58,11 +54,10 @@ app.use("/", installRoutes);
 
 /*
 ====================================================
-STRIPE WEBHOOK
+STRIPE ROUTES
 ====================================================
 */
 
-app.use("/stripe/webhook", express.raw({ type: "application/json" }));
 app.use("/", stripeWebhook);
 
 /*
@@ -81,7 +76,7 @@ function verifyShopifyWebhook(req) {
 
   const generatedHash = crypto
     .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
-    .update(JSON.stringify(req.body), "utf8")
+    .update(req.body)
     .digest("base64");
 
   try {
@@ -111,7 +106,7 @@ app.post("/webhooks/products-create", async (req, res) => {
     return res.status(401).send("Invalid webhook");
   }
 
-  const product = req.body;
+  const product = JSON.parse(req.body.toString());
 
   console.log("SHOPIFY PRODUCT CREATE:", product.id);
 
@@ -125,7 +120,7 @@ app.post("/webhooks/products-update", async (req, res) => {
     return res.status(401).send("Invalid webhook");
   }
 
-  const product = req.body;
+  const product = JSON.parse(req.body.toString());
 
   if (isZeusUpdate(product)) {
     return res.status(200).send("Ignored ZEUS update");
@@ -143,7 +138,7 @@ app.post("/webhooks/inventory-update", async (req, res) => {
     return res.status(401).send("Invalid webhook");
   }
 
-  const inventory = req.body;
+  const inventory = JSON.parse(req.body.toString());
 
   console.log("SHOPIFY INVENTORY UPDATE:", inventory.inventory_item_id);
 
