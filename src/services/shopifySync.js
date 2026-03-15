@@ -7,9 +7,32 @@ en Shopify desde ZEUS
 ========================================
 */
 
-const axios = require("axios");
+const axios = require("axios")
 
-const SHOPIFY_API_VERSION = "2024-04";
+const SHOPIFY_API_VERSION = "2024-04"
+
+function normalizeProductType(productType) {
+
+  if (!productType) return "general"
+
+  if (typeof productType === "string") return productType
+
+  if (typeof productType === "object") {
+
+    if (productType.regionalCategory)
+      return productType.regionalCategory
+
+    if (productType.baseCategory)
+      return productType.baseCategory
+
+    if (productType.name)
+      return productType.name
+
+  }
+
+  return "general"
+
+}
 
 async function updateShopifyProduct({
   shopDomain,
@@ -22,38 +45,21 @@ async function updateShopifyProduct({
 }) {
 
   if (!shopDomain || !productId) {
-    throw new Error("Missing shopDomain or productId");
+    throw new Error("Missing shopDomain or productId")
   }
 
   if (!accessToken) {
-    throw new Error("Missing Shopify access token");
+    throw new Error("Missing Shopify access token")
   }
 
-  const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
+  const url =
+    `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`
 
-  /*
-  ========================================
-  SAFETY NORMALIZATION
-  ========================================
-  Shopify exige string en product_type
-  ========================================
-  */
-
-  let normalizedProductType = "general";
-
-  if (typeof productType === "string") {
-    normalizedProductType = productType;
-  }
-
-  if (typeof productType === "object" && productType !== null) {
-    normalizedProductType =
-      productType.name ||
-      productType.category ||
-      "general";
-  }
+  const normalizedType = normalizeProductType(productType)
 
   const payload = {
     product: {
+
       id: productId,
 
       title: title || "",
@@ -64,7 +70,7 @@ async function updateShopifyProduct({
         ? tags.join(", ")
         : "",
 
-      product_type: normalizedProductType,
+      product_type: normalizedType,
 
       metafields: [
         {
@@ -74,47 +80,38 @@ async function updateShopifyProduct({
           value: "true"
         }
       ]
+
     }
-  };
+  }
 
   try {
 
-    console.log("ZEUS SHOPIFY SYNC START:", productId);
+    console.log("ZEUS SHOPIFY SYNC START:", productId)
 
     const response = await axios.put(
       url,
       payload,
       {
         headers: {
-
-          /*
-          Shopify OAuth Token
-          */
           "X-Shopify-Access-Token": accessToken,
-
-          /*
-          Required headers
-          */
-          "Content-Type": "application/json",
-          "X-Shopify-Api-Version": SHOPIFY_API_VERSION
-
+          "Content-Type": "application/json"
         },
         timeout: 15000
       }
-    );
+    )
 
-    console.log("ZEUS SHOPIFY SYNC COMPLETE:", productId);
+    console.log("ZEUS SHOPIFY SYNC COMPLETE:", productId)
 
-    return response.data;
+    return response.data
 
   } catch (error) {
 
     console.error(
       "SHOPIFY UPDATE ERROR:",
       error.response?.data || error.message
-    );
+    )
 
-    throw error;
+    throw error
 
   }
 
@@ -122,4 +119,4 @@ async function updateShopifyProduct({
 
 module.exports = {
   updateShopifyProduct
-};
+}
