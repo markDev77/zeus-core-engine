@@ -1,9 +1,25 @@
-const { optimizeRegionalTitle } = require("../services/regionalTitleOptimizer")
-const { generateDescription } = require("../services/regionalDescriptionOptimizer")
-const { generateTags } = require("../services/regionalTagGenerator")
-const { detectMarketSignal } = require("../services/marketSignalEngine")
+/*
+========================================
+ZEUS PRODUCT TRANSFORMER
+========================================
+Orquesta todo el pipeline de optimización
+sin contener lógica pesada.
 
-function normalizeText(text = "") {
+Servicios conectados:
+
+regionalTitleOptimizer
+regionalDescriptionOptimizer
+regionalTagGenerator
+marketSignalEngine
+========================================
+*/
+
+const { optimizeRegionalTitle } = require("./regionalTitleOptimizer")
+const { optimizeRegionalDescription } = require("./regionalDescriptionOptimizer")
+const { generateRegionalTags } = require("./regionalTagGenerator")
+const { detectMarketSignals } = require("./marketSignalEngine")
+
+function normalize(text = "") {
   return String(text || "").trim()
 }
 
@@ -28,6 +44,7 @@ function detectCategory(title = "", description = "") {
     taxonomy: "General",
     confidence: 0.5
   }
+
 }
 
 function generateProductIntelligence(title = "", description = "") {
@@ -54,9 +71,11 @@ function generateProductIntelligence(title = "", description = "") {
   }
 
   if (features.length) {
+
     benefits.push("Mayor libertad de movimiento para el entrenamiento.")
     benefits.push("Reduce costos al no requerir baterías desechables.")
     benefits.push("Permite controlar el entrenamiento a distancia.")
+
   }
 
   return {
@@ -68,12 +87,13 @@ function generateProductIntelligence(title = "", description = "") {
       power: "rechargeable"
     }
   }
+
 }
 
 function transformProduct(input = {}, storeProfile = {}) {
 
-  const originalTitle = normalizeText(input.title)
-  const description = normalizeText(input.description)
+  const originalTitle = normalize(input.title)
+  const description = normalize(input.description)
 
   const categoryData = detectCategory(originalTitle, description)
 
@@ -84,15 +104,19 @@ function transformProduct(input = {}, storeProfile = {}) {
     category: categoryData.category
   })
 
-  const seoDescription = generateDescription(
-    regionalTitle,
+  const seoDescription = optimizeRegionalDescription({
+    title: regionalTitle,
     description,
-    storeProfile.country || "DEFAULT"
-  )
+    storeProfile
+  })
 
-  const tags = generateTags(regionalTitle, description)
+  const tags = generateRegionalTags({
+    title: regionalTitle,
+    description,
+    category: categoryData.category
+  })
 
-  const marketSignal = detectMarketSignal({
+  const marketSignal = detectMarketSignals({
     title: regionalTitle,
     description
   })
@@ -100,6 +124,7 @@ function transformProduct(input = {}, storeProfile = {}) {
   const intelligence = generateProductIntelligence(regionalTitle, description)
 
   return {
+
     engine: "ZEUS",
 
     originalTitle: originalTitle,
@@ -122,7 +147,7 @@ function transformProduct(input = {}, storeProfile = {}) {
 
     taxonomy: categoryData.taxonomy,
 
-    trendScore: marketSignal.score,
+    trendScore: marketSignal.score || 0,
 
     features: intelligence.features,
 
@@ -133,12 +158,19 @@ function transformProduct(input = {}, storeProfile = {}) {
     baseCategory: categoryData.category,
 
     regionalCategory: {
+
       baseCategory: categoryData.category,
+
       regionalCategory: categoryData.category,
+
       marketplace: storeProfile.marketplace || "shopify",
+
       country: storeProfile.country || "DEFAULT"
+
     }
+
   }
+
 }
 
 module.exports = {
