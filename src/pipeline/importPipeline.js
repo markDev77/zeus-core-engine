@@ -29,6 +29,15 @@ async function runImportPipeline(input) {
 
   /*
   ==========================================
+  DEBUG INPUT
+  ==========================================
+  */
+
+  console.log("ZEUS PIPELINE RAW INPUT:");
+  console.log(JSON.stringify(input, null, 2));
+
+  /*
+  ==========================================
   TRANSFORM PRODUCT
   ==========================================
   */
@@ -68,17 +77,11 @@ async function runImportPipeline(input) {
   */
 
   const product = {
-
     ...transformed,
-
     baseCategory,
-
     regionalCategory,
-
     category: baseCategory,
-
     categoryConfidence: confidence
-
   };
 
   /*
@@ -91,8 +94,16 @@ async function runImportPipeline(input) {
     input.productId ||
     input.shopifyProductId ||
     input.id ||
+    input.payload?.id ||
+    input.data?.id ||
     input.product?.id ||
     null;
+
+  console.log("ZEUS DETECTED PRODUCT ID:", productId);
+
+  if (!productId) {
+    console.warn("ZEUS WARNING: productId not detected in pipeline input");
+  }
 
   /*
   ==========================================
@@ -101,11 +112,11 @@ async function runImportPipeline(input) {
   */
 
   const store = {
-
     shopDomain:
       input.shopDomain ||
       input.store?.shopDomain ||
-      input.store?.shop,
+      input.store?.shop ||
+      null,
 
     accessToken:
       input.accessToken ||
@@ -113,8 +124,9 @@ async function runImportPipeline(input) {
       process.env.SHOPIFY_ACCESS_TOKEN,
 
     productId
-
   };
+
+  console.log("ZEUS STORE CONTEXT:", store);
 
   /*
   ==========================================
@@ -161,15 +173,10 @@ async function runImportPipeline(input) {
   */
 
   return {
-
     product,
-
     baseCategory,
-
     regionalCategory,
-
     confidence
-
   };
 
 }
