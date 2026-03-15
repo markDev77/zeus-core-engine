@@ -1,8 +1,22 @@
 const express = require("express");
 
-const { processShopifyProduct } = require("../connectors/shopifyConnector");
+const { processShopifyProduct } = require("./shopifyConnector");
+const { checkZeusProcessed } = require("../security/loopProtection");
 
 const router = express.Router();
+
+/*
+====================================================
+UTIL
+GET STORE FROM HEADERS
+====================================================
+*/
+
+function getShopDomain(req) {
+
+  return req.headers["x-shopify-shop-domain"];
+
+}
 
 /*
 ====================================================
@@ -17,10 +31,46 @@ router.post("/products/create", async (req, res) => {
 
     const payload = req.body;
 
-    console.log("SHOPIFY CREATE WEBHOOK RECEIVED");
-    console.log("PAYLOAD:", payload);
+    const shopDomain = getShopDomain(req);
 
-    const result = await processShopifyProduct(payload);
+    const productId = payload.id;
+
+    console.log("SHOPIFY CREATE WEBHOOK");
+    console.log("SHOP:", shopDomain);
+    console.log("PRODUCT:", productId);
+
+    /*
+    ==========================================
+    LOOP PROTECTION
+    ==========================================
+    */
+
+    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+
+    const processed = await checkZeusProcessed(
+      shopDomain,
+      accessToken,
+      productId
+    );
+
+    if (processed) {
+
+      console.log("ZEUS LOOP BLOCKED", productId);
+
+      return res.status(200).send("IGNORED");
+
+    }
+
+    /*
+    ==========================================
+    PROCESS PRODUCT
+    ==========================================
+    */
+
+    const result = await processShopifyProduct({
+      ...payload,
+      shopDomain
+    });
 
     console.log("CONNECTOR RESULT:", result);
 
@@ -49,10 +99,46 @@ router.post("/products/update", async (req, res) => {
 
     const payload = req.body;
 
-    console.log("SHOPIFY UPDATE WEBHOOK RECEIVED");
-    console.log("PAYLOAD:", payload);
+    const shopDomain = getShopDomain(req);
 
-    const result = await processShopifyProduct(payload);
+    const productId = payload.id;
+
+    console.log("SHOPIFY UPDATE WEBHOOK");
+    console.log("SHOP:", shopDomain);
+    console.log("PRODUCT:", productId);
+
+    /*
+    ==========================================
+    LOOP PROTECTION
+    ==========================================
+    */
+
+    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+
+    const processed = await checkZeusProcessed(
+      shopDomain,
+      accessToken,
+      productId
+    );
+
+    if (processed) {
+
+      console.log("ZEUS LOOP BLOCKED", productId);
+
+      return res.status(200).send("IGNORED");
+
+    }
+
+    /*
+    ==========================================
+    PROCESS PRODUCT
+    ==========================================
+    */
+
+    const result = await processShopifyProduct({
+      ...payload,
+      shopDomain
+    });
 
     console.log("CONNECTOR RESULT:", result);
 
