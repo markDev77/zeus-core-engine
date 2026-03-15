@@ -41,16 +41,22 @@ router.post("/stripe/create-checkout", async (req, res) => {
       });
     }
 
+    console.log("================================================");
     console.log("ZEUS STRIPE CHECKOUT START");
     console.log("PRICE:", priceId);
     console.log("STORE:", store);
+    console.log("================================================");
 
     const session = await stripe.checkout.sessions.create({
+
+      /*
+      subscription mode
+      */
 
       mode: "subscription",
 
       /*
-      Allow ZEUS to identify the store
+      reference store for ZEUS billing
       */
 
       client_reference_id: store || "unknown",
@@ -61,6 +67,10 @@ router.post("/stripe/create-checkout", async (req, res) => {
 
       billing_address_collection: "auto",
 
+      /*
+      product pricing
+      */
+
       line_items: [
         {
           price: priceId,
@@ -68,13 +78,17 @@ router.post("/stripe/create-checkout", async (req, res) => {
         }
       ],
 
+      /*
+      metadata used later by webhook
+      */
+
       metadata: {
         store: store || "unknown",
         source: "zeus"
       },
 
       /*
-      Redirect URLs
+      redirect urls
       */
 
       success_url: "https://zeusinfra.io/success?session_id={CHECKOUT_SESSION_ID}",
@@ -82,7 +96,7 @@ router.post("/stripe/create-checkout", async (req, res) => {
       cancel_url: "https://zeusinfra.io/cancel",
 
       /*
-      Optional but recommended
+      optional but recommended
       */
 
       allow_promotion_codes: true
@@ -91,20 +105,20 @@ router.post("/stripe/create-checkout", async (req, res) => {
 
     console.log("ZEUS STRIPE SESSION CREATED:", session.id);
 
-    return res.json({
-      checkoutUrl: session.url,
-      sessionId: session.id
-    });
+    /*
+    redirect directly to Stripe Checkout
+    */
+
+    return res.redirect(303, session.url);
 
   } catch (error) {
 
-    console.error("STRIPE CHECKOUT ERROR:");
-
-    console.error({
-      message: error.message,
-      type: error.type,
-      code: error.code
-    });
+    console.error("================================================");
+    console.error("STRIPE CHECKOUT ERROR");
+    console.error("MESSAGE:", error.message);
+    console.error("TYPE:", error.type);
+    console.error("CODE:", error.code);
+    console.error("================================================");
 
     return res.status(500).json({
       error: "stripe_checkout_failed",
