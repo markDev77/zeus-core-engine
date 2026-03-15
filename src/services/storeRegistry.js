@@ -43,37 +43,52 @@ function getStore(shop) {
   const stores = loadStores()
 
   return stores.find(
-    s => s.shop === shop
+    s => s.shopDomain === shop
   )
 
 }
 
-function registerStore(shop, token) {
+function registerStore(shop, token, metadata = {}) {
 
   const stores = loadStores()
 
   let store = stores.find(
-    s => s.shop === shop
+    s => s.shopDomain === shop
   )
+
+  const profile = {
+    country: metadata.country || "US",
+    language: metadata.language || "en",
+    currency: metadata.currency || "USD",
+    marketplace: metadata.marketplace || "shopify"
+  }
 
   if (!store) {
 
     store = {
-      shop,
-      token,
+
+      shopDomain: shop,
+      accessToken: token,
+      platform: metadata.platform || "shopify",
+
       createdAt: new Date().toISOString(),
+
+      profile,
+
       billing: {
         plan: "free",
         status: "inactive",
         sku_limit: 50
       }
+
     }
 
     stores.push(store)
 
   } else {
 
-    store.token = token
+    store.accessToken = token
+    store.profile = profile
 
   }
 
@@ -88,7 +103,7 @@ function updateStorePlan(shop, planData) {
   const stores = loadStores()
 
   const store = stores.find(
-    s => s.shop === shop
+    s => s.shopDomain === shop
   )
 
   if (!store) return null
