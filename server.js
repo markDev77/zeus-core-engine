@@ -1,20 +1,51 @@
 const express = require("express");
 const crypto = require("crypto");
 
+/*
+ZEUS SERVICES
+*/
+
 const { transformProduct } = require("./src/services/productTransformer");
 const { createJob } = require("./src/services/jobManager");
 const { checkSkuLimit } = require("./src/services/skuLimiter");
 const productRegistry = require("./src/services/productRegistry");
+
 const { resolveStoreProfile } = require("./src/services/storeProfileResolver");
 const { mapRegionalCategory } = require("./src/services/regionalCategoryMapper");
 
+/*
+PIPELINES
+*/
+
 const { runImportPipeline } = require("./src/pipeline/importPipeline");
+
+/*
+IMPORTERS
+*/
+
 const { importUsadropProducts } = require("./src/importers/usadropImporter");
 
+/*
+SHOPIFY ROUTES
+*/
+
 const installRoutes = require("./src/routes/install");
+
+/*
+SYNC ENGINE
+*/
+
 const { updateShopifyProduct } = require("./src/services/shopifyProductUpdater");
 
+/*
+LOOP PROTECTION
+*/
+
 const { isZeusUpdate, markZeusUpdate } = require("./src/services/loopProtection");
+
+/*
+STRIPE
+*/
 
 const stripeWebhook = require("./src/routes/stripeWebhook");
 
@@ -22,23 +53,7 @@ const app = express();
 
 /*
 ====================================================
-SHOPIFY WEBHOOK RAW BODY
-====================================================
-*/
-
-app.use("/webhooks", express.raw({ type: "application/json" }));
-
-/*
-====================================================
-STRIPE WEBHOOK RAW BODY
-====================================================
-*/
-
-app.use("/stripe/webhook", express.raw({ type: "application/json" }));
-
-/*
-====================================================
-BODY PARSER NORMAL
+BODY PARSERS
 ====================================================
 */
 
@@ -54,15 +69,24 @@ app.use("/", installRoutes);
 
 /*
 ====================================================
-STRIPE ROUTES
+STRIPE WEBHOOK
 ====================================================
 */
 
+app.use("/stripe/webhook", express.raw({ type: "application/json" }));
 app.use("/", stripeWebhook);
 
 /*
 ====================================================
-SHOPIFY WEBHOOK VERIFY
+SHOPIFY WEBHOOK RAW BODY
+====================================================
+*/
+
+app.use("/webhooks", express.raw({ type: "application/json" }));
+
+/*
+====================================================
+VERIFY SHOPIFY WEBHOOK
 ====================================================
 */
 
@@ -70,9 +94,7 @@ function verifyShopifyWebhook(req) {
 
   const hmacHeader = req.headers["x-shopify-hmac-sha256"];
 
-  if (!hmacHeader) {
-    return false;
-  }
+  if (!hmacHeader) return false;
 
   const generatedHash = crypto
     .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
@@ -93,58 +115,6 @@ function verifyShopifyWebhook(req) {
   }
 
 }
-
-/*
-====================================================
-SHOPIFY WEBHOOKS
-====================================================
-*/
-
-app.post("/webhooks/products-create", async (req, res) => {
-
-  if (!verifyShopifyWebhook(req)) {
-    return res.status(401).send("Invalid webhook");
-  }
-
-  const product = JSON.parse(req.body.toString());
-
-  console.log("SHOPIFY PRODUCT CREATE:", product.id);
-
-  res.status(200).send("ok");
-
-});
-
-app.post("/webhooks/products-update", async (req, res) => {
-
-  if (!verifyShopifyWebhook(req)) {
-    return res.status(401).send("Invalid webhook");
-  }
-
-  const product = JSON.parse(req.body.toString());
-
-  if (isZeusUpdate(product)) {
-    return res.status(200).send("Ignored ZEUS update");
-  }
-
-  console.log("SHOPIFY PRODUCT UPDATE:", product.id);
-
-  res.status(200).send("ok");
-
-});
-
-app.post("/webhooks/inventory-update", async (req, res) => {
-
-  if (!verifyShopifyWebhook(req)) {
-    return res.status(401).send("Invalid webhook");
-  }
-
-  const inventory = JSON.parse(req.body.toString());
-
-  console.log("SHOPIFY INVENTORY UPDATE:", inventory.inventory_item_id);
-
-  res.status(200).send("ok");
-
-});
 
 /*
 ====================================================
@@ -173,7 +143,7 @@ app.get("/", (req, res) => {
 
 /*
 ====================================================
-ZEUS PRODUCT OPTIMIZATION
+PRODUCT OPTIMIZATION
 ====================================================
 */
 
@@ -229,17 +199,213 @@ app.post("/optimize/product", (req, res) => {
   });
 
   const response = {
+
     jobId: job.id,
     status: "processed",
     store: storeContext.store,
     storeProfile: storeContext.profile,
-    storeProfileResolution: storeContext.resolution,
     baseCategory: result.category,
     regionalCategory: categoryMapping.regionalCategory,
-    result: result
+    result: {
+      ...result,
+      baseCategory: result.category,
+      regionalCategory: categoryMapping.regionalCategory
+    }
+
   };
 
+  productRegistry.saveProduct(job.id, response);
+
   res.json(response);
+
+});
+
+/*
+====================================================
+IMPORT PIPELINE
+====================================================
+*/
+
+app.post("/import/product", async (req, res) => {
+
+  try {
+
+    const payload = req.body;
+
+    if (!payload) {
+
+      return res.status(400).json({
+        error: "Product payload required"
+      });
+
+    }
+
+    const job = createJob({
+      type: "import",
+      payload
+    });
+
+    const result = await runImportPipeline(payload);
+
+    productRegistry.saveProduct(job.id, result);
+
+    res.json(result);
+
+  } catch (error) {
+
+    console.error("IMPORT PIPELINE ERROR:", error);
+
+    res.status(500).json({
+      status: "error",
+      message: error.message
+    });
+
+  }
+
+});
+
+/*
+====================================================
+USADROP IMPORT
+====================================================
+*/
+
+app.post("/import/usadrop", async (req, res) => {
+
+  try {
+
+    console.log("ZEUS USADROP IMPORT START");
+
+    const result = await importUsadropProducts();
+
+    res.json({
+      engine: "ZEUS",
+      importer: "USAdrop",
+      status: "completed",
+      imported: result.imported || 0,
+      failed: result.failed || 0
+    });
+
+  } catch (error) {
+
+    console.error("USADROP IMPORT ERROR:", error);
+
+    res.status(500).json({
+      status: "error",
+      message: error.message
+    });
+
+  }
+
+});
+
+/*
+====================================================
+SHOPIFY WEBHOOK PRODUCT CREATE
+====================================================
+*/
+
+app.post("/webhooks/products-create", async (req, res) => {
+
+  if (!verifyShopifyWebhook(req)) {
+
+    return res.status(401).send("Invalid HMAC");
+
+  }
+
+  const product = JSON.parse(req.body);
+
+  console.log("SHOPIFY PRODUCT CREATE:", product.id);
+
+  try {
+
+    if (isZeusUpdate(product)) {
+
+      console.log("ZEUS LOOP PROTECTION TRIGGERED");
+      return res.status(200).send("Loop prevented");
+
+    }
+
+    const optimized = transformProduct({
+      title: product.title,
+      description: product.body_html
+    });
+
+    markZeusUpdate(product.id);
+
+    await updateShopifyProduct({
+
+      shop: product.vendor,
+      productId: product.id,
+      data: optimized
+
+    });
+
+  } catch (error) {
+
+    console.error("WEBHOOK CREATE ERROR:", error);
+
+  }
+
+  res.status(200).send("ok");
+
+});
+
+/*
+====================================================
+SHOPIFY WEBHOOK INVENTORY UPDATE
+====================================================
+*/
+
+app.post("/webhooks/inventory-update", async (req, res) => {
+
+  if (!verifyShopifyWebhook(req)) {
+
+    return res.status(401).send("Invalid HMAC");
+
+  }
+
+  const inventory = JSON.parse(req.body);
+
+  console.log("SHOPIFY INVENTORY UPDATE:", inventory.inventory_item_id);
+
+  res.status(200).send("ok");
+
+});
+
+/*
+====================================================
+JOB QUERY
+====================================================
+*/
+
+app.get("/jobs/:id", (req, res) => {
+
+  const job = productRegistry.getProduct(req.params.id);
+
+  if (!job) {
+
+    return res.status(404).json({
+      error: "Job not found"
+    });
+
+  }
+
+  res.json(job);
+
+});
+
+/*
+====================================================
+LIST JOBS
+====================================================
+*/
+
+app.get("/jobs", (req, res) => {
+
+  const jobs = productRegistry.getAllProducts();
+
+  res.json(jobs);
 
 });
 
