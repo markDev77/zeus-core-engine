@@ -54,27 +54,19 @@ const app = express();
 
 /*
 ====================================================
-SHOPIFY WEBHOOK RAW BODY
-====================================================
-*/
-
-app.use("/webhooks", express.raw({ type: "application/json" }));
-
-/*
-====================================================
-STRIPE WEBHOOK RAW BODY
-====================================================
-*/
-
-app.use("/stripe/webhook", express.raw({ type: "application/json" }));
-
-/*
-====================================================
 BODY PARSER NORMAL
 ====================================================
 */
 
 app.use(express.json());
+
+/*
+====================================================
+SHOPIFY WEBHOOK RAW BODY
+====================================================
+*/
+
+app.use("/webhooks", express.raw({ type: "application/json" }));
 
 /*
 ====================================================
@@ -86,12 +78,23 @@ app.use("/", installRoutes);
 
 /*
 ====================================================
-STRIPE ROUTES
+STRIPE CHECKOUT ROUTE
 ====================================================
 */
 
 app.use("/", stripeCheckout);
-app.use("/", stripeWebhook);
+
+/*
+====================================================
+STRIPE WEBHOOK
+====================================================
+*/
+
+app.post(
+  "/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  stripeWebhook
+);
 
 /*
 ====================================================
