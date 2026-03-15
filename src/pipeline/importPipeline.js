@@ -43,7 +43,10 @@ async function runImportPipeline(input) {
   ==========================================
   */
 
-  const transformed = transformProduct(input);
+  const transformed = transformProduct({
+    ...input,
+    storeProfile: input.storeProfile || {}
+  });
 
   /*
   ==========================================
