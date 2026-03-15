@@ -1,42 +1,27 @@
-const express = require("express");
-const router = express.Router();
-const Stripe = require("stripe");
+const express = require("express")
+const router = express.Router()
+const Stripe = require("stripe")
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error("ERROR: STRIPE_SECRET_KEY not configured");
-  process.exit(1);
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16"
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 router.post("/stripe/create-checkout", async (req, res) => {
+
   try {
-    const { priceId, store, plan } = req.body;
+
+    const { priceId, shop, plan } = req.body
 
     if (!priceId) {
-      return res.status(400).json({
-        error: "missing_price_id"
-      });
+      return res.status(400).json({ error: "missing_price_id" })
     }
 
-    if (!store) {
-      return res.status(400).json({
-        error: "missing_store"
-      });
+    if (!shop) {
+      return res.status(400).json({ error: "missing_shop" })
     }
 
-    const safePlan = plan || "starter";
-
-    console.log("================================================");
-    console.log("ZEUS STRIPE CHECKOUT START");
-    console.log("PRICE:", priceId);
-    console.log("STORE:", store);
-    console.log("PLAN:", safePlan);
-    console.log("================================================");
+    const safePlan = plan || "starter"
 
     const session = await stripe.checkout.sessions.create({
+
       mode: "subscription",
 
       line_items: [
@@ -46,17 +31,17 @@ router.post("/stripe/create-checkout", async (req, res) => {
         }
       ],
 
-      client_reference_id: store,
+      client_reference_id: shop,
 
       metadata: {
-        store,
+        shop,
         plan: safePlan,
         source: "zeus"
       },
 
       subscription_data: {
         metadata: {
-          store,
+          shop,
           plan: safePlan,
           source: "zeus"
         }
@@ -67,27 +52,25 @@ router.post("/stripe/create-checkout", async (req, res) => {
 
       cancel_url:
         "https://zeusinfra.io/cancel"
-    });
 
-    console.log("ZEUS STRIPE SESSION CREATED:", session.id);
+    })
 
     return res.json({
       checkoutUrl: session.url,
       sessionId: session.id
-    });
-  } catch (error) {
-    console.error("================================================");
-    console.error("STRIPE CHECKOUT ERROR");
-    console.error("MESSAGE:", error.message);
-    console.error("TYPE:", error.type);
-    console.error("CODE:", error.code);
-    console.error("================================================");
+    })
 
-    return res.status(500).json({
+  } catch (error) {
+
+    console.error("STRIPE CHECKOUT ERROR:", error)
+
+    res.status(500).json({
       error: "stripe_checkout_failed",
       message: error.message
-    });
-  }
-});
+    })
 
-module.exports = router;
+  }
+
+})
+
+module.exports = router
