@@ -9,6 +9,7 @@ const { transformProduct } = require("./src/services/productTransformer");
 const { createJob } = require("./src/services/jobManager");
 const { checkSkuLimit } = require("./src/services/skuLimiter");
 const productRegistry = require("./src/services/productRegistry");
+const { checkBillingAccess } = require("./src/services/billingLimiter");
 
 const { resolveStoreProfile } = require("./src/services/storeProfileResolver");
 const { mapRegionalCategory } = require("./src/services/regionalCategoryMapper");
@@ -369,6 +370,16 @@ app.post("/webhooks/products-create", async (req, res) => {
       console.log("ZEUS LOOP PREVENTED");
 
       return res.status(200).send("ok");
+
+    }
+
+    const billingCheck = checkBillingAccess(shop);
+
+    if (!billingCheck.allowed) {
+
+      console.log("ZEUS PLAN LIMIT BLOCKED:", shop, billingCheck.reason);
+
+      return res.status(200).send("plan_limit_blocked");
 
     }
 
