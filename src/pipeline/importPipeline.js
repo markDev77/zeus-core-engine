@@ -2,6 +2,7 @@ const { transformProduct } = require("../services/productTransformer");
 const categoryBrain = require("../services/categoryBrain");
 const { mapRegionalCategory } = require("../services/regionalCategoryMapper");
 const { syncProduct } = require("../services/syncEngine");
+const { getStore } = require("../services/storeRegistry");
 
 /*
 ====================================================
@@ -112,22 +113,55 @@ async function runImportPipeline(input) {
   ==========================================
   */
 
+  const shopDomain =
+    input.shopDomain ||
+    input.store?.shopDomain ||
+    input.store?.shop ||
+    null;
+
+  const registeredStore = shopDomain
+    ? getStore(shopDomain)
+    : null;
+
+  if (input.accessToken) {
+    console.warn(
+      "ZEUS WARNING: top-level accessToken ignored in favor of OAuth store token"
+    );
+  }
+
+  if (
+    registeredStore?.accessToken &&
+    input.store?.accessToken &&
+    registeredStore.accessToken !== input.store.accessToken
+  ) {
+    console.warn(
+      "ZEUS WARNING: incoming store token mismatch, using storeRegistry token for",
+      shopDomain
+    );
+  }
+
   const store = {
-    shopDomain:
-      input.shopDomain ||
-      input.store?.shopDomain ||
-      input.store?.shop ||
-      null,
-
+    shopDomain,
     accessToken:
-      input.accessToken ||
+      registeredStore?.accessToken ||
       input.store?.accessToken ||
-      process.env.SHOPIFY_ACCESS_TOKEN,
-
+      null,
     productId
   };
 
-  console.log("ZEUS STORE CONTEXT:", store);
+  console.log("ZEUS STORE CONTEXT:", {
+    shopDomain: store.shopDomain,
+    accessToken: store.accessToken ? "[REDACTED_PRESENT]" : null,
+    productId: store.productId
+  });
+
+  if (!store.shopDomain) {
+    console.warn("ZEUS WARNING: shopDomain not detected in pipeline input");
+  }
+
+  if (!store.accessToken) {
+    console.warn("ZEUS WARNING: OAuth accessToken not available for store sync");
+  }
 
   /*
   ==========================================
