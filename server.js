@@ -36,7 +36,7 @@ const installRoutes = require("./src/routes/install");
 STORE REGISTRY (OAUTH SUPPORT)
 */
 
-const { getStore, loadStores } = require("./src/services/storeRegistry");
+const { getStore } = require("./src/services/storeRegistry");
 
 /*
 LOOP PROTECTION
@@ -192,19 +192,6 @@ app.get("/queue/status", (req, res) => {
     system: "ZEUS JOB QUEUE",
     ...getQueueStatus()
   });
-
-});
-
-/*
-====================================================
-DEBUG STORES
-====================================================
-*/
-
-app.get("/debug/stores", (req, res) => {
-
-  const stores = loadStores();
-  res.json(stores);
 
 });
 
@@ -454,6 +441,10 @@ app.post("/webhooks/products-create", async (req, res) => {
 
     }
 
+    /*
+    TOKEN CORRECTION
+    */
+
     if (!store.accessToken) {
 
       console.log("ZEUS STORE TOKEN MISSING:", shop);
@@ -534,6 +525,41 @@ app.post("/webhooks/inventory-update", async (req, res) => {
   console.log("SHOPIFY INVENTORY UPDATE:", inventory.inventory_item_id);
 
   res.status(200).send("ok");
+
+});
+
+/*
+====================================================
+JOB QUERY
+====================================================
+*/
+
+app.get("/jobs/:id", (req, res) => {
+
+  const job = productRegistry.getProduct(req.params.id);
+
+  if (!job) {
+
+    return res.status(404).json({
+      error: "Job not found"
+    });
+
+  }
+
+  res.json(job);
+
+});
+
+/*
+====================================================
+LIST JOBS
+====================================================
+*/
+
+app.get("/jobs", (req, res) => {
+
+  const jobs = productRegistry.getAllProducts();
+  res.json(jobs);
 
 });
 
