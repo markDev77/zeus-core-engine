@@ -4,6 +4,7 @@ const { optimizeRegionalTitle } = require("./regionalTitleOptimizer");
 const { optimizeRegionalDescription } = require("./regionalDescriptionOptimizer");
 const { generateRegionalTags } = require("./regionalTagGenerator");
 const { applyMarketSignals } = require("./marketSignalEngine");
+const { applyProductIntelligence } = require("./productIntelligenceEngine");
 
 function cleanTitle(title = "") {
   return String(title || "")
@@ -59,11 +60,32 @@ function transformProduct(input = {}) {
     marketSignalMode: "enabled"
   };
 
+  /*
+  ========================================
+  STEP 1
+  limpiar título
+  ========================================
+  */
+
   const cleanedTitle = cleanTitle(originalTitle);
+
+  /*
+  ========================================
+  STEP 2
+  detectar idioma
+  ========================================
+  */
 
   const detectedLanguage = detectLanguage(
     `${cleanedTitle} ${originalDescription}`
   );
+
+  /*
+  ========================================
+  STEP 3
+  traducción
+  ========================================
+  */
 
   const translatedTitle = translateText(
     cleanedTitle,
@@ -76,6 +98,13 @@ function transformProduct(input = {}) {
     detectedLanguage,
     storeProfile.language
   );
+
+  /*
+  ========================================
+  STEP 4
+  detectar categoría
+  ========================================
+  */
 
   let categoryHint = "general";
 
@@ -90,12 +119,26 @@ function transformProduct(input = {}) {
     categoryHint = "pet_supplies";
   }
 
+  /*
+  ========================================
+  STEP 5
+  optimizar título
+  ========================================
+  */
+
   const optimizedTitle = optimizeRegionalTitle({
     translatedTitle,
     translatedDescription,
     storeProfile,
     category: categoryHint
   });
+
+  /*
+  ========================================
+  STEP 6
+  optimizar descripción
+  ========================================
+  */
 
   const optimizedDescription = optimizeRegionalDescription({
     optimizedTitle,
@@ -104,7 +147,21 @@ function transformProduct(input = {}) {
     category: categoryHint
   });
 
+  /*
+  ========================================
+  STEP 7
+  base tags
+  ========================================
+  */
+
   const baseTags = generateBaseTags(translatedTitle);
+
+  /*
+  ========================================
+  STEP 8
+  tags regionales
+  ========================================
+  */
 
   const optimizedTags = generateRegionalTags({
     optimizedTitle,
@@ -113,6 +170,13 @@ function transformProduct(input = {}) {
     category: categoryHint,
     existingTags: baseTags
   });
+
+  /*
+  ========================================
+  STEP 9
+  taxonomía
+  ========================================
+  */
 
   const taxonomy = mapTaxonomy(categoryHint);
 
@@ -142,7 +206,23 @@ function transformProduct(input = {}) {
 
   };
 
+  /*
+  ========================================
+  STEP 10
+  market signals
+  ========================================
+  */
+
   product = applyMarketSignals(product, storeProfile);
+
+  /*
+  ========================================
+  STEP 11
+  product intelligence
+  ========================================
+  */
+
+  product = applyProductIntelligence(product);
 
   return product;
 
