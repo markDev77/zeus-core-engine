@@ -1,8 +1,51 @@
 const fetch = require("node-fetch");
 
+function normalizeProductType(value) {
+
+  if (!value) return "general";
+
+  if (typeof value === "string") return value;
+
+  if (typeof value === "object") {
+
+    if (value.regionalCategory) return value.regionalCategory;
+
+    if (value.baseCategory) return value.baseCategory;
+
+    if (value.name) return value.name;
+
+  }
+
+  return "general";
+}
+
 async function updateShopifyProduct(shop, accessToken, productId, updates) {
 
   try {
+
+    /*
+    =========================================
+    NORMALIZE product_type
+    =========================================
+    */
+
+    if (updates.product_type) {
+      updates.product_type = normalizeProductType(updates.product_type);
+    }
+
+    if (updates.category) {
+      updates.product_type = normalizeProductType(updates.category);
+      delete updates.category;
+    }
+
+    const payload = {
+      product: {
+        id: productId,
+        ...updates
+      }
+    };
+
+    console.log("ZEUS SHOPIFY PAYLOAD:", JSON.stringify(payload, null, 2));
 
     const response = await fetch(
       `https://${shop}/admin/api/2024-01/products/${productId}.json`,
@@ -12,12 +55,7 @@ async function updateShopifyProduct(shop, accessToken, productId, updates) {
           "X-Shopify-Access-Token": accessToken,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          product: {
-            id: productId,
-            ...updates
-          }
-        })
+        body: JSON.stringify(payload)
       }
     );
 
