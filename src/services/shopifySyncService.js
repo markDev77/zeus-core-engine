@@ -19,20 +19,12 @@ async function updateShopifyProduct({
   productType
 }) {
 
-  /*
-  ========================================
-  VALIDACIÓN BÁSICA
-  ========================================
-  */
-
   if (!shopDomain || !productId) {
     throw new Error("Missing Shopify store or productId for sync");
   }
 
   /*
-  ========================================
   TEST MODE
-  ========================================
   */
 
   if (!accessToken || accessToken === "TEST") {
@@ -53,19 +45,7 @@ async function updateShopifyProduct({
 
   }
 
-  /*
-  ========================================
-  SHOPIFY API URL
-  ========================================
-  */
-
   const url = `https://${shopDomain}/admin/api/2024-01/products/${productId}.json`;
-
-  /*
-  ========================================
-  PAYLOAD
-  ========================================
-  */
 
   const payload = {
     product: {
@@ -73,15 +53,12 @@ async function updateShopifyProduct({
       title: title,
       body_html: description,
       tags: Array.isArray(tags) ? tags.join(", ") : "",
-      product_type: productType
+      product_type:
+        typeof productType === "object"
+          ? productType?.name || "general"
+          : productType || "general"
     }
   };
-
-  /*
-  ========================================
-  REQUEST
-  ========================================
-  */
 
   const response = await fetch(url, {
     method: "PUT",
@@ -91,12 +68,6 @@ async function updateShopifyProduct({
     },
     body: JSON.stringify(payload)
   });
-
-  /*
-  ========================================
-  ERROR HANDLING
-  ========================================
-  */
 
   if (!response.ok) {
 
