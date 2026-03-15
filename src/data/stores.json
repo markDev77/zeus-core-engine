@@ -3,6 +3,8 @@
     "shopDomain": "eawi7g-hj.myshopify.com",
     "accessToken": "shpat_test",
     "platform": "shopify",
-    "storeId": "eawi7g-hj.myshopify.com"
+    "storeId": "eawi7g-hj.myshopify.com",
+    "plan": "free",
+    "productLimit": 50
   }
 ]
