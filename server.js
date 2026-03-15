@@ -54,6 +54,18 @@ const app = express();
 
 /*
 ====================================================
+STRIPE WEBHOOK (RAW BODY REQUIRED)
+====================================================
+*/
+
+app.post(
+  "/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  stripeWebhook
+);
+
+/*
+====================================================
 BODY PARSER NORMAL
 ====================================================
 */
@@ -83,18 +95,6 @@ STRIPE CHECKOUT ROUTE
 */
 
 app.use("/", stripeCheckout);
-
-/*
-====================================================
-STRIPE WEBHOOK
-====================================================
-*/
-
-app.post(
-  "/stripe/webhook",
-  express.raw({ type: "application/json" }),
-  stripeWebhook
-);
 
 /*
 ====================================================
