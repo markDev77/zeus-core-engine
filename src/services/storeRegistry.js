@@ -6,7 +6,7 @@ const STORE_FILE = path.join(__dirname, "../data/stores.json")
 function loadStores() {
 
   if (!fs.existsSync(STORE_FILE)) {
-    fs.writeFileSync(STORE_FILE, JSON.stringify([]))
+    fs.writeFileSync(STORE_FILE, JSON.stringify([], null, 2))
   }
 
   const raw = fs.readFileSync(STORE_FILE)
@@ -15,11 +15,9 @@ function loadStores() {
 
     const data = JSON.parse(raw)
 
-    if (Array.isArray(data)) {
-      return data
-    }
+    if (Array.isArray(data)) return data
 
-    return Object.values(data)
+    return []
 
   } catch {
 
@@ -38,37 +36,42 @@ function saveStores(stores) {
 
 }
 
-function getStore(shop) {
+function getStore(shopDomain) {
 
   const stores = loadStores()
 
   return stores.find(
-    s => s.shopDomain === shop
+    s => s.shopDomain === shopDomain
   )
 
 }
 
-function registerStore(shop, token, metadata = {}) {
+function registerStore(shopDomain, accessToken, metadata = {}) {
 
   const stores = loadStores()
 
   let store = stores.find(
-    s => s.shopDomain === shop
+    s => s.shopDomain === shopDomain
   )
 
   const profile = {
+
     country: metadata.country || "US",
-    language: metadata.language || "en",
+    language: metadata.language || "en-US",
     currency: metadata.currency || "USD",
     marketplace: metadata.marketplace || "shopify"
+
   }
 
   if (!store) {
 
     store = {
 
-      shopDomain: shop,
-      accessToken: token,
+      storeId: shopDomain,
+
+      shopDomain,
+      accessToken,
+
       platform: metadata.platform || "shopify",
 
       createdAt: new Date().toISOString(),
@@ -87,23 +90,25 @@ function registerStore(shop, token, metadata = {}) {
 
   } else {
 
-    store.accessToken = token
+    store.accessToken = accessToken
     store.profile = profile
 
   }
 
   saveStores(stores)
 
+  console.log("STORE SAVED:", store)
+
   return store
 
 }
 
-function updateStorePlan(shop, planData) {
+function updateStorePlan(shopDomain, planData) {
 
   const stores = loadStores()
 
   const store = stores.find(
-    s => s.shopDomain === shop
+    s => s.shopDomain === shopDomain
   )
 
   if (!store) return null
