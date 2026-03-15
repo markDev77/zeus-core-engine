@@ -1,98 +1,171 @@
 /*
 ========================================
-ZEUS SYNC ENGINE
+ZEUS SHOPIFY SYNC
 ========================================
-Motor de sincronización de productos
-según plataforma destino
+Servicio unificado de sincronización
+de productos Shopify desde ZEUS
 ========================================
 */
 
-const { updateShopifyProduct } = require("./shopifySync")
+const axios = require("axios")
 
-async function syncProduct({
-  platform,
-  store,
-  product
+async function updateShopifyProduct({
+  shopDomain,
+  accessToken,
+  productId,
+  title,
+  description,
+  tags,
+  productType
 }) {
 
-  if (!platform) {
-    throw new Error("SYNC ENGINE: platform missing")
-  }
+  /*
+  ========================================
+  VALIDATION
+  ========================================
+  */
 
-  if (!store) {
-    throw new Error("SYNC ENGINE: store missing")
-  }
-
-  if (!product) {
-    throw new Error("SYNC ENGINE: product missing")
-  }
-
-  const {
-    shopDomain,
-    accessToken,
-    productId
-  } = store
-
-  if (!shopDomain) {
-    throw new Error("SYNC ENGINE: shopDomain missing")
-  }
-
-  if (!accessToken) {
-    throw new Error("SYNC ENGINE: accessToken missing")
-  }
-
-  if (!productId) {
-    throw new Error("SYNC ENGINE: productId missing")
+  if (!shopDomain || !productId) {
+    throw new Error("ZEUS SYNC: shopDomain or productId missing")
   }
 
   /*
   ========================================
-  PLATFORM ROUTING
+  TEST MODE
   ========================================
   */
 
-  switch (platform) {
+  if (!accessToken || accessToken === "TEST") {
 
-    case "shopify":
+    console.log("ZEUS TEST MODE — Shopify sync skipped")
 
-      console.log("ZEUS SHOPIFY SYNC START:", productId)
+    return {
+      status: "test-mode",
+      shopDomain,
+      productId,
+      preview: {
+        title,
+        description,
+        tags,
+        productType
+      }
+    }
 
-      await updateShopifyProduct({
+  }
 
-        shopDomain,
-        accessToken,
-        productId,
+  /*
+  ========================================
+  NORMALIZE product_type
+  Shopify requires STRING
+  ========================================
+  */
 
-        title: product.title,
-        description: product.description,
+  let normalizedType = "general"
 
-        tags: product.tags,
+  if (typeof productType === "string") {
+    normalizedType = productType
+  }
 
-        /*
-        IMPORTANT:
-        Shopify product_type debe ser STRING
-        */
-        productType: product.regionalCategory || product.category || "general"
+  if (typeof productType === "object" && productType !== null) {
 
-      })
+    if (productType.regionalCategory)
+      normalizedType = productType.regionalCategory
 
-      console.log("ZEUS SHOPIFY SYNC COMPLETE:", productId)
+    else if (productType.baseCategory)
+      normalizedType = productType.baseCategory
 
-      break
+    else if (productType.name)
+      normalizedType = productType.name
 
-    default:
+  }
 
-      console.warn(
-        "ZEUS SYNC ENGINE: unsupported platform",
-        platform
-      )
+  /*
+  ========================================
+  SHOPIFY URL
+  ========================================
+  */
 
-      break
+  const url =
+    `https://${shopDomain}/admin/api/2024-01/products/${productId}.json`
+
+  /*
+  ========================================
+  PAYLOAD
+  ========================================
+  */
+
+  const payload = {
+
+    product: {
+
+      id: productId,
+
+      title: title || "",
+
+      body_html: description || "",
+
+      tags: Array.isArray(tags)
+        ? tags.join(", ")
+        : "",
+
+      product_type: normalizedType,
+
+      metafields: [
+        {
+          namespace: "zeus",
+          key: "optimized",
+          type: "boolean",
+          value: "true"
+        }
+      ]
+
+    }
+
+  }
+
+  /*
+  ========================================
+  REQUEST
+  ========================================
+  */
+
+  try {
+
+    console.log("ZEUS SHOPIFY SYNC START:", productId)
+
+    console.log(
+      "ZEUS SHOPIFY PAYLOAD:",
+      JSON.stringify(payload, null, 2)
+    )
+
+    const response = await axios.put(
+      url,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": accessToken
+        }
+      }
+    )
+
+    console.log("ZEUS SHOPIFY SYNC COMPLETE:", productId)
+
+    return response.data
+
+  } catch (error) {
+
+    console.error(
+      "SHOPIFY UPDATE ERROR:",
+      error.response?.data || error.message
+    )
+
+    throw error
 
   }
 
 }
 
 module.exports = {
-  syncProduct
+  updateShopifyProduct
 }
