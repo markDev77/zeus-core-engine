@@ -3,16 +3,44 @@ const categoryBrain = require("../services/categoryBrain");
 const { mapRegionalCategory } = require("../services/regionalCategoryMapper");
 const { syncProduct } = require("../services/syncEngine");
 
+/*
+====================================================
+ZEUS IMPORT PIPELINE
+====================================================
+Flujo:
+
+Input
+↓
+Transformer
+↓
+Category Brain
+↓
+Regional Mapping
+↓
+Sync Engine
+====================================================
+*/
+
 async function runImportPipeline(input) {
 
+  if(!input) {
+    throw new Error("ZEUS PIPELINE: input missing");
+  }
+
   /*
-  Transform product
+  ==========================================
+  TRANSFORM PRODUCT
+  ==========================================
   */
+
   const transformed = transformProduct(input);
 
   /*
-  Category Brain
+  ==========================================
+  CATEGORY BRAIN
+  ==========================================
   */
+
   const classification = await categoryBrain.suggestCategory({
     title: transformed.title,
     description: transformed.description,
@@ -23,38 +51,114 @@ async function runImportPipeline(input) {
   const confidence = classification.confidence;
 
   /*
-  Regional category mapping
+  ==========================================
+  REGIONAL CATEGORY MAPPING
+  ==========================================
   */
+
   const regionalCategory = mapRegionalCategory({
     baseCategory,
     storeProfile: input.storeProfile
   });
 
   /*
-  Final product
+  ==========================================
+  FINAL PRODUCT STRUCTURE
+  ==========================================
   */
+
   const product = {
+
     ...transformed,
+
     baseCategory,
+
     regionalCategory,
+
     category: baseCategory,
+
     categoryConfidence: confidence
+
   };
 
   /*
-  Sync Engine
+  ==========================================
+  PRODUCT ID DETECTION
+  ==========================================
   */
-  await syncProduct({
-    platform: input.platform,
-    store: input.store,
-    product
-  });
+
+  const productId =
+    input.productId ||
+    input.shopifyProductId ||
+    input.id ||
+    input.product?.id ||
+    null;
+
+  /*
+  ==========================================
+  STORE DETECTION
+  ==========================================
+  */
+
+  const store = input.store || {};
+
+  /*
+  ==========================================
+  PLATFORM DETECTION
+  ==========================================
+  */
+
+  const platform =
+    input.platform ||
+    store.platform ||
+    "shopify";
+
+  /*
+  ==========================================
+  SYNC ENGINE
+  ==========================================
+  */
+
+  try {
+
+    await syncProduct({
+
+      platform,
+
+      store: {
+        ...store,
+        productId
+      },
+
+      product
+
+    });
+
+  } catch (error) {
+
+    console.error(
+      "ZEUS PIPELINE SYNC ERROR:",
+      error.message
+    );
+
+  }
+
+  /*
+  ==========================================
+  RETURN RESULT
+  ==========================================
+  */
 
   return {
+
     product,
+
     baseCategory,
+
     regionalCategory,
+
     confidence
+
   };
 
 }
