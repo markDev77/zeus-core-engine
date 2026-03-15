@@ -23,7 +23,7 @@ Sync Engine
 
 async function runImportPipeline(input) {
 
-  if(!input) {
+  if (!input) {
     throw new Error("ZEUS PIPELINE: input missing");
   }
 
@@ -100,7 +100,21 @@ async function runImportPipeline(input) {
   ==========================================
   */
 
-  const store = input.store || {};
+  const store = {
+
+    shopDomain:
+      input.shopDomain ||
+      input.store?.shopDomain ||
+      input.store?.shop,
+
+    accessToken:
+      input.accessToken ||
+      input.store?.accessToken ||
+      process.env.SHOPIFY_ACCESS_TOKEN,
+
+    productId
+
+  };
 
   /*
   ==========================================
@@ -110,7 +124,7 @@ async function runImportPipeline(input) {
 
   const platform =
     input.platform ||
-    store.platform ||
+    input.store?.platform ||
     "shopify";
 
   /*
@@ -121,18 +135,15 @@ async function runImportPipeline(input) {
 
   try {
 
+    console.log("ZEUS SYNC ENGINE START", productId);
+
     await syncProduct({
-
       platform,
-
-      store: {
-        ...store,
-        productId
-      },
-
+      store,
       product
-
     });
+
+    console.log("ZEUS SYNC ENGINE COMPLETE", productId);
 
   } catch (error) {
 
