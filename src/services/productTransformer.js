@@ -1,233 +1,146 @@
-const { detectLanguage } = require("./languageDetector");
-const { translateText } = require("./translationEngine");
-const { optimizeRegionalTitle } = require("./regionalTitleOptimizer");
-const { optimizeRegionalDescription } = require("./regionalDescriptionOptimizer");
-const { generateRegionalTags } = require("./regionalTagGenerator");
-const { applyMarketSignals } = require("./marketSignalEngine");
-const { applyProductIntelligence } = require("./productIntelligenceEngine");
+const { optimizeRegionalTitle } = require("../services/regionalTitleOptimizer")
+const { generateDescription } = require("../services/regionalDescriptionOptimizer")
+const { generateTags } = require("../services/regionalTagGenerator")
+const { detectMarketSignal } = require("../services/marketSignalEngine")
 
-function cleanTitle(title = "") {
-  return String(title || "")
-    .replace(/^\d+\s*(piece|pcs|set|juego|pieza|piezas)\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+function normalizeText(text = "") {
+  return String(text || "").trim()
 }
 
-function generateBaseTags(title = "") {
+function detectCategory(title = "", description = "") {
 
-  const words = title
-    .toLowerCase()
-    .split(" ")
-    .filter(w => w.length > 3);
-
-  return [...new Set(words)].slice(0, 5);
-
-}
-
-function mapTaxonomy(category = "general") {
-
-  const taxonomy = {
-
-    pet_supplies: {
-      shopify: "Animals & Pet Supplies > Pet Supplies > Dog Supplies > Dog Collars",
-      internal: "pet_supplies"
-    },
-
-    electronics: {
-      shopify: "Electronics > Audio > Headphones",
-      internal: "electronics"
-    }
-
-  };
-
-  return taxonomy[category] || {
-    shopify: "Miscellaneous",
-    internal: category
-  };
-
-}
-
-function transformProduct(input = {}) {
-
-  const originalTitle = input.title || "";
-  const originalDescription = input.description || "";
-
-  const storeProfile = input.storeProfile || {
-    country: "US",
-    language: "en-US",
-    currency: "USD",
-    marketplace: "shopify",
-    marketSignalMode: "enabled"
-  };
-
-  /*
-  ========================================
-  STEP 1
-  limpiar título
-  ========================================
-  */
-
-  const cleanedTitle = cleanTitle(originalTitle);
-
-  /*
-  ========================================
-  STEP 2
-  detectar idioma
-  ========================================
-  */
-
-  const detectedLanguage = detectLanguage(
-    `${cleanedTitle} ${originalDescription}`
-  );
-
-  /*
-  ========================================
-  STEP 3
-  traducción
-  ========================================
-  */
-
-  const translatedTitle = translateText(
-    cleanedTitle,
-    detectedLanguage,
-    storeProfile.language
-  );
-
-  const translatedDescription = translateText(
-    originalDescription,
-    detectedLanguage,
-    storeProfile.language
-  );
-
-  /*
-  ========================================
-  STEP 4
-  detectar categoría
-  ========================================
-  */
-
-  let categoryHint = "general";
-
-  const categorySource =
-    `${translatedTitle} ${translatedDescription}`.toLowerCase();
+  const source = `${title} ${description}`.toLowerCase()
 
   if (
-    categorySource.includes("dog") ||
-    categorySource.includes("perro") ||
-    categorySource.includes("pet")
+    source.includes("dog") ||
+    source.includes("perro") ||
+    source.includes("collar")
   ) {
-    categoryHint = "pet_supplies";
+    return {
+      category: "pet_supplies",
+      taxonomy: "Animals & Pet Supplies > Pet Supplies > Dog Supplies > Dog Collars",
+      confidence: 0.95
+    }
   }
 
-  /*
-  ========================================
-  STEP 5
-  optimizar título
-  ========================================
-  */
+  return {
+    category: "general",
+    taxonomy: "General",
+    confidence: 0.5
+  }
+}
 
-  const optimizedTitle = optimizeRegionalTitle({
-    translatedTitle,
-    translatedDescription,
+function generateProductIntelligence(title = "", description = "") {
+
+  const source = `${title} ${description}`.toLowerCase()
+
+  const features = []
+  const benefits = []
+
+  if (source.includes("wireless") || source.includes("inalámbrico")) {
+    features.push("Tecnología inalámbrica")
+  }
+
+  if (source.includes("rechargeable") || source.includes("recargable")) {
+    features.push("Batería recargable")
+  }
+
+  if (source.includes("remote")) {
+    features.push("Control remoto incluido")
+  }
+
+  if (source.includes("electric")) {
+    features.push("Sistema eléctrico de entrenamiento")
+  }
+
+  if (features.length) {
+    benefits.push("Mayor libertad de movimiento para el entrenamiento.")
+    benefits.push("Reduce costos al no requerir baterías desechables.")
+    benefits.push("Permite controlar el entrenamiento a distancia.")
+  }
+
+  return {
+    features,
+    benefits,
+    attributes: {
+      petType: "dog",
+      connectivity: "wireless",
+      power: "rechargeable"
+    }
+  }
+}
+
+function transformProduct(input = {}, storeProfile = {}) {
+
+  const originalTitle = normalizeText(input.title)
+  const description = normalizeText(input.description)
+
+  const categoryData = detectCategory(originalTitle, description)
+
+  const regionalTitle = optimizeRegionalTitle({
+    translatedTitle: originalTitle,
+    translatedDescription: description,
     storeProfile,
-    category: categoryHint
-  });
+    category: categoryData.category
+  })
 
-  /*
-  ========================================
-  STEP 6
-  optimizar descripción
-  ========================================
-  */
+  const seoDescription = generateDescription(
+    regionalTitle,
+    description,
+    storeProfile.country || "DEFAULT"
+  )
 
-  const optimizedDescription = optimizeRegionalDescription({
-    optimizedTitle,
-    translatedDescription,
-    storeProfile,
-    category: categoryHint
-  });
+  const tags = generateTags(regionalTitle, description)
 
-  /*
-  ========================================
-  STEP 7
-  base tags
-  ========================================
-  */
+  const marketSignal = detectMarketSignal({
+    title: regionalTitle,
+    description
+  })
 
-  const baseTags = generateBaseTags(translatedTitle);
+  const intelligence = generateProductIntelligence(regionalTitle, description)
 
-  /*
-  ========================================
-  STEP 8
-  tags regionales
-  ========================================
-  */
-
-  const optimizedTags = generateRegionalTags({
-    optimizedTitle,
-    optimizedDescription,
-    storeProfile,
-    category: categoryHint,
-    existingTags: baseTags
-  });
-
-  /*
-  ========================================
-  STEP 9
-  taxonomía
-  ========================================
-  */
-
-  const taxonomy = mapTaxonomy(categoryHint);
-
-  let product = {
-
+  return {
     engine: "ZEUS",
 
-    originalTitle,
+    originalTitle: originalTitle,
 
-    optimizedTitle,
+    optimizedTitle: regionalTitle,
 
-    suggestedTags: optimizedTags,
+    suggestedTags: tags,
 
-    suggestedCategory: categoryHint,
+    suggestedCategory: categoryData.category,
 
-    categoryConfidence: 0,
+    categoryConfidence: categoryData.confidence,
 
-    title: optimizedTitle,
+    title: regionalTitle,
 
-    description: optimizedDescription,
+    description: seoDescription,
 
-    tags: optimizedTags,
+    tags: tags,
 
-    category: taxonomy.internal,
+    category: categoryData.category,
 
-    taxonomy: taxonomy.shopify
+    taxonomy: categoryData.taxonomy,
 
-  };
+    trendScore: marketSignal.score,
 
-  /*
-  ========================================
-  STEP 10
-  market signals
-  ========================================
-  */
+    features: intelligence.features,
 
-  product = applyMarketSignals(product, storeProfile);
+    benefits: intelligence.benefits,
 
-  /*
-  ========================================
-  STEP 11
-  product intelligence
-  ========================================
-  */
+    attributes: intelligence.attributes,
 
-  product = applyProductIntelligence(product);
+    baseCategory: categoryData.category,
 
-  return product;
-
+    regionalCategory: {
+      baseCategory: categoryData.category,
+      regionalCategory: categoryData.category,
+      marketplace: storeProfile.marketplace || "shopify",
+      country: storeProfile.country || "DEFAULT"
+    }
+  }
 }
 
 module.exports = {
   transformProduct
-};
+}
