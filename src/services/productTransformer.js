@@ -6,129 +6,161 @@ const { generateRegionalTags } = require("./regionalTagGenerator");
 const { applyMarketSignals } = require("./marketSignalEngine");
 
 function cleanTitle(title = "") {
-return String(title || "")
-.replace(/^\d+\s*(piece|pcs|set|juego|pieza|piezas)\b/gi,"")
-.replace(/\s+/g," ")
-.trim();
+  return String(title || "")
+    .replace(/^\d+\s*(piece|pcs|set|juego|pieza|piezas)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function generateBaseTags(title="") {
+function generateBaseTags(title = "") {
+  const words = title
+    .toLowerCase()
+    .split(" ")
+    .filter(w => w.length > 3);
 
-const words = title
-.toLowerCase()
-.split(" ")
-.filter(w=>w.length>3);
-
-return [...new Set(words)].slice(0,5);
-
+  return [...new Set(words)].slice(0, 5);
 }
 
-function transformProduct(input={}) {
+function transformProduct(input = {}) {
 
-const originalTitle = input.title || "";
-const originalDescription = input.description || "";
+  const originalTitle = input.title || "";
+  const originalDescription = input.description || "";
 
-const storeProfile = input.storeProfile || {
-country:"US",
-language:"en-US",
-currency:"USD",
-marketplace:"shopify",
-marketSignalMode:"enabled"
-};
+  const storeProfile = input.storeProfile || {
+    country: "US",
+    language: "en-US",
+    currency: "USD",
+    marketplace: "shopify",
+    marketSignalMode: "enabled"
+  };
 
-const cleanedTitle = cleanTitle(originalTitle);
+  // -----------------------------
+  // STEP 1: limpiar título
+  // -----------------------------
 
-const detectedLanguage = detectLanguage(
-`${cleanedTitle} ${originalDescription}`
-);
+  const cleanedTitle = cleanTitle(originalTitle);
 
-const translatedTitle = translateText(
-cleanedTitle,
-detectedLanguage,
-storeProfile.language
-);
+  // -----------------------------
+  // STEP 2: detectar idioma
+  // -----------------------------
 
-const translatedDescription = translateText(
-originalDescription,
-detectedLanguage,
-storeProfile.language
-);
+  const detectedLanguage = detectLanguage(
+    `${cleanedTitle} ${originalDescription}`
+  );
 
-let categoryHint="general";
+  // -----------------------------
+  // STEP 3: traducción
+  // -----------------------------
 
-const categorySource =
-`${translatedTitle} ${translatedDescription}`.toLowerCase();
+  const translatedTitle = translateText(
+    cleanedTitle,
+    detectedLanguage,
+    storeProfile.language
+  );
 
-if(
-categorySource.includes("dog") ||
-categorySource.includes("cat") ||
-categorySource.includes("perro") ||
-categorySource.includes("gato") ||
-categorySource.includes("pet")
-){
-categoryHint="pet_supplies";
-}
+  const translatedDescription = translateText(
+    originalDescription,
+    detectedLanguage,
+    storeProfile.language
+  );
 
-const optimizedTitle = optimizeRegionalTitle({
+  // -----------------------------
+  // STEP 4: detectar categoría
+  // -----------------------------
 
-translatedTitle,
-translatedDescription,
-storeProfile,
-category:categoryHint
+  let categoryHint = "general";
 
-});
+  const categorySource =
+    `${translatedTitle} ${translatedDescription}`.toLowerCase();
 
-const optimizedDescription = optimizeRegionalDescription({
+  if (
+    categorySource.includes("dog") ||
+    categorySource.includes("cat") ||
+    categorySource.includes("perro") ||
+    categorySource.includes("gato") ||
+    categorySource.includes("pet")
+  ) {
+    categoryHint = "pet_supplies";
+  }
 
-optimizedTitle,
-translatedDescription,
-storeProfile,
-category:categoryHint
+  // -----------------------------
+  // STEP 5: optimizar título
+  // -----------------------------
 
-});
+  const optimizedTitle = optimizeRegionalTitle({
+    translatedTitle,
+    translatedDescription,
+    storeProfile,
+    category: categoryHint
+  });
 
-const baseTags = generateBaseTags(optimizedTitle);
+  // -----------------------------
+  // STEP 6: optimizar descripción
+  // -----------------------------
 
-const optimizedTags = generateRegionalTags({
+  const optimizedDescription = optimizeRegionalDescription({
+    optimizedTitle,
+    translatedDescription,
+    storeProfile,
+    category: categoryHint
+  });
 
-optimizedTitle,
-optimizedDescription,
-storeProfile,
-category:categoryHint,
-existingTags:baseTags
+  // -----------------------------
+  // STEP 7: generar base tags
+  // (ajuste: usar translatedTitle)
+  // -----------------------------
 
-});
+  const baseTags = generateBaseTags(translatedTitle);
 
-let product = {
+  // -----------------------------
+  // STEP 8: generar tags regionales
+  // -----------------------------
 
-engine:"ZEUS",
+  const optimizedTags = generateRegionalTags({
+    optimizedTitle,
+    optimizedDescription,
+    storeProfile,
+    category: categoryHint,
+    existingTags: baseTags
+  });
 
-originalTitle,
+  // -----------------------------
+  // STEP 9: construir producto
+  // -----------------------------
 
-optimizedTitle,
+  let product = {
 
-suggestedTags:optimizedTags,
+    engine: "ZEUS",
 
-suggestedCategory:categoryHint,
+    originalTitle,
 
-categoryConfidence:0,
+    optimizedTitle,
 
-title:optimizedTitle,
+    suggestedTags: optimizedTags,
 
-description:optimizedDescription,
+    suggestedCategory: categoryHint,
 
-tags:optimizedTags,
+    categoryConfidence: 0,
 
-category:categoryHint
+    title: optimizedTitle,
 
-};
+    description: optimizedDescription,
 
-product = applyMarketSignals(product,storeProfile);
+    tags: optimizedTags,
 
-return product;
+    category: categoryHint
 
+  };
+
+  // -----------------------------
+  // STEP 10: aplicar señales de mercado
+  // -----------------------------
+
+  product = applyMarketSignals(product, storeProfile);
+
+  return product;
 }
 
 module.exports = {
-transformProduct
+  transformProduct
 };
