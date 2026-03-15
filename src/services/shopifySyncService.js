@@ -10,48 +10,110 @@ con datos optimizados por ZEUS
 const fetch = require("node-fetch");
 
 async function updateShopifyProduct({
-shopDomain,
-accessToken,
-productId,
-title,
-description,
-tags,
-productType
+  shopDomain,
+  accessToken,
+  productId,
+  title,
+  description,
+  tags,
+  productType
 }) {
 
-if (!shopDomain || !accessToken || !productId) {
-throw new Error("Missing Shopify credentials for sync");
-}
+  /*
+  ========================================
+  VALIDACIÓN BÁSICA
+  ========================================
+  */
 
-const url = `https://${shopDomain}/admin/api/2024-01/products/${productId}.json`;
+  if (!shopDomain || !productId) {
+    throw new Error("Missing Shopify store or productId for sync");
+  }
 
-const payload = {
-product: {
-id: productId,
-title: title,
-body_html: description,
-tags: tags.join(", "),
-product_type: productType
-}
-};
+  /*
+  ========================================
+  TEST MODE
+  ========================================
+  */
 
-const response = await fetch(url,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json",
-"X-Shopify-Access-Token":accessToken
-},
-body:JSON.stringify(payload)
-});
+  if (!accessToken || accessToken === "TEST") {
 
-if(!response.ok){
-const text = await response.text();
-throw new Error(`Shopify sync failed: ${text}`);
-}
+    console.log("ZEUS TEST MODE — Shopify sync skipped");
 
-return response.json();
+    return {
+      status: "test-mode",
+      shopDomain,
+      productId,
+      productPreview: {
+        title,
+        description,
+        tags,
+        productType
+      }
+    };
+
+  }
+
+  /*
+  ========================================
+  SHOPIFY API URL
+  ========================================
+  */
+
+  const url = `https://${shopDomain}/admin/api/2024-01/products/${productId}.json`;
+
+  /*
+  ========================================
+  PAYLOAD
+  ========================================
+  */
+
+  const payload = {
+    product: {
+      id: productId,
+      title: title,
+      body_html: description,
+      tags: Array.isArray(tags) ? tags.join(", ") : "",
+      product_type: productType
+    }
+  };
+
+  /*
+  ========================================
+  REQUEST
+  ========================================
+  */
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": accessToken
+    },
+    body: JSON.stringify(payload)
+  });
+
+  /*
+  ========================================
+  ERROR HANDLING
+  ========================================
+  */
+
+  if (!response.ok) {
+
+    const text = await response.text();
+
+    throw new Error(`Shopify sync failed: ${text}`);
+
+  }
+
+  const data = await response.json();
+
+  console.log("SHOPIFY PRODUCT UPDATED:", data.product.id);
+
+  return data;
+
 }
 
 module.exports = {
-updateShopifyProduct
+  updateShopifyProduct
 };
