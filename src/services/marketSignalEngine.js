@@ -8,8 +8,12 @@ Detecta eventos activos por país y fecha
 y aplica:
 1) señales de mercado (eventos)
 2) tendencias SEO por categoría
+3) filtro de relevancia para evitar
+   contaminación SEO
 ========================================
 */
+
+const TREND_THRESHOLD = 0.4;
 
 function getCurrentMonth() {
   return new Date().getMonth() + 1;
@@ -35,7 +39,6 @@ function detectActiveSignals(country) {
 
 }
 
-
 /*
 ========================================
 TREND KEYWORDS
@@ -51,14 +54,14 @@ function getTrendKeywords(storeProfile = {}, category = "general") {
     MX: {
 
       pet_supplies: [
-        "entrenamiento canino",
-        "mascotas",
-        "accesorios para perros"
+        "entrenamiento",
+        "perro",
+        "canino"
       ],
 
       electronics: [
         "gadgets",
-        "tecnología portátil"
+        "tecnología"
       ]
 
     },
@@ -66,13 +69,14 @@ function getTrendKeywords(storeProfile = {}, category = "general") {
     US: {
 
       pet_supplies: [
-        "dog training",
-        "pet accessories"
+        "dog",
+        "training",
+        "pet"
       ],
 
       electronics: [
         "wireless",
-        "portable tech"
+        "portable"
       ]
 
     }
@@ -85,10 +89,35 @@ function getTrendKeywords(storeProfile = {}, category = "general") {
 
 }
 
+/*
+========================================
+RELEVANCE SCORE
+========================================
+*/
+
+function calculateRelevance(product = {}, keywords = []) {
+
+  const text = `${product.title} ${product.description}`.toLowerCase();
+
+  let matches = 0;
+
+  keywords.forEach(keyword => {
+
+    if (text.includes(keyword)) {
+      matches++;
+    }
+
+  });
+
+  if (!keywords.length) return 0;
+
+  return matches / keywords.length;
+
+}
 
 /*
 ========================================
-TREND INJECTION
+TREND INJECTION CON FILTRO
 ========================================
 */
 
@@ -100,13 +129,21 @@ function injectTrendKeywords(product = {}, storeProfile = {}) {
 
   if (!trendKeywords.length) return product;
 
+  const score = calculateRelevance(product, trendKeywords);
+
+  if (score < TREND_THRESHOLD) {
+
+    return product;
+
+  }
+
   let title = product.title || "";
 
   let tags = product.tags || [];
 
   trendKeywords.forEach(keyword => {
 
-    if (!title.toLowerCase().includes(keyword.toLowerCase())) {
+    if (!title.toLowerCase().includes(keyword)) {
 
       title += ` ${keyword}`;
 
@@ -124,12 +161,13 @@ function injectTrendKeywords(product = {}, storeProfile = {}) {
 
     optimizedTitle: title,
 
-    tags
+    tags,
+
+    trendScore: score
 
   };
 
 }
-
 
 /*
 ========================================
@@ -147,13 +185,13 @@ function applyMarketSignals(product, storeProfile) {
 
   const country = storeProfile.country || "US";
 
-  const activeSignals = detectActiveSignals(country);
-
   /*
   =========================
   EVENT SIGNALS
   =========================
   */
+
+  const activeSignals = detectActiveSignals(country);
 
   if (activeSignals.length) {
 
