@@ -1,10 +1,9 @@
 [
   {
     "shopDomain": "eawi7g-hj.myshopify.com",
-    "accessToken": "shpat_test",
+    "accessToken": "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",
     "platform": "shopify",
     "storeId": "eawi7g-hj.myshopify.com",
-
     "billing": {
       "status": "active",
       "plan": "free",
