@@ -31,6 +31,27 @@ async function updateShopifyProduct({
 
   const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
 
+  /*
+  ========================================
+  SAFETY NORMALIZATION
+  ========================================
+  Shopify exige string en product_type
+  ========================================
+  */
+
+  let normalizedProductType = "general";
+
+  if (typeof productType === "string") {
+    normalizedProductType = productType;
+  }
+
+  if (typeof productType === "object" && productType !== null) {
+    normalizedProductType =
+      productType.name ||
+      productType.category ||
+      "general";
+  }
+
   const payload = {
     product: {
       id: productId,
@@ -43,10 +64,7 @@ async function updateShopifyProduct({
         ? tags.join(", ")
         : "",
 
-      product_type:
-        typeof productType === "object"
-          ? productType?.name || "general"
-          : productType || "general",
+      product_type: normalizedProductType,
 
       metafields: [
         {
