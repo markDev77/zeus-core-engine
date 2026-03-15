@@ -9,6 +9,8 @@ en Shopify desde ZEUS
 
 const axios = require("axios");
 
+const SHOPIFY_API_VERSION = "2024-04";
+
 async function updateShopifyProduct({
   shopDomain,
   accessToken,
@@ -27,7 +29,7 @@ async function updateShopifyProduct({
     throw new Error("Missing Shopify access token");
   }
 
-  const url = `https://${shopDomain}/admin/api/2024-01/products/${productId}.json`;
+  const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
 
   const payload = {
     product: {
@@ -66,9 +68,20 @@ async function updateShopifyProduct({
       payload,
       {
         headers: {
+
+          /*
+          Shopify OAuth Token
+          */
           "X-Shopify-Access-Token": accessToken,
-          "Content-Type": "application/json"
-        }
+
+          /*
+          Required headers
+          */
+          "Content-Type": "application/json",
+          "X-Shopify-Api-Version": SHOPIFY_API_VERSION
+
+        },
+        timeout: 15000
       }
     );
 
