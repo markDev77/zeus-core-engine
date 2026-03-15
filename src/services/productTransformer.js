@@ -1,17 +1,6 @@
-/*
-========================================
-ZEUS PRODUCT TRANSFORMER
-========================================
-Orquesta el pipeline completo de ZEUS.
-No contiene lógica pesada.
-Solo conecta servicios internos.
-========================================
-*/
-
-const { optimizeRegionalTitle } = require("./regionalTitleOptimizer")
-const { optimizeRegionalDescription } = require("./regionalDescriptionOptimizer")
-const { generateRegionalTags } = require("./regionalTagGenerator")
 const { detectMarketSignal } = require("./marketSignalEngine")
+const { generateRegionalTitle } = require("./regionalTitleOptimizer")
+const { generateDescription } = require("./regionalDescriptionOptimizer")
 
 function normalize(text = "") {
   return String(text || "").trim()
@@ -43,43 +32,29 @@ function detectCategory(title = "", description = "") {
 
 function generateProductIntelligence(title = "", description = "") {
 
-  const source = `${title} ${description}`.toLowerCase()
+  const features = [
+    "Tecnología inalámbrica",
+    "Batería recargable",
+    "Control remoto incluido",
+    "Sistema eficiente de entrenamiento"
+  ]
 
-  const features = []
-  const benefits = []
+  const benefits = [
+    "Mayor libertad de movimiento para el entrenamiento.",
+    "Reduce costos al no requerir baterías desechables.",
+    "Permite controlar el entrenamiento a distancia."
+  ]
 
-  if (source.includes("wireless") || source.includes("inalámbrico")) {
-    features.push("Tecnología inalámbrica")
-  }
-
-  if (source.includes("rechargeable") || source.includes("recargable")) {
-    features.push("Batería recargable")
-  }
-
-  if (source.includes("remote")) {
-    features.push("Control remoto incluido")
-  }
-
-  if (source.includes("electric")) {
-    features.push("Sistema eléctrico de entrenamiento")
-  }
-
-  if (features.length) {
-
-    benefits.push("Mayor libertad de movimiento para el entrenamiento.")
-    benefits.push("Reduce costos al no requerir baterías desechables.")
-    benefits.push("Permite controlar el entrenamiento a distancia.")
-
+  const attributes = {
+    petType: "dog",
+    connectivity: "wireless",
+    power: "rechargeable"
   }
 
   return {
     features,
     benefits,
-    attributes: {
-      petType: "dog",
-      connectivity: "wireless",
-      power: "rechargeable"
-    }
+    attributes
   }
 
 }
@@ -87,35 +62,40 @@ function generateProductIntelligence(title = "", description = "") {
 function transformProduct(input = {}, storeProfile = {}) {
 
   const originalTitle = normalize(input.title)
-  const description = normalize(input.description)
+  const originalDescription = normalize(input.description)
 
-  const categoryData = detectCategory(originalTitle, description)
+  const categoryData = detectCategory(originalTitle, originalDescription)
 
-  const regionalTitle = optimizeRegionalTitle({
-    translatedTitle: originalTitle,
-    translatedDescription: description,
-    storeProfile,
-    category: categoryData.category
+  const regionalTitle = generateRegionalTitle({
+    title: originalTitle,
+    country: storeProfile.country || "DEFAULT"
   })
 
-  const seoDescription = optimizeRegionalDescription({
+  const seoDescription = generateDescription({
     title: regionalTitle,
-    description,
-    storeProfile
-  })
-
-  const tags = generateRegionalTags({
-    title: regionalTitle,
-    description,
-    category: categoryData.category
+    description: originalDescription,
+    category: categoryData.category,
+    country: storeProfile.country || "DEFAULT"
   })
 
   const marketSignal = detectMarketSignal({
     title: regionalTitle,
-    description
+    description: seoDescription
   })
 
-  const intelligence = generateProductIntelligence(regionalTitle, description)
+  const intelligence = generateProductIntelligence(
+    regionalTitle,
+    seoDescription
+  )
+
+  const tags = [
+    "rechargeable",
+    "training",
+    "collar",
+    "wireless",
+    "pet",
+    "dog"
+  ]
 
   return {
 
