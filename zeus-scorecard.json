@@ -1,0 +1,44 @@
+{
+ "zeusRoadmap": {
+  "coreEngine": {
+   "status": "OK",
+   "test": "server start"
+  },
+  "importPipeline": {
+   "status": "OK",
+   "test": "POST /import/product"
+  },
+  "productTransformer": {
+   "status": "OK",
+   "test": "optimizer output"
+  },
+  "categoryBrain": {
+   "status": "PARTIAL",
+   "test": "classification test"
+  },
+  "seoOptimizer": {
+   "status": "PARTIAL",
+   "test": "title + tags"
+  },
+  "shopifyOAuth": {
+   "status": "OK",
+   "test": "install store"
+  },
+  "webhookListener": {
+   "status": "OK",
+   "test": "product update event"
+  },
+  "syncEngine": {
+   "status": "PARTIAL",
+   "test": "update product"
+  },
+  "loopProtection": {
+   "status": "PARTIAL",
+   "test": "duplicate webhook"
+  },
+  "stripeBilling": {
+   "status": "PARTIAL",
+   "test": "stripe webhook"
+  }
+ }
+}
