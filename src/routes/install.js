@@ -11,17 +11,10 @@ const {
 const { registerStore } = require("../services/storeRegistry");
 const { getRegionProfile } = require("../data/regionProfiles");
 
-/*
-SHOPIFY WEBHOOK REGISTRAR
-*/
 const { registerWebhooks } = require("../services/shopifyWebhookRegistrar");
 
 const router = express.Router();
 
-/*
-Estado temporal OAuth
-Luego se puede mover a Redis o DB
-*/
 const pendingStates = new Map();
 
 function normalizePlatformCountry(rawCountry) {
@@ -36,15 +29,6 @@ function normalizePlatformCountry(rawCountry) {
 ----------------------------------------
 INSTALL ROUTE
 ----------------------------------------
-GET /install?shop=store.myshopify.com
-----------------------------------------
-Opcionales:
-country=MX
-language=es-MX
-currency=MXN
-marketplace=shopify
-clientId=enterprise_x
-storeId=mi_store
 */
 router.get("/install", (req, res) => {
   try {
@@ -85,7 +69,6 @@ router.get("/install", (req, res) => {
 ----------------------------------------
 SHOPIFY OAUTH CALLBACK
 ----------------------------------------
-GET /auth/callback
 */
 router.get("/auth/callback", async (req, res) => {
 
@@ -99,41 +82,28 @@ router.get("/auth/callback", async (req, res) => {
       return res.status(400).send("Missing OAuth parameters");
     }
 
-    /*
-    Validate HMAC
-    */
     const validHmac = verifyHmac(req.query);
 
     if (!validHmac) {
       return res.status(400).send("Invalid HMAC signature");
     }
 
-    /*
-    Validate state
-    */
     const pendingState = pendingStates.get(safeShop);
 
     if (!pendingState || pendingState.state !== state) {
       return res.status(400).send("Invalid OAuth state");
     }
 
-    /*
-    Exchange code for access token
-    */
     const tokenData = await exchangeToken(safeShop, code);
     const accessToken = tokenData.access_token;
 
     /*
     REGION PROFILE
     */
-
     let regionProfile = getRegionProfile(
       pendingState.profileSeed.country || "US"
     );
 
-    /*
-    FALLBACK PROTECTION
-    */
     if (!regionProfile) {
 
       console.log("ZEUS REGION PROFILE FALLBACK");
@@ -156,7 +126,7 @@ router.get("/auth/callback", async (req, res) => {
     }
 
     /*
-    Register store inside ZEUS
+    REGISTER STORE
     */
     const store = registerStore(safeShop, accessToken, {
 
@@ -183,22 +153,21 @@ router.get("/auth/callback", async (req, res) => {
 
     });
 
-    /*
-    REGISTER SHOPIFY WEBHOOKS AUTOMATICALLY
-    */
     await registerWebhooks(safeShop, accessToken);
 
     pendingStates.delete(safeShop);
 
     console.log("SHOPIFY STORE CONNECTED:", safeShop);
 
+    const profile = store?.profile || regionProfile;
+
     return res.send(`
       <h2>ZEUS installed successfully</h2>
       <p>Store: ${safeShop}</p>
       <p>Store ID: ${store.storeId}</p>
-      <p>Country: ${store.profile.country}</p>
-      <p>Language: ${store.profile.language}</p>
-      <p>Currency: ${store.profile.currency}</p>
+      <p>Country: ${profile.country}</p>
+      <p>Language: ${profile.language}</p>
+      <p>Currency: ${profile.currency}</p>
     `);
 
   } catch (error) {
