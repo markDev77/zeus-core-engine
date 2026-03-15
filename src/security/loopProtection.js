@@ -1,37 +1,88 @@
+const axios = require("axios");
+
+const ZEUS_NAMESPACE = "zeus";
+const ZEUS_KEY = "processed";
+
 /*
-========================================
-ZEUS LOOP PROTECTION ENGINE
-========================================
-Detecta si el producto fue modificado por ZEUS
-y evita reprocesamiento infinito.
+CHECK IF PRODUCT WAS PROCESSED BY ZEUS
 */
 
-function isZeusUpdate(product) {
+async function checkZeusProcessed(shop, accessToken, productId) {
 
-  if (!product) return false;
+  try {
 
-  // revisar metafields si existen
-  if (product.metafields) {
+    const url = `https://${shop}/admin/api/2024-01/products/${productId}/metafields.json`;
 
-    const zeusFlag = product.metafields.find(m =>
-      m.namespace === "zeus" && m.key === "optimized"
+    const response = await axios.get(url, {
+      headers: {
+        "X-Shopify-Access-Token": accessToken,
+        "Content-Type": "application/json"
+      }
+    });
+
+    const metafields = response.data.metafields || [];
+
+    const zeusField = metafields.find(
+      m =>
+        m.namespace === ZEUS_NAMESPACE &&
+        m.key === ZEUS_KEY
     );
 
-    if (zeusFlag) {
-      return true;
-    }
+    return !!zeusField;
+
+  } catch (error) {
+
+    console.error("ZEUS LOOP CHECK ERROR", error.message);
+
+    return false;
 
   }
 
-  // fallback: revisar tag interno
-  if (product.tags && product.tags.includes("zeus-optimized")) {
-    return true;
-  }
+}
 
-  return false;
+/*
+MARK PRODUCT AS PROCESSED BY ZEUS
+*/
+
+async function markZeusProcessed(shop, accessToken, productId) {
+
+  try {
+
+    const url = `https://${shop}/admin/api/2024-01/metafields.json`;
+
+    await axios.post(url, {
+
+      metafield: {
+
+        namespace: ZEUS_NAMESPACE,
+        key: ZEUS_KEY,
+        value: "true",
+        type: "single_line_text_field",
+        owner_id: productId,
+        owner_resource: "product"
+
+      }
+
+    }, {
+
+      headers: {
+
+        "X-Shopify-Access-Token": accessToken,
+        "Content-Type": "application/json"
+
+      }
+
+    });
+
+  } catch (error) {
+
+    console.error("ZEUS LOOP MARK ERROR", error.message);
+
+  }
 
 }
 
 module.exports = {
-  isZeusUpdate
+  checkZeusProcessed,
+  markZeusProcessed
 };
