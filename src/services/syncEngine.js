@@ -2,95 +2,113 @@
 ========================================
 ZEUS SYNC ENGINE
 ========================================
-Recibe producto optimizado
-y sincroniza con ecommerce
+Motor de sincronización de productos
+según plataforma destino
 ========================================
 */
 
-async function syncProduct({
+const { updateShopifyProduct } = require("./shopifySync")
 
+async function syncProduct({
   platform,
   store,
   product
-
-}){
-
-  if(!platform) return;
+}) {
 
   /*
   ========================================
-  SHOPIFY
+  VALIDACIONES
   ========================================
   */
 
-  if(platform === "shopify"){
+  if (!platform) {
+    throw new Error("SYNC ENGINE: platform missing")
+  }
 
-    if(!store) return;
+  if (!store) {
+    throw new Error("SYNC ENGINE: store missing")
+  }
 
-    const { updateShopifyProduct } = require("./adapters/shopifyAdapter");
+  if (!product) {
+    throw new Error("SYNC ENGINE: product missing")
+  }
 
-    const shopDomain = store.shopDomain || store.shop;
-    const accessToken = store.accessToken;
-    const productId = store.productId || product.id;
+  const {
+    shopDomain,
+    accessToken,
+    productId
+  } = store
 
-    if(!productId) return;
+  if (!shopDomain) {
+    throw new Error("SYNC ENGINE: shopDomain missing")
+  }
 
-    return updateShopifyProduct(
-      {
+  if (!accessToken) {
+    throw new Error("SYNC ENGINE: accessToken missing")
+  }
+
+  if (!productId) {
+    throw new Error("SYNC ENGINE: productId missing")
+  }
+
+  /*
+  ========================================
+  PLATFORM ROUTING
+  ========================================
+  */
+
+  switch (platform) {
+
+    case "shopify":
+
+      console.log("ZEUS SYNC ENGINE START", productId)
+
+      await updateShopifyProduct({
+
         shopDomain,
-        accessToken
-      },
-      productId,
-      {
+        accessToken,
+        productId,
+
         title: product.title,
-        description: product.description,
-        tags: product.tags,
-        category: product.regionalCategory || product.category
-      }
-    );
+
+        description:
+          product.description ||
+          product.body_html ||
+          "",
+
+        tags:
+          product.tags ||
+          [],
+
+        /*
+        IMPORTANT
+        Shopify requiere STRING
+        shopifySync.js normaliza esto
+        */
+        productType:
+          product.regionalCategory ||
+          product.category ||
+          "general"
+
+      })
+
+      console.log("ZEUS SYNC ENGINE COMPLETE", productId)
+
+      break
+
+    default:
+
+      console.warn(
+        "ZEUS SYNC ENGINE: unsupported platform",
+        platform
+      )
+
+      break
 
   }
-
-  /*
-  ========================================
-  WOOCOMMERCE (future)
-  ========================================
-  */
-
-  if(platform === "woocommerce"){
-
-    console.log("ZEUS WOOCOMMERCE SYNC NOT IMPLEMENTED");
-
-    return null;
-
-  }
-
-  /*
-  ========================================
-  TIENDANUBE (future)
-  ========================================
-  */
-
-  if(platform === "tiendanube"){
-
-    console.log("ZEUS TIENDANUBE SYNC NOT IMPLEMENTED");
-
-    return null;
-
-  }
-
-  /*
-  ========================================
-  UNKNOWN PLATFORM
-  ========================================
-  */
-
-  console.log("ZEUS UNKNOWN PLATFORM:", platform);
-
-  return null;
 
 }
 
 module.exports = {
   syncProduct
-};
+}
