@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "shopDomain": "eawi7g-hj.myshopify.com",
+    "accessToken": "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",
+    "platform": "shopify",
+    "storeId": "eawi7g-hj.myshopify.com",
+    "billing": {
+      "status": "active",
+      "plan": "free",
+      "sku_limit": 50
+    }
+  }
+]
