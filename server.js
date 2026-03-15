@@ -104,6 +104,19 @@ VERIFY SHOPIFY WEBHOOK
 
 function verifyShopifyWebhook(req) {
 
+  /*
+  TEST MODE
+  Permite pruebas manuales del webhook
+  */
+
+  if (process.env.ZEUS_ENV === "test") {
+
+    console.log("ZEUS WEBHOOK TEST MODE ACTIVE");
+
+    return true;
+
+  }
+
   const hmacHeader = req.headers["x-shopify-hmac-sha256"];
 
   if (!hmacHeader) return false;
