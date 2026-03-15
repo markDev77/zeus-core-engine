@@ -1,52 +1,56 @@
-const storeRegistry = require("./storeRegistry");
+const storeRegistry = require("./storeRegistry")
+const productRegistry = require("./productRegistry")
 
-function getStoreBilling(shop) {
-  const store = storeRegistry.getStore(shop);
-  if (!store || !store.billing) return null;
-  return store.billing;
-}
+function checkBillingAccess(shop) {
 
-function isPlanActive(shop) {
-  const billing = getStoreBilling(shop);
-  if (!billing) return false;
-  return billing.status === "active";
-}
+  const store = storeRegistry.getStore(shop)
 
-function checkPlanLimit(shop, currentProcessedCount) {
-  const billing = getStoreBilling(shop);
+  if (!store) {
 
-  if (!billing) {
     return {
       allowed: false,
-      reason: "store_not_found"
-    };
+      reason: "store_not_registered"
+    }
+
   }
 
+  const billing = store.billing || {}
+
   if (billing.status !== "active") {
+
     return {
       allowed: false,
       reason: "plan_not_active"
-    };
+    }
+
   }
 
-  const limit = billing.sku_limit || 0;
+  const limit = billing.sku_limit || 0
 
-  if (currentProcessedCount >= limit) {
+  const products = productRegistry.getAllProducts()
+
+  const processed = Object.values(products || {})
+    .filter(p => p.store === shop)
+    .length
+
+  if (processed >= limit) {
+
     return {
       allowed: false,
       reason: "sku_limit_reached",
       limit
-    };
+    }
+
   }
 
   return {
     allowed: true,
-    limit
-  };
+    limit,
+    processed
+  }
+
 }
 
 module.exports = {
-  checkPlanLimit,
-  isPlanActive,
-  getStoreBilling
-};
+  checkBillingAccess
+}
