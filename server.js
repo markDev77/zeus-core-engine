@@ -33,6 +33,12 @@ SHOPIFY ROUTES
 const installRoutes = require("./src/routes/install");
 
 /*
+STORE REGISTRY (OAUTH SUPPORT)
+*/
+
+const { getStore } = require("./src/services/storeRegistry");
+
+/*
 LOOP PROTECTION
 */
 
@@ -383,6 +389,26 @@ app.post("/webhooks/products-create", async (req, res) => {
 
     }
 
+    /*
+    OAUTH TOKEN RESOLUTION
+    */
+
+    const store = getStore(shop);
+
+    let accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+
+    if (store && store.token) {
+
+      accessToken = store.token;
+
+      console.log("ZEUS STORE TOKEN FOUND:", shop);
+
+    } else {
+
+      console.log("ZEUS FALLBACK ENV TOKEN:", shop);
+
+    }
+
     const payload = {
 
       title: product.title,
@@ -393,7 +419,7 @@ app.post("/webhooks/products-create", async (req, res) => {
 
       store: {
         shopDomain: shop,
-        accessToken: process.env.SHOPIFY_ACCESS_TOKEN,
+        accessToken: accessToken,
         productId: product.id
       },
 
@@ -412,7 +438,10 @@ app.post("/webhooks/products-create", async (req, res) => {
 
         markZeusUpdate(product.id);
 
-        console.log("ZEUS PIPELINE COMPLETE:", result.baseCategory || result.category || "n/a");
+        console.log(
+          "ZEUS PIPELINE COMPLETE:",
+          result.baseCategory || result.category || "n/a"
+        );
       },
       `shopify-products-create-${product.id}`
     );
