@@ -48,6 +48,7 @@ STRIPE
 */
 
 const stripeWebhook = require("./src/routes/stripeWebhook");
+const stripeCheckout = require("./src/routes/stripeCheckout");
 
 const app = express();
 
@@ -58,6 +59,14 @@ SHOPIFY WEBHOOK RAW BODY
 */
 
 app.use("/webhooks", express.raw({ type: "application/json" }));
+
+/*
+====================================================
+STRIPE WEBHOOK RAW BODY
+====================================================
+*/
+
+app.use("/stripe/webhook", express.raw({ type: "application/json" }));
 
 /*
 ====================================================
@@ -77,11 +86,11 @@ app.use("/", installRoutes);
 
 /*
 ====================================================
-STRIPE WEBHOOK
+STRIPE ROUTES
 ====================================================
 */
 
-app.use("/stripe/webhook", express.raw({ type: "application/json" }));
+app.use("/", stripeCheckout);
 app.use("/", stripeWebhook);
 
 /*
