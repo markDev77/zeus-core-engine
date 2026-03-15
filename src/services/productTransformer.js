@@ -13,12 +13,37 @@ function cleanTitle(title = "") {
 }
 
 function generateBaseTags(title = "") {
+
   const words = title
     .toLowerCase()
     .split(" ")
     .filter(w => w.length > 3);
 
   return [...new Set(words)].slice(0, 5);
+
+}
+
+function mapTaxonomy(category = "general") {
+
+  const taxonomy = {
+
+    pet_supplies: {
+      shopify: "Animals & Pet Supplies > Pet Supplies > Dog Supplies > Dog Collars",
+      internal: "pet_supplies"
+    },
+
+    electronics: {
+      shopify: "Electronics > Audio > Headphones",
+      internal: "electronics"
+    }
+
+  };
+
+  return taxonomy[category] || {
+    shopify: "Miscellaneous",
+    internal: category
+  };
+
 }
 
 function transformProduct(input = {}) {
@@ -34,23 +59,11 @@ function transformProduct(input = {}) {
     marketSignalMode: "enabled"
   };
 
-  // -----------------------------
-  // STEP 1: limpiar título
-  // -----------------------------
-
   const cleanedTitle = cleanTitle(originalTitle);
-
-  // -----------------------------
-  // STEP 2: detectar idioma
-  // -----------------------------
 
   const detectedLanguage = detectLanguage(
     `${cleanedTitle} ${originalDescription}`
   );
-
-  // -----------------------------
-  // STEP 3: traducción
-  // -----------------------------
 
   const translatedTitle = translateText(
     cleanedTitle,
@@ -64,10 +77,6 @@ function transformProduct(input = {}) {
     storeProfile.language
   );
 
-  // -----------------------------
-  // STEP 4: detectar categoría
-  // -----------------------------
-
   let categoryHint = "general";
 
   const categorySource =
@@ -75,17 +84,11 @@ function transformProduct(input = {}) {
 
   if (
     categorySource.includes("dog") ||
-    categorySource.includes("cat") ||
     categorySource.includes("perro") ||
-    categorySource.includes("gato") ||
     categorySource.includes("pet")
   ) {
     categoryHint = "pet_supplies";
   }
-
-  // -----------------------------
-  // STEP 5: optimizar título
-  // -----------------------------
 
   const optimizedTitle = optimizeRegionalTitle({
     translatedTitle,
@@ -94,10 +97,6 @@ function transformProduct(input = {}) {
     category: categoryHint
   });
 
-  // -----------------------------
-  // STEP 6: optimizar descripción
-  // -----------------------------
-
   const optimizedDescription = optimizeRegionalDescription({
     optimizedTitle,
     translatedDescription,
@@ -105,16 +104,7 @@ function transformProduct(input = {}) {
     category: categoryHint
   });
 
-  // -----------------------------
-  // STEP 7: generar base tags
-  // (ajuste: usar translatedTitle)
-  // -----------------------------
-
   const baseTags = generateBaseTags(translatedTitle);
-
-  // -----------------------------
-  // STEP 8: generar tags regionales
-  // -----------------------------
 
   const optimizedTags = generateRegionalTags({
     optimizedTitle,
@@ -124,9 +114,7 @@ function transformProduct(input = {}) {
     existingTags: baseTags
   });
 
-  // -----------------------------
-  // STEP 9: construir producto
-  // -----------------------------
+  const taxonomy = mapTaxonomy(categoryHint);
 
   let product = {
 
@@ -148,17 +136,16 @@ function transformProduct(input = {}) {
 
     tags: optimizedTags,
 
-    category: categoryHint
+    category: taxonomy.internal,
+
+    taxonomy: taxonomy.shopify
 
   };
-
-  // -----------------------------
-  // STEP 10: aplicar señales de mercado
-  // -----------------------------
 
   product = applyMarketSignals(product, storeProfile);
 
   return product;
+
 }
 
 module.exports = {
