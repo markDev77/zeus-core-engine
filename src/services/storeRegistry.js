@@ -2,8 +2,8 @@
 ========================================
 ZEUS STORE REGISTRY
 ========================================
-Guarda las tiendas conectadas y su perfil regional
-Persistencia JSON local (fase 1 SaaS)
+Guarda las tiendas conectadas y su perfil
+Persistencia JSON local
 ========================================
 */
 
@@ -108,6 +108,13 @@ function registerStore(shop, token, options = {}) {
 
     },
 
+    billing: existingStore?.billing || {
+      plan: "free",
+      sku_limit: 50,
+      status: "inactive",
+      updatedAt: new Date().toISOString()
+    },
+
     createdAt: existingStore ? existingStore.createdAt : new Date().toISOString(),
 
     updatedAt: new Date().toISOString()
@@ -133,6 +140,38 @@ function registerStore(shop, token, options = {}) {
   console.log("STORE REGISTERED:", newStoreData.storeId);
 
   return newStoreData;
+
+}
+
+function updateStorePlan(shop, planData = {}) {
+
+  const stores = loadStores();
+
+  const normalizedShop = String(shop).trim().toLowerCase();
+
+  const store = stores.find(
+    s => s.shop === normalizedShop || s.storeDomain === normalizedShop
+  );
+
+  if (!store) {
+
+    console.error("STORE NOT FOUND FOR PLAN UPDATE:", shop);
+
+    return null;
+
+  }
+
+  store.billing = {
+    ...(store.billing || {}),
+    ...planData,
+    updatedAt: new Date().toISOString()
+  };
+
+  saveStores(stores);
+
+  console.log("STORE PLAN UPDATED:", shop, planData.plan);
+
+  return store;
 
 }
 
@@ -189,6 +228,7 @@ function getAllStores() {
 module.exports = {
 
   registerStore,
+  updateStorePlan,
   getStore,
   getStoreById,
   getStoreByApiCredentials,
