@@ -29,77 +29,69 @@ function cleanSupplierNoise(text = "") {
 }
 
 function titleCaseSpanish(text = "") {
+
   const lowerWords = new Set([
-    "de",
-    "del",
-    "para",
-    "con",
-    "sin",
-    "y",
-    "o",
-    "en",
-    "por",
-    "a",
-    "la",
-    "el",
-    "los",
-    "las"
+    "de","del","para","con","sin","y","o","en","por","a","la","el","los","las"
   ]);
 
   const words = normalizeWhitespace(text).toLowerCase().split(" ");
 
   return words
     .map((word, index) => {
+
       if (!word) return word;
+
       if (index > 0 && lowerWords.has(word)) {
         return word;
       }
+
       return word.charAt(0).toUpperCase() + word.slice(1);
+
     })
     .join(" ");
 }
 
 function titleCaseEnglish(text = "") {
+
   const lowerWords = new Set([
-    "of",
-    "for",
-    "with",
-    "and",
-    "or",
-    "in",
-    "on",
-    "to",
-    "the",
-    "a",
-    "an"
+    "of","for","with","and","or","in","on","to","the","a","an"
   ]);
 
   const words = normalizeWhitespace(text).toLowerCase().split(" ");
 
   return words
     .map((word, index) => {
+
       if (!word) return word;
+
       if (index > 0 && lowerWords.has(word)) {
         return word;
       }
+
       return word.charAt(0).toUpperCase() + word.slice(1);
+
     })
     .join(" ");
 }
 
 function dedupeWords(words = []) {
+
   const seen = new Set();
   const result = [];
 
   for (const rawWord of words) {
+
     const word = normalizeWhitespace(rawWord);
+
     if (!word) continue;
 
     const key = word.toLowerCase();
+
     if (seen.has(key)) continue;
 
     seen.add(key);
     result.push(word);
+
   }
 
   return result;
@@ -111,17 +103,9 @@ function optimizeSpanishPetTitle(baseTitle = "", description = "") {
 
   const features = [];
 
-  if (source.includes("recargable")) {
-    features.push("Recargable");
-  }
-
-  if (source.includes("inalámbrico") || source.includes("inalambrico")) {
-    features.push("Inalámbrico");
-  }
-
-  if (source.includes("eléctrico") || source.includes("electrico")) {
-    features.push("Eléctrico");
-  }
+  if (source.includes("recargable")) features.push("Recargable");
+  if (source.includes("inalámbrico") || source.includes("inalambrico")) features.push("Inalámbrico");
+  if (source.includes("eléctrico") || source.includes("electrico")) features.push("Eléctrico");
 
   if (
     source.includes("entrenamiento") &&
@@ -214,9 +198,7 @@ function optimizeRegionalTitle({
 
   const baseTitle = normalizeWhitespace(cleanedTitle);
 
-  if (!baseTitle) {
-    return "";
-  }
+  if (!baseTitle) return "";
 
   if (language.startsWith("es")) {
 
@@ -230,6 +212,37 @@ function optimizeRegionalTitle({
   return optimizeEnglishGeneralTitle(baseTitle, translatedDescription);
 }
 
+/*
+========================================
+PIPELINE ADAPTER
+========================================
+Permite que el Import Pipeline use
+el optimizador regional sin romper
+la arquitectura existente
+========================================
+*/
+
+function generateRegionalTitle({
+  title = "",
+  description = "",
+  country = "DEFAULT"
+} = {}) {
+
+  const storeProfile = {
+    language: country === "MX" ? "es-MX" : "en-US",
+    country
+  };
+
+  return optimizeRegionalTitle({
+    translatedTitle: title,
+    translatedDescription: description,
+    storeProfile,
+    category: "general"
+  });
+
+}
+
 module.exports = {
-  optimizeRegionalTitle
+  optimizeRegionalTitle,
+  generateRegionalTitle
 };
