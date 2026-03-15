@@ -417,8 +417,8 @@ app.post("/webhooks/products-create", async (req, res) => {
       platform: "shopify",
 
       store: {
-        shopDomain: shop,
-        accessToken: accessToken,
+        shopDomain: store.shopDomain,
+        accessToken: store.accessToken,
         productId: product.id
       },
 
