@@ -4,6 +4,7 @@ ZEUS AI SEO OPTIMIZER
 ========================================
 Enriquece SEO usando IA controlada
 sin reemplazar el motor base de ZEUS
+Preserva HTML original del proveedor
 ========================================
 */
 
@@ -12,6 +13,58 @@ const OpenAI = require("openai");
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
+
+function extractSupplierHTML(description = "") {
+
+  if (!description) return {
+    cleanText: "",
+    supplierHTML: ""
+  };
+
+  const hasHTML =
+    description.includes("<img") ||
+    description.includes("<picture") ||
+    description.includes("<iframe") ||
+    description.includes("<video");
+
+  if (!hasHTML) {
+    return {
+      cleanText: description,
+      supplierHTML: ""
+    };
+  }
+
+  return {
+    cleanText: description.replace(/<img[^>]*>/g, ""),
+    supplierHTML: description
+  };
+}
+
+function buildFinalDescription({
+  seoDescription,
+  supplierHTML
+}) {
+
+  let finalHTML = "";
+
+  if (seoDescription) {
+    finalHTML += seoDescription;
+  }
+
+  if (supplierHTML) {
+
+    finalHTML += `
+
+<!-- SUPPLIER MEDIA CONTENT PRESERVED -->
+
+${supplierHTML}
+
+`;
+
+  }
+
+  return finalHTML;
+}
 
 async function aiSeoOptimizer(product = {}, storeProfile = {}) {
 
@@ -28,20 +81,27 @@ async function aiSeoOptimizer(product = {}, storeProfile = {}) {
     storeProfile.language ||
     "en";
 
+  const { cleanText, supplierHTML } =
+    extractSupplierHTML(product.description || "");
+
   const prompt = `
-You are an ecommerce SEO optimizer.
+You are an expert ecommerce SEO product copywriter.
+
+Create a high quality ecommerce product listing.
+
+Requirements:
+
+- 600 to 900 words
+- strong SEO structure
+- HTML formatting
+- sections for benefits, features, usage and buying reasons
+- optimized for ecommerce search
 
 Product title:
 ${product.title}
 
-Product description:
-${product.description}
-
-Generate:
-
-1) Improved SEO title
-2) Long ecommerce SEO description (300-500 words)
-3) Additional keyword tags
+Product base description:
+${cleanText}
 
 Language: ${language}
 Market region: ${region}
@@ -60,7 +120,7 @@ Return JSON only:
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0.4,
-      max_tokens: 500,
+      max_tokens: 900,
       messages: [
         {
           role: "user",
@@ -79,10 +139,15 @@ Return JSON only:
       return product;
     }
 
+    const finalDescription = buildFinalDescription({
+      seoDescription: result.description,
+      supplierHTML
+    });
+
     return {
       ...product,
       title: result.title || product.title,
-      description: result.description || product.description,
+      description: finalDescription || product.description,
       tags: [
         ...(product.tags || []),
         ...(result.keywords || [])
