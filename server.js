@@ -32,12 +32,6 @@ SHOPIFY ROUTES
 const installRoutes = require("./src/routes/install");
 
 /*
-SYNC ENGINE
-*/
-
-const { updateShopifyProduct } = require("./src/services/shopifyProductUpdater");
-
-/*
 LOOP PROTECTION
 */
 
@@ -103,10 +97,6 @@ VERIFY SHOPIFY WEBHOOK
 */
 
 function verifyShopifyWebhook(req) {
-
-  /*
-  TEST MODE
-  */
 
   if (process.env.ZEUS_ENV === "test") {
 
@@ -340,10 +330,6 @@ app.post("/webhooks/products-create", async (req, res) => {
 
   }
 
-  /*
-  SAFE BODY PARSE
-  */
-
   const product =
     Buffer.isBuffer(req.body)
       ? JSON.parse(req.body.toString())
@@ -358,28 +344,43 @@ app.post("/webhooks/products-create", async (req, res) => {
     if (isZeusUpdate(product)) {
 
       console.log("ZEUS LOOP PREVENTED");
+
       return res.status(200).send("ok");
 
     }
 
-    const optimized = transformProduct({
+    const payload = {
+
       title: product.title,
-      description: product.body_html
-    });
+      description: product.body_html || "",
+      tags: product.tags ? product.tags.split(",") : [],
+
+      platform: "shopify",
+
+      store: {
+        shopDomain: shop,
+        accessToken: process.env.SHOPIFY_ACCESS_TOKEN,
+        productId: product.id
+      },
+
+      storeProfile: {
+        region: "US",
+        language: "en"
+      },
+
+      source: "shopify"
+
+    };
+
+    const result = await runImportPipeline(payload);
 
     markZeusUpdate(product.id);
 
-    await updateShopifyProduct({
-      shop: shop,
-      productId: product.id,
-      data: optimized
-    });
-
-    console.log("ZEUS PRODUCT UPDATED:", product.id);
+    console.log("ZEUS PIPELINE COMPLETE:", result.category);
 
   } catch (error) {
 
-    console.log("SHOPIFY PRODUCT UPDATE FAILED:", error);
+    console.error("SHOPIFY PIPELINE FAILED:", error);
 
   }
 
