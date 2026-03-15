@@ -3,6 +3,7 @@ const categoryBrain = require("../services/categoryBrain");
 const { mapRegionalCategory } = require("../services/regionalCategoryMapper");
 const { syncProduct } = require("../services/syncEngine");
 const { getStore } = require("../services/storeRegistry");
+const { aiSeoOptimizer } = require("../services/aiSeoOptimizer");
 
 /*
 ====================================================
@@ -13,6 +14,8 @@ Flujo:
 Input
 ↓
 Transformer
+↓
+AI SEO Optimizer
 ↓
 Category Brain
 ↓
@@ -50,14 +53,25 @@ async function runImportPipeline(input) {
 
   /*
   ==========================================
+  AI SEO OPTIMIZER
+  ==========================================
+  */
+
+  const aiOptimized = await aiSeoOptimizer(
+    transformed,
+    input.storeProfile || {}
+  );
+
+  /*
+  ==========================================
   CATEGORY BRAIN
   ==========================================
   */
 
   const classification = await categoryBrain.suggestCategory({
-    title: transformed.title,
-    description: transformed.description,
-    tags: transformed.tags
+    title: aiOptimized.title,
+    description: aiOptimized.description,
+    tags: aiOptimized.tags
   });
 
   const baseCategory = classification.category;
@@ -81,7 +95,7 @@ async function runImportPipeline(input) {
   */
 
   const product = {
-    ...transformed,
+    ...aiOptimized,
     baseCategory,
     regionalCategory,
     category: baseCategory,
