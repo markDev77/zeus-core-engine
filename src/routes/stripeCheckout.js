@@ -3,10 +3,10 @@ const router = express.Router();
 const Stripe = require("stripe");
 
 /*
-Verificar que la variable de entorno exista
+Verificar variable de entorno
 */
 if (!process.env.STRIPE_SECRET_KEY) {
-  console.error("STRIPE_SECRET_KEY not configured");
+  console.error("ERROR: STRIPE_SECRET_KEY not configured");
   process.exit(1);
 }
 
@@ -14,13 +14,14 @@ if (!process.env.STRIPE_SECRET_KEY) {
 Inicializar Stripe
 */
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2023-10-16"
 });
 
 /*
-Endpoint para crear sesión de checkout
+Crear sesión de checkout
 */
 router.post("/stripe/create-checkout", async (req, res) => {
+
   try {
 
     const { priceId, store } = req.body;
@@ -30,6 +31,8 @@ router.post("/stripe/create-checkout", async (req, res) => {
         error: "missing_price_id"
       });
     }
+
+    console.log("Creating Stripe Checkout for price:", priceId);
 
     const session = await stripe.checkout.sessions.create({
 
@@ -53,7 +56,9 @@ router.post("/stripe/create-checkout", async (req, res) => {
 
     });
 
-    res.json({
+    console.log("Stripe session created:", session.id);
+
+    return res.json({
       checkoutUrl: session.url
     });
 
@@ -64,13 +69,15 @@ router.post("/stripe/create-checkout", async (req, res) => {
     /*
     Devolver error real para diagnóstico
     */
-    res.status(500).json({
-      error: error.message,
+    return res.status(500).json({
+      message: error.message,
       type: error.type,
-      code: error.code
+      code: error.code,
+      raw: error.raw
     });
 
   }
+
 });
 
 module.exports = router;
