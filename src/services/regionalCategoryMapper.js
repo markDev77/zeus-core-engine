@@ -13,10 +13,54 @@ function mapRegionalCategory({
   baseCategory = "general",
   storeProfile = {}
 }) {
-  const country = String(storeProfile.country || "DEFAULT").toUpperCase();
-  const marketplace = String(storeProfile.marketplace || "shopify").toLowerCase();
 
-  const regionalCategory = getRegionalCategoryName(baseCategory, country);
+  /*
+  ========================================
+  COUNTRY DETECTION
+  ========================================
+  prioridad:
+  1 storeProfile.country
+  2 storeProfile.region
+  3 DEFAULT
+  ========================================
+  */
+
+  const country =
+    String(
+      storeProfile.country ||
+      storeProfile.region ||
+      "DEFAULT"
+    ).toUpperCase();
+
+  /*
+  ========================================
+  MARKETPLACE DETECTION
+  ========================================
+  */
+
+  const marketplace =
+    String(
+      storeProfile.marketplace ||
+      "shopify"
+    ).toLowerCase();
+
+  /*
+  ========================================
+  CATEGORY MAPPING
+  ========================================
+  */
+
+  const regionalCategory =
+    getRegionalCategoryName(
+      baseCategory,
+      country
+    );
+
+  /*
+  ========================================
+  RETURN STRUCTURE
+  ========================================
+  */
 
   return {
     baseCategory,
@@ -24,6 +68,7 @@ function mapRegionalCategory({
     marketplace,
     country
   };
+
 }
 
 module.exports = {
