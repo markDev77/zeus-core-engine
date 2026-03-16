@@ -5,6 +5,7 @@ Normalize text
 */
 function normalize(text) {
   if (!text) return "";
+
   return String(text)
     .toLowerCase()
     .normalize("NFD")
@@ -20,11 +21,14 @@ function scoreCategory(text, keywords, weight = 1) {
   const matchedTerms = [];
 
   for (const word of keywords) {
+
     const normalizedWord = normalize(word);
+
     if (normalizedWord && text.includes(normalizedWord)) {
       score += weight;
       matchedTerms.push(normalizedWord);
     }
+
   }
 
   return {
@@ -35,6 +39,7 @@ function scoreCategory(text, keywords, weight = 1) {
 }
 
 function getWeightedSegments(product = {}) {
+
   const title = normalize(product.title);
   const description = normalize(product.description);
   const tags = normalize((product.tags || []).join(" "));
@@ -44,9 +49,11 @@ function getWeightedSegments(product = {}) {
     description,
     tags
   };
+
 }
 
 function applyHeuristicBoosts(category, combinedText) {
+
   let extraScore = 0;
 
   const fashionTerms = [
@@ -87,19 +94,25 @@ function applyHeuristicBoosts(category, combinedText) {
     "chair"
   ];
 
-  if (category === "fashion" && fashionTerms.some((term) => combinedText.includes(term))) {
+  if (category === "fashion" && fashionTerms.some(term => combinedText.includes(term))) {
     extraScore += 2.5;
   }
 
-  if (category === "pet_supplies" && petsTerms.some((term) => combinedText.includes(term))) {
+  if (category === "pet_supplies" && petsTerms.some(term => combinedText.includes(term))) {
     extraScore += 2.5;
   }
 
-  if ((category === "home" || category === "hogar" || category === "general_home") && homeTerms.some((term) => combinedText.includes(term))) {
+  if (
+    (category === "home" ||
+      category === "hogar" ||
+      category === "general_home") &&
+    homeTerms.some(term => combinedText.includes(term))
+  ) {
     extraScore += 2.0;
   }
 
   return extraScore;
+
 }
 
 /*
@@ -109,7 +122,12 @@ function suggestCategory(product) {
 
   const segments = getWeightedSegments(product);
 
-  const combinedText = `${segments.title} ${segments.description} ${segments.tags}`;
+  const combinedText =
+    segments.title +
+    " " +
+    segments.description +
+    " " +
+    segments.tags;
 
   let bestCategory = "general";
   let bestScore = 0;
@@ -138,9 +156,11 @@ function suggestCategory(product) {
     );
 
     if (totalScore > bestScore) {
+
       bestScore = totalScore;
       bestCategory = category;
       matchedTerms = allMatchedTerms;
+
     }
 
   }
