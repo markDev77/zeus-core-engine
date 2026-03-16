@@ -7,25 +7,22 @@ del SDK de OpenAI
 ========================================
 */
 
-function stripMediaTagsFromHtml(html = "") {
+function stripUnsafeTagsFromHtml(html = "") {
   return String(html || "")
-    .replace(/<img\b[^>]*>/gi, "")
-    .replace(/<picture\b[\s\S]*?<\/picture>/gi, "")
-    .replace(/<video\b[\s\S]*?<\/video>/gi, "")
-    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, "")
     .replace(/<script\b[\s\S]*?<\/script>/gi, "")
     .replace(/<style\b[\s\S]*?<\/style>/gi, "")
+    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, "")
     .trim();
 }
 
 function stripHtmlForPrompt(html = "") {
   return String(html || "")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, " ")
     .replace(/<img\b[^>]*>/gi, " ")
     .replace(/<picture\b[\s\S]*?<\/picture>/gi, " ")
     .replace(/<video\b[\s\S]*?<\/video>/gi, " ")
-    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, " ")
-    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -49,28 +46,12 @@ function dedupeTags(tags = []) {
 }
 
 function buildFinalDescription({
-  source,
   originalHTML,
   seoDescription
 }) {
-  const normalizedSource = String(source || "").toLowerCase();
-  const cleanSupplierHtml = stripMediaTagsFromHtml(originalHTML);
+  const cleanSupplierHtml = stripUnsafeTagsFromHtml(originalHTML);
 
-  if (normalizedSource === "usadrop") {
-    if (cleanSupplierHtml) {
-      return `
-${seoDescription || ""}
-
-<hr>
-
-${cleanSupplierHtml}
-      `.trim();
-    }
-
-    return String(seoDescription || "").trim();
-  }
-
-  if (cleanSupplierHtml && cleanSupplierHtml !== originalHTML) {
+  if (cleanSupplierHtml) {
     return `
 ${seoDescription || ""}
 
@@ -83,20 +64,40 @@ ${cleanSupplierHtml}
   return String(seoDescription || originalHTML || "").trim();
 }
 
+function resolveOptimizationLocale(storeProfile = {}, product = {}) {
+  const shopDomain =
+    storeProfile.shopDomain ||
+    product.shopDomain ||
+    "";
+
+  if (shopDomain === "eawi7g-hj.myshopify.com") {
+    return {
+      region: "MX",
+      language: "es"
+    };
+  }
+
+  return {
+    region:
+      storeProfile.region ||
+      storeProfile.country ||
+      "GLOBAL",
+    language:
+      storeProfile.language ||
+      "en"
+  };
+}
+
 async function aiSeoOptimizer(product = {}, storeProfile = {}) {
 
   if (!product.title) {
     return product;
   }
 
-  const region =
-    storeProfile.region ||
-    storeProfile.country ||
-    "GLOBAL";
+  const locale = resolveOptimizationLocale(storeProfile, product);
 
-  const language =
-    storeProfile.language ||
-    "en";
+  const region = locale.region;
+  const language = locale.language;
 
   const source =
     product.source ||
@@ -120,6 +121,8 @@ RULES
 - The SEO description must be significantly richer than the original
 - Generate relevant ecommerce keyword tags
 - Focus on clarity, search intent, and conversion
+- When target language is Spanish, write in neutral Spanish optimized for Mexico
+- Preserve supplier HTML for final output, but do not include raw HTML wrappers in the generated SEO block
 
 TARGET LANGUAGE:
 ${language}
@@ -192,7 +195,6 @@ RETURN JSON ONLY
     );
 
     const finalDescription = buildFinalDescription({
-      source,
       originalHTML,
       seoDescription: result.description || ""
     });
