@@ -12,39 +12,12 @@ const { checkDuplicateProduct } = require("../services/duplicateProductBlocker")
 const RECENT_PRODUCTS_TTL_MS = 120000;
 const recentProductRuns = new Map();
 
-/*
-====================================================
-ZEUS IMPORT PIPELINE
-====================================================
-
-Input
-↓
-Transformer
-↓
-AI SEO Optimizer
-↓
-SEO Structure Builder
-↓
-Product Signature Engine
-↓
-Duplicate Product Blocker
-↓
-Product Signature Registry
-↓
-Category Brain
-↓
-Regional Mapping
-↓
-Sync Engine
-====================================================
-*/
-
-function getRecentRunKey(shopDomain, productId) {
-  return `${shopDomain || "unknown"}::${productId || "unknown"}`;
-}
-
 function shouldSkipRecentRun(shopDomain, productId) {
-  const key = getRecentRunKey(shopDomain, productId);
+  if (!shopDomain || !productId) {
+    return false;
+  }
+
+  const key = `${shopDomain}:${productId}`;
   const now = Date.now();
   const lastRun = recentProductRuns.get(key);
 
@@ -86,7 +59,6 @@ function buildEffectiveStoreProfile(input = {}, shopDomain = "") {
 }
 
 async function runImportPipeline(input) {
-
   if (!input) {
     throw new Error("ZEUS PIPELINE: input missing");
   }
@@ -175,7 +147,6 @@ async function runImportPipeline(input) {
   let aiOptimized;
 
   try {
-
     aiOptimized = await aiSeoOptimizer(
       {
         ...transformed,
@@ -185,13 +156,9 @@ async function runImportPipeline(input) {
       effectiveStoreProfile,
       { source }
     );
-
   } catch (err) {
-
     console.warn("ZEUS SEO OPTIMIZER ERROR:", err.message);
-
     aiOptimized = transformed;
-
   }
 
   /*
@@ -231,7 +198,6 @@ async function runImportPipeline(input) {
   console.log("ZEUS DUPLICATE CHECK:", duplicateCheck);
 
   if (duplicateCheck.status === "BLOCK") {
-
     console.log("ZEUS DUPLICATE PRODUCT BLOCKED");
 
     return {
@@ -240,7 +206,6 @@ async function runImportPipeline(input) {
       signature: signatureData.signature,
       existing: duplicateCheck.existing
     };
-
   }
 
   /*
@@ -257,14 +222,27 @@ async function runImportPipeline(input) {
 
   /*
   ==========================================
-  CATEGORY BRAIN
+  PLATFORM DETECTION
+  ==========================================
+  */
+
+  const platform =
+    input.platform ||
+    input.store?.platform ||
+    "shopify";
+
+  /*
+  ==========================================
+  CATEGORY BRAIN V2
   ==========================================
   */
 
   const classification = await categoryBrain.suggestCategory({
     title: seoStructured.title,
     description: seoStructured.description,
-    tags: seoStructured.tags
+    tags: seoStructured.tags,
+    platform,
+    storeDomain: shopDomain
   });
 
   const baseCategory = classification.category;
@@ -294,6 +272,13 @@ async function runImportPipeline(input) {
     regionalCategory,
     category: baseCategory,
     categoryConfidence: confidence,
+    categoryDecision: classification.decision,
+    categoryMatchedTerms: classification.matchedTerms || [],
+    googleTaxonomyPath: classification.googleTaxonomyPath || null,
+    platformCategory: classification.platformCategory || null,
+    platformCategoryPath: classification.platformPath || null,
+    categoryLearned: classification.learned || false,
+    categoryLearningSource: classification.learningSource || null,
     productSignature: signatureData.signature,
     shopDomain
   };
@@ -342,23 +327,11 @@ async function runImportPipeline(input) {
 
   /*
   ==========================================
-  PLATFORM DETECTION
-  ==========================================
-  */
-
-  const platform =
-    input.platform ||
-    input.store?.platform ||
-    "shopify";
-
-  /*
-  ==========================================
   SYNC ENGINE
   ==========================================
   */
 
   try {
-
     console.log("ZEUS SYNC ENGINE START", productId);
 
     await syncProduct({
@@ -368,14 +341,11 @@ async function runImportPipeline(input) {
     });
 
     console.log("ZEUS SYNC ENGINE COMPLETE", productId);
-
   } catch (error) {
-
     console.error(
       "ZEUS PIPELINE SYNC ERROR:",
       error.message
     );
-
   }
 
   /*
@@ -391,7 +361,6 @@ async function runImportPipeline(input) {
     confidence,
     signatureRegistry
   };
-
 }
 
 module.exports = {
