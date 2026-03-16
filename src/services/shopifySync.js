@@ -86,6 +86,11 @@ function calculatePrice(usdRaw) {
   return Math.max(599, mxn);
 }
 
+function extractFirstImageFromHtml(html = "") {
+  const match = String(html || "").match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/i);
+  return match?.[1] || null;
+}
+
 async function shopifyGraphQL(shopDomain, accessToken, query, variables = {}) {
   const url = `https://${shopDomain}/admin/api/${SHOPIFY_GRAPHQL_VERSION}/graphql.json`;
 
@@ -137,6 +142,52 @@ async function getShopifyLocationId(shopDomain, accessToken) {
   });
 
   return response.data?.locations?.[0]?.id || null;
+}
+
+async function attachFallbackMainImage({
+  shopDomain,
+  accessToken,
+  productId
+}) {
+  const currentProduct = await getShopifyProduct(
+    shopDomain,
+    accessToken,
+    productId
+  );
+
+  if (!currentProduct) {
+    return;
+  }
+
+  if (Array.isArray(currentProduct.images) && currentProduct.images.length > 0) {
+    return;
+  }
+
+  const fallbackSrc = extractFirstImageFromHtml(
+    currentProduct.body_html || ""
+  );
+
+  if (!fallbackSrc) {
+    return;
+  }
+
+  const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}/images.json`;
+
+  await axios.post(
+    url,
+    {
+      image: {
+        src: fallbackSrc
+      }
+    },
+    {
+      headers: {
+        "X-Shopify-Access-Token": accessToken,
+        "Content-Type": "application/json"
+      },
+      timeout: 15000
+    }
+  );
 }
 
 async function updateVariantUsadropPolicy({
@@ -328,7 +379,7 @@ async function pushShopifyCategory({
       mutation,
       {
         input: {
-          id: `gid://shopify/Product/${productId}`,
+          id: \`gid://shopify/Product/\${productId}\`,
           category: taxonomyCategory.id
         }
       }
@@ -385,6 +436,7 @@ async function updateShopifyProduct({
       [
         ...(Array.isArray(tags) ? tags : []),
         ...(Array.isArray(searchKeywords) ? searchKeywords : []),
+        "ZEUS_OPTIMIZED",
         source ? `source_${String(source).toLowerCase()}` : "",
         productSignature ? `ZEUS_SIG_${productSignature}` : ""
       ]
@@ -451,6 +503,12 @@ async function updateShopifyProduct({
         timeout: 15000
       }
     );
+
+    await attachFallbackMainImage({
+      shopDomain,
+      accessToken,
+      productId
+    });
 
     await pushShopifyCategory({
       shopDomain,
