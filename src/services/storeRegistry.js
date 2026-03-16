@@ -1,41 +1,27 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require("fs")
+const path = require("path")
 
-const STORE_FILE = path.join(__dirname, "../data/stores.json");
-
-function applyStoreOverrides(shopDomain, profile = {}) {
-  if (shopDomain === "eawi7g-hj.myshopify.com") {
-    return {
-      ...profile,
-      country: "MX",
-      language: "es",
-      currency: "MXN",
-      marketplace: "shopify"
-    };
-  }
-
-  return profile;
-}
+const STORE_FILE = path.join(__dirname, "../data/stores.json")
 
 function loadStores() {
 
   if (!fs.existsSync(STORE_FILE)) {
-    fs.writeFileSync(STORE_FILE, JSON.stringify([], null, 2));
+    fs.writeFileSync(STORE_FILE, JSON.stringify([], null, 2))
   }
 
-  const raw = fs.readFileSync(STORE_FILE);
+  const raw = fs.readFileSync(STORE_FILE)
 
   try {
 
-    const data = JSON.parse(raw);
+    const data = JSON.parse(raw)
 
-    if (Array.isArray(data)) return data;
+    if (Array.isArray(data)) return data
 
-    return [];
+    return []
 
   } catch {
 
-    return [];
+    return []
 
   }
 
@@ -46,39 +32,56 @@ function saveStores(stores) {
   fs.writeFileSync(
     STORE_FILE,
     JSON.stringify(stores, null, 2)
-  );
+  )
+
+}
+
+function applyProfileOverrides(shopDomain, profile = {}) {
+
+  if (shopDomain === "eawi7g-hj.myshopify.com") {
+
+    return {
+      ...profile,
+      country: "MX",
+      language: "es",
+      currency: "MXN"
+    }
+
+  }
+
+  return profile
 
 }
 
 function getStore(shopDomain) {
 
-  const stores = loadStores();
+  const stores = loadStores()
 
-  const found = stores.find(
+  const store = stores.find(
     s => s.shopDomain === shopDomain
-  );
+  )
 
-  if (!found) return null;
+  if (!store) return null
 
   return {
-    ...found,
-    profile: applyStoreOverrides(
+    ...store,
+    profile: applyProfileOverrides(
       shopDomain,
-      found.profile || {}
+      store.profile || {}
     )
-  };
+  }
 
 }
 
 function registerStore(shopDomain, accessToken, metadata = {}) {
 
-  const stores = loadStores();
+  const stores = loadStores()
 
   let store = stores.find(
     s => s.shopDomain === shopDomain
-  );
+  )
 
-  const profile = applyStoreOverrides(
+  const profile = applyProfileOverrides(
     shopDomain,
     {
       country: metadata.country || "US",
@@ -86,7 +89,7 @@ function registerStore(shopDomain, accessToken, metadata = {}) {
       currency: metadata.currency || "USD",
       marketplace: metadata.marketplace || "shopify"
     }
-  );
+  )
 
   if (!store) {
 
@@ -109,49 +112,49 @@ function registerStore(shopDomain, accessToken, metadata = {}) {
         sku_limit: 20
       }
 
-    };
+    }
 
-    stores.push(store);
+    stores.push(store)
 
   } else {
 
-    store.accessToken = accessToken;
-    store.profile = profile;
+    store.accessToken = accessToken
+    store.profile = profile
 
   }
 
-  saveStores(stores);
+  saveStores(stores)
 
-  console.log("STORE SAVED:", store);
+  console.log("STORE REGISTERED:", shopDomain)
 
-  return store;
+  return store
 
 }
 
 function updateStorePlan(shopDomain, planData) {
 
-  const stores = loadStores();
+  const stores = loadStores()
 
   const store = stores.find(
     s => s.shopDomain === shopDomain
-  );
+  )
 
-  if (!store) return null;
+  if (!store) return null
 
   store.billing = {
     ...store.billing,
     ...planData
-  };
+  }
 
-  saveStores(stores);
+  saveStores(stores)
 
   return {
     ...store,
-    profile: applyStoreOverrides(
+    profile: applyProfileOverrides(
       shopDomain,
       store.profile || {}
     )
-  };
+  }
 
 }
 
@@ -162,4 +165,4 @@ module.exports = {
   getStore,
   loadStores
 
-};
+}
