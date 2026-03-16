@@ -112,10 +112,8 @@ VERIFY SHOPIFY WEBHOOK
 function verifyShopifyWebhook(req) {
 
   if (process.env.ZEUS_ENV === "test") {
-
     console.log("ZEUS WEBHOOK TEST MODE ACTIVE");
     return true;
-
   }
 
   const hmacHeader = req.headers["x-shopify-hmac-sha256"];
@@ -125,13 +123,9 @@ function verifyShopifyWebhook(req) {
   let bodyBuffer;
 
   if (Buffer.isBuffer(req.body)) {
-
     bodyBuffer = req.body;
-
   } else {
-
     bodyBuffer = Buffer.from(JSON.stringify(req.body));
-
   }
 
   const generatedHash = crypto
@@ -140,16 +134,12 @@ function verifyShopifyWebhook(req) {
     .digest("base64");
 
   try {
-
     return crypto.timingSafeEqual(
       Buffer.from(generatedHash),
       Buffer.from(hmacHeader)
     );
-
   } catch {
-
     return false;
-
   }
 
 }
@@ -206,11 +196,9 @@ app.post("/optimize/product", (req, res) => {
   const { title, description } = req.body;
 
   if (!title) {
-
     return res.status(400).json({
       error: "Product title required"
     });
-
   }
 
   const user = {
@@ -221,11 +209,9 @@ app.post("/optimize/product", (req, res) => {
   const limitCheck = checkSkuLimit(user);
 
   if (!limitCheck.allowed) {
-
     return res.status(403).json({
       error: "SKU limit reached"
     });
-
   }
 
   const storeContext = resolveStoreProfile({
@@ -351,7 +337,7 @@ SHOPIFY PRODUCT CREATE WEBHOOK
 ====================================================
 */
 
-app.post("/webhooks/products-create", async (req, res) => {
+async function handleProductCreate(req, res) {
 
   if (!verifyShopifyWebhook(req)) {
     return res.status(401).send("Invalid HMAC");
@@ -369,44 +355,28 @@ app.post("/webhooks/products-create", async (req, res) => {
   try {
 
     if (isZeusUpdate(product)) {
-
       console.log("ZEUS LOOP PREVENTED");
       return res.status(200).send("ok");
-
     }
 
     const store = getStore(shop);
 
     if (!store) {
-
       console.log("ZEUS STORE NOT REGISTERED:", shop);
       return res.status(200).send("store_not_registered");
-
     }
 
     const billingCheck = checkBillingAccess(shop);
 
     if (!billingCheck.allowed) {
-
       console.log("ZEUS PLAN LIMIT BLOCKED:", shop, billingCheck.reason);
       return res.status(200).send("plan_limit_blocked");
-
     }
-
-    /*
-    TOKEN CORRECTION
-    */
 
     if (!store.accessToken) {
-
       console.log("ZEUS STORE TOKEN MISSING:", shop);
       return res.status(200).send("store_token_missing");
-
     }
-
-    const accessToken = store.accessToken;
-
-    console.log("ZEUS STORE TOKEN FOUND:", shop);
 
     const payload = {
 
@@ -455,29 +425,33 @@ app.post("/webhooks/products-create", async (req, res) => {
 
   res.status(200).send("ok");
 
-});
+}
 
 /*
 ====================================================
-SHOPIFY INVENTORY UPDATE
+WEBHOOK ROUTES
 ====================================================
 */
 
-app.post("/webhooks/inventory-update", async (req, res) => {
+app.post("/webhooks/products-create", handleProductCreate);
+app.post("/webhooks/products/create", handleProductCreate);
 
-  if (!verifyShopifyWebhook(req)) {
-    return res.status(401).send("Invalid HMAC");
-  }
+/*
+PRODUCT UPDATE (alias)
+*/
 
-  const inventory =
-    Buffer.isBuffer(req.body)
-      ? JSON.parse(req.body.toString())
-      : req.body;
+app.post("/webhooks/products/update", handleProductCreate);
 
-  console.log("SHOPIFY INVENTORY UPDATE:", inventory.inventory_item_id);
+/*
+INVENTORY
+*/
 
+app.post("/webhooks/inventory-update", (req, res) => {
   res.status(200).send("ok");
+});
 
+app.post("/webhooks/inventory_levels/update", (req, res) => {
+  res.status(200).send("ok");
 });
 
 /*
@@ -491,11 +465,9 @@ app.get("/jobs/:id", (req, res) => {
   const job = productRegistry.getProduct(req.params.id);
 
   if (!job) {
-
     return res.status(404).json({
       error: "Job not found"
     });
-
   }
 
   res.json(job);
