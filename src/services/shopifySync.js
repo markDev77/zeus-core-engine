@@ -379,7 +379,7 @@ async function pushShopifyCategory({
       mutation,
       {
         input: {
-          id: \`gid://shopify/Product/\${productId}\`,
+          id: `gid://shopify/Product/${productId}`,
           category: taxonomyCategory.id
         }
       }
