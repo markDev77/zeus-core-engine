@@ -9,6 +9,32 @@ a categoría visible por región/país.
 
 const { getRegionalCategoryName } = require("../data/categoryMappings");
 
+function buildShopifyTaxonomyQuery(baseCategory = "general") {
+  const category = String(baseCategory || "general").toLowerCase();
+
+  switch (category) {
+    case "pet_supplies":
+      return "Pet Supplies";
+    case "home":
+    case "hogar":
+      return "Home";
+    case "electronics":
+    case "electronica":
+      return "Electronics";
+    case "fashion":
+    case "moda":
+      return "Apparel";
+    case "beauty":
+    case "belleza":
+      return "Beauty";
+    case "sports":
+    case "deportes":
+      return "Sporting Goods";
+    default:
+      return category.replace(/_/g, " ");
+  }
+}
+
 function mapRegionalCategory({
   baseCategory = "general",
   storeProfile = {}
@@ -56,6 +82,9 @@ function mapRegionalCategory({
       country
     );
 
+  const shopifyTaxonomyQuery =
+    buildShopifyTaxonomyQuery(baseCategory);
+
   /*
   ========================================
   RETURN STRUCTURE
@@ -66,7 +95,8 @@ function mapRegionalCategory({
     baseCategory,
     regionalCategory,
     marketplace,
-    country
+    country,
+    shopifyTaxonomyQuery
   };
 
 }
