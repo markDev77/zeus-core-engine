@@ -4,6 +4,7 @@ const { mapRegionalCategory } = require("../services/regionalCategoryMapper");
 const { syncProduct } = require("../services/syncEngine");
 const { getStore } = require("../services/storeRegistry");
 const { aiSeoOptimizer } = require("../services/aiSeoOptimizer");
+const { seoStructureBuilder } = require("../services/seoStructureBuilder");
 
 /*
 ====================================================
@@ -16,6 +17,8 @@ Input
 Transformer
 ↓
 AI SEO Optimizer
+↓
+SEO Structure Builder
 ↓
 Category Brain
 ↓
@@ -64,14 +67,24 @@ async function runImportPipeline(input) {
 
   /*
   ==========================================
+  SEO STRUCTURE BUILDER
+  ==========================================
+  */
+
+  const seoStructured = seoStructureBuilder(
+    aiOptimized
+  );
+
+  /*
+  ==========================================
   CATEGORY BRAIN
   ==========================================
   */
 
   const classification = await categoryBrain.suggestCategory({
-    title: aiOptimized.title,
-    description: aiOptimized.description,
-    tags: aiOptimized.tags
+    title: seoStructured.title,
+    description: seoStructured.description,
+    tags: seoStructured.tags
   });
 
   const baseCategory = classification.category;
@@ -95,7 +108,7 @@ async function runImportPipeline(input) {
   */
 
   const product = {
-    ...aiOptimized,
+    ...seoStructured,
     baseCategory,
     regionalCategory,
     category: baseCategory,
