@@ -9,6 +9,35 @@ const { generateProductSignature } = require("../services/productSignatureEngine
 const { registerProductSignature } = require("../services/productSignatureRegistry");
 const { checkDuplicateProduct } = require("../services/duplicateProductBlocker");
 
+function detectProductOrigin(input = {}, transformed = {}) {
+  const explicitSource =
+    input.source ||
+    transformed.source ||
+    null;
+
+  if (explicitSource) {
+    return String(explicitSource).toLowerCase();
+  }
+
+  const variants =
+    transformed.variants ||
+    input.variants ||
+    [];
+
+  const usadropSkuRegex = /^PD\.\d+$/i;
+
+  if (Array.isArray(variants)) {
+    for (const variant of variants) {
+      const sku = String(variant?.sku || "").trim();
+      if (usadropSkuRegex.test(sku)) {
+        return "usadrop";
+      }
+    }
+  }
+
+  return "native";
+}
+
 /*
 ====================================================
 ZEUS IMPORT PIPELINE
@@ -59,12 +88,24 @@ async function runImportPipeline(input) {
 
   /*
   ==========================================
+  ORIGIN DETECTION
+  ==========================================
+  */
+
+  const origin = detectProductOrigin(input, transformed);
+
+  /*
+  ==========================================
   AI SEO OPTIMIZER
   ==========================================
   */
 
   const aiOptimized = await aiSeoOptimizer(
-    transformed,
+    {
+      ...transformed,
+      source: origin,
+      origin
+    },
     input.storeProfile || {}
   );
 
@@ -75,7 +116,11 @@ async function runImportPipeline(input) {
   */
 
   const seoStructured = seoStructureBuilder(
-    aiOptimized
+    {
+      ...aiOptimized,
+      source: origin,
+      origin
+    }
   );
 
   /*
@@ -189,7 +234,11 @@ async function runImportPipeline(input) {
     regionalCategory,
     category: baseCategory,
     categoryConfidence: confidence,
-    productSignature: signatureData.signature
+    productSignature: signatureData.signature,
+    source: origin,
+    origin,
+    shopifyTaxonomyQuery:
+      regionalCategory.shopifyTaxonomyQuery
   };
 
   /*
@@ -231,7 +280,8 @@ async function runImportPipeline(input) {
   console.log("ZEUS STORE CONTEXT:", {
     shopDomain: store.shopDomain,
     accessToken: store.accessToken ? "[REDACTED_PRESENT]" : null,
-    productId: store.productId
+    productId: store.productId,
+    origin
   });
 
   if (!store.shopDomain) {
