@@ -9,35 +9,6 @@ const { generateProductSignature } = require("../services/productSignatureEngine
 const { registerProductSignature } = require("../services/productSignatureRegistry");
 const { checkDuplicateProduct } = require("../services/duplicateProductBlocker");
 
-function detectProductOrigin(input = {}, transformed = {}) {
-  const explicitSource =
-    input.source ||
-    transformed.source ||
-    null;
-
-  if (explicitSource) {
-    return String(explicitSource).toLowerCase();
-  }
-
-  const variants =
-    transformed.variants ||
-    input.variants ||
-    [];
-
-  const usadropSkuRegex = /^PD\.\d+$/i;
-
-  if (Array.isArray(variants)) {
-    for (const variant of variants) {
-      const sku = String(variant?.sku || "").trim();
-      if (usadropSkuRegex.test(sku)) {
-        return "usadrop";
-      }
-    }
-  }
-
-  return "native";
-}
-
 /*
 ====================================================
 ZEUS IMPORT PIPELINE
@@ -62,7 +33,6 @@ Category Brain
 Regional Mapping
 ↓
 Sync Engine
-
 ====================================================
 */
 
@@ -77,22 +47,28 @@ async function runImportPipeline(input) {
 
   /*
   ==========================================
+  SOURCE DETECTION
+  ==========================================
+  */
+
+  const source =
+    input.source ||
+    input.origin ||
+    "shopify";
+
+  console.log("ZEUS SOURCE DETECTED:", source);
+
+  /*
+  ==========================================
   TRANSFORM PRODUCT
   ==========================================
   */
 
   const transformed = transformProduct({
     ...input,
+    source,
     storeProfile: input.storeProfile || {}
   });
-
-  /*
-  ==========================================
-  ORIGIN DETECTION
-  ==========================================
-  */
-
-  const origin = detectProductOrigin(input, transformed);
 
   /*
   ==========================================
@@ -100,14 +76,23 @@ async function runImportPipeline(input) {
   ==========================================
   */
 
-  const aiOptimized = await aiSeoOptimizer(
-    {
-      ...transformed,
-      source: origin,
-      origin
-    },
-    input.storeProfile || {}
-  );
+  let aiOptimized;
+
+  try {
+
+    aiOptimized = await aiSeoOptimizer(
+      transformed,
+      input.storeProfile || {},
+      { source }
+    );
+
+  } catch (err) {
+
+    console.warn("ZEUS SEO OPTIMIZER ERROR:", err.message);
+
+    aiOptimized = transformed;
+
+  }
 
   /*
   ==========================================
@@ -116,11 +101,7 @@ async function runImportPipeline(input) {
   */
 
   const seoStructured = seoStructureBuilder(
-    {
-      ...aiOptimized,
-      source: origin,
-      origin
-    }
+    aiOptimized
   );
 
   /*
@@ -230,15 +211,12 @@ async function runImportPipeline(input) {
 
   const product = {
     ...seoStructured,
+    source,
     baseCategory,
     regionalCategory,
     category: baseCategory,
     categoryConfidence: confidence,
-    productSignature: signatureData.signature,
-    source: origin,
-    origin,
-    shopifyTaxonomyQuery:
-      regionalCategory.shopifyTaxonomyQuery
+    productSignature: signatureData.signature
   };
 
   /*
@@ -280,17 +258,8 @@ async function runImportPipeline(input) {
   console.log("ZEUS STORE CONTEXT:", {
     shopDomain: store.shopDomain,
     accessToken: store.accessToken ? "[REDACTED_PRESENT]" : null,
-    productId: store.productId,
-    origin
+    productId: store.productId
   });
-
-  if (!store.shopDomain) {
-    console.warn("ZEUS WARNING: shopDomain not detected in pipeline input");
-  }
-
-  if (!store.accessToken) {
-    console.warn("ZEUS WARNING: OAuth accessToken not available for store sync");
-  }
 
   /*
   ==========================================
