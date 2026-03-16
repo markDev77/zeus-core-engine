@@ -36,7 +36,7 @@ const installRoutes = require("./src/routes/install");
 STORE REGISTRY (OAUTH SUPPORT)
 */
 
-const { getStore } = require("./src/services/storeRegistry");
+const { getStore, initStoreRegistry } = require("./src/services/storeRegistry");
 
 /*
 LOOP PROTECTION
@@ -523,9 +523,22 @@ SERVER
 
 const PORT = process.env.PORT || 10000;
 
-app.listen(PORT, () => {
+async function startServer() {
 
-  console.log("ZEUS CORE ENGINE running");
-  console.log("PORT:", PORT);
+  await initStoreRegistry();
+
+  app.listen(PORT, () => {
+
+    console.log("ZEUS CORE ENGINE running");
+    console.log("PORT:", PORT);
+
+  });
+
+}
+
+startServer().catch((error) => {
+
+  console.error("ZEUS STARTUP ERROR:", error);
+  process.exit(1);
 
 });
