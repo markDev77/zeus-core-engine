@@ -9,6 +9,9 @@ const { generateProductSignature } = require("../services/productSignatureEngine
 const { registerProductSignature } = require("../services/productSignatureRegistry");
 const { checkDuplicateProduct } = require("../services/duplicateProductBlocker");
 
+const RECENT_PRODUCTS_TTL_MS = 120000;
+const recentProductRuns = new Map();
+
 /*
 ====================================================
 ZEUS IMPORT PIPELINE
@@ -36,6 +39,52 @@ Sync Engine
 ====================================================
 */
 
+function getRecentRunKey(shopDomain, productId) {
+  return `${shopDomain || "unknown"}::${productId || "unknown"}`;
+}
+
+function shouldSkipRecentRun(shopDomain, productId) {
+  const key = getRecentRunKey(shopDomain, productId);
+  const now = Date.now();
+  const lastRun = recentProductRuns.get(key);
+
+  if (lastRun && now - lastRun < RECENT_PRODUCTS_TTL_MS) {
+    return true;
+  }
+
+  recentProductRuns.set(key, now);
+
+  for (const [mapKey, value] of recentProductRuns.entries()) {
+    if (now - value > RECENT_PRODUCTS_TTL_MS) {
+      recentProductRuns.delete(mapKey);
+    }
+  }
+
+  return false;
+}
+
+function buildEffectiveStoreProfile(input = {}, shopDomain = "") {
+  const base = {
+    ...(input.storeProfile || {})
+  };
+
+  if (shopDomain === "eawi7g-hj.myshopify.com") {
+    return {
+      ...base,
+      region: "MX",
+      country: "MX",
+      language: "es",
+      currency: "MXN",
+      shopDomain
+    };
+  }
+
+  return {
+    ...base,
+    shopDomain
+  };
+}
+
 async function runImportPipeline(input) {
 
   if (!input) {
@@ -60,6 +109,53 @@ async function runImportPipeline(input) {
 
   /*
   ==========================================
+  PRODUCT IDENTIFIERS
+  ==========================================
+  */
+
+  const productId =
+    input.productId ||
+    input.shopifyProductId ||
+    input.id ||
+    input.payload?.id ||
+    input.data?.id ||
+    input.product?.id ||
+    input.store?.productId ||
+    null;
+
+  const shopDomain =
+    input.shopDomain ||
+    input.store?.shopDomain ||
+    input.store?.shop ||
+    null;
+
+  /*
+  ==========================================
+  LOOP PROTECTION
+  ==========================================
+  */
+
+  if (shouldSkipRecentRun(shopDomain, productId)) {
+    console.log("ZEUS LOOP GUARD SKIP:", {
+      shopDomain,
+      productId
+    });
+
+    return {
+      status: "skipped",
+      reason: "loop_guard_recent_product",
+      productId,
+      shopDomain
+    };
+  }
+
+  const effectiveStoreProfile = buildEffectiveStoreProfile(
+    input,
+    shopDomain
+  );
+
+  /*
+  ==========================================
   TRANSFORM PRODUCT
   ==========================================
   */
@@ -67,7 +163,7 @@ async function runImportPipeline(input) {
   const transformed = transformProduct({
     ...input,
     source,
-    storeProfile: input.storeProfile || {}
+    storeProfile: effectiveStoreProfile
   });
 
   /*
@@ -81,8 +177,12 @@ async function runImportPipeline(input) {
   try {
 
     aiOptimized = await aiSeoOptimizer(
-      transformed,
-      input.storeProfile || {},
+      {
+        ...transformed,
+        source,
+        shopDomain
+      },
+      effectiveStoreProfile,
       { source }
     );
 
@@ -113,28 +213,6 @@ async function runImportPipeline(input) {
   const signatureData = generateProductSignature(
     seoStructured
   );
-
-  /*
-  ==========================================
-  PRODUCT IDENTIFIERS
-  ==========================================
-  */
-
-  const productId =
-    input.productId ||
-    input.shopifyProductId ||
-    input.id ||
-    input.payload?.id ||
-    input.data?.id ||
-    input.product?.id ||
-    input.store?.productId ||
-    null;
-
-  const shopDomain =
-    input.shopDomain ||
-    input.store?.shopDomain ||
-    input.store?.shop ||
-    null;
 
   console.log("ZEUS PRODUCT SIGNATURE:", signatureData.signature);
 
@@ -200,7 +278,7 @@ async function runImportPipeline(input) {
 
   const regionalCategory = mapRegionalCategory({
     baseCategory,
-    storeProfile: input.storeProfile
+    storeProfile: effectiveStoreProfile
   });
 
   /*
@@ -216,7 +294,8 @@ async function runImportPipeline(input) {
     regionalCategory,
     category: baseCategory,
     categoryConfidence: confidence,
-    productSignature: signatureData.signature
+    productSignature: signatureData.signature,
+    shopDomain
   };
 
   /*
