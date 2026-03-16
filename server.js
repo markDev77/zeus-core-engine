@@ -1,5 +1,13 @@
+require("dotenv").config();
+
 const express = require("express");
 const crypto = require("crypto");
+
+/*
+DATABASE
+*/
+
+const { testConnection } = require("./src/services/database");
 
 /*
 ZEUS SERVICES
@@ -428,23 +436,12 @@ async function handleProductCreate(req, res) {
 }
 
 /*
-====================================================
 WEBHOOK ROUTES
-====================================================
 */
 
 app.post("/webhooks/products-create", handleProductCreate);
 app.post("/webhooks/products/create", handleProductCreate);
-
-/*
-PRODUCT UPDATE (alias)
-*/
-
 app.post("/webhooks/products/update", handleProductCreate);
-
-/*
-INVENTORY
-*/
 
 app.post("/webhooks/inventory-update", (req, res) => {
   res.status(200).send("ok");
@@ -452,39 +449,6 @@ app.post("/webhooks/inventory-update", (req, res) => {
 
 app.post("/webhooks/inventory_levels/update", (req, res) => {
   res.status(200).send("ok");
-});
-
-/*
-====================================================
-JOB QUERY
-====================================================
-*/
-
-app.get("/jobs/:id", (req, res) => {
-
-  const job = productRegistry.getProduct(req.params.id);
-
-  if (!job) {
-    return res.status(404).json({
-      error: "Job not found"
-    });
-  }
-
-  res.json(job);
-
-});
-
-/*
-====================================================
-LIST JOBS
-====================================================
-*/
-
-app.get("/jobs", (req, res) => {
-
-  const jobs = productRegistry.getAllProducts();
-  res.json(jobs);
-
 });
 
 /*
@@ -498,6 +462,7 @@ const PORT = process.env.PORT || 10000;
 async function startServer() {
 
   await initStoreRegistry();
+  await testConnection();
 
   app.listen(PORT, () => {
 
