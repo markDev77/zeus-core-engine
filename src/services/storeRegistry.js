@@ -1,7 +1,13 @@
 const fs = require("fs")
 const path = require("path")
 
-const STORE_FILE = path.join(__dirname, "../data/stores.json")
+/*
+Force correct path
+*/
+const STORE_FILE = path.resolve(
+  process.cwd(),
+  "src/data/stores.json"
+)
 
 function loadStores() {
 
@@ -36,23 +42,6 @@ function saveStores(stores) {
 
 }
 
-function applyProfileOverrides(shopDomain, profile = {}) {
-
-  if (shopDomain === "eawi7g-hj.myshopify.com") {
-
-    return {
-      ...profile,
-      country: "MX",
-      language: "es",
-      currency: "MXN"
-    }
-
-  }
-
-  return profile
-
-}
-
 function getStore(shopDomain) {
 
   const stores = loadStores()
@@ -63,13 +52,7 @@ function getStore(shopDomain) {
 
   if (!store) return null
 
-  return {
-    ...store,
-    profile: applyProfileOverrides(
-      shopDomain,
-      store.profile || {}
-    )
-  }
+  return store
 
 }
 
@@ -81,15 +64,14 @@ function registerStore(shopDomain, accessToken, metadata = {}) {
     s => s.shopDomain === shopDomain
   )
 
-  const profile = applyProfileOverrides(
-    shopDomain,
-    {
-      country: metadata.country || "US",
-      language: metadata.language || "en-US",
-      currency: metadata.currency || "USD",
-      marketplace: metadata.marketplace || "shopify"
-    }
-  )
+  const profile = {
+
+    country: metadata.country || "US",
+    language: metadata.language || "en",
+    currency: metadata.currency || "USD",
+    marketplace: metadata.marketplace || "shopify"
+
+  }
 
   if (!store) {
 
@@ -148,13 +130,7 @@ function updateStorePlan(shopDomain, planData) {
 
   saveStores(stores)
 
-  return {
-    ...store,
-    profile: applyProfileOverrides(
-      shopDomain,
-      store.profile || {}
-    )
-  }
+  return store
 
 }
 
