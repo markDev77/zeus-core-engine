@@ -5,6 +5,7 @@ const { syncProduct } = require("../services/syncEngine");
 const { getStore } = require("../services/storeRegistry");
 const { aiSeoOptimizer } = require("../services/aiSeoOptimizer");
 const { seoStructureBuilder } = require("../services/seoStructureBuilder");
+const { generateProductSignature } = require("../services/productSignatureEngine");
 
 /*
 ====================================================
@@ -20,6 +21,8 @@ AI SEO Optimizer
 ↓
 SEO Structure Builder
 ↓
+Product Signature Engine
+↓
 Category Brain
 ↓
 Regional Mapping
@@ -33,12 +36,6 @@ async function runImportPipeline(input) {
   if (!input) {
     throw new Error("ZEUS PIPELINE: input missing");
   }
-
-  /*
-  ==========================================
-  DEBUG INPUT
-  ==========================================
-  */
 
   console.log("ZEUS PIPELINE RAW INPUT:");
   console.log(JSON.stringify(input, null, 2));
@@ -73,6 +70,16 @@ async function runImportPipeline(input) {
 
   const seoStructured = seoStructureBuilder(
     aiOptimized
+  );
+
+  /*
+  ==========================================
+  PRODUCT SIGNATURE ENGINE
+  ==========================================
+  */
+
+  const signatureData = generateProductSignature(
+    seoStructured
   );
 
   /*
@@ -112,8 +119,11 @@ async function runImportPipeline(input) {
     baseCategory,
     regionalCategory,
     category: baseCategory,
-    categoryConfidence: confidence
+    categoryConfidence: confidence,
+    productSignature: signatureData.signature
   };
+
+  console.log("ZEUS PRODUCT SIGNATURE:", signatureData.signature);
 
   /*
   ==========================================
