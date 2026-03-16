@@ -2,8 +2,7 @@
 ========================================
 ZEUS AI SEO OPTIMIZER
 ========================================
-IA SEO enrichment sin depender
-del SDK de OpenAI
+IA SEO enrichment
 ========================================
 */
 
@@ -45,26 +44,8 @@ function dedupeTags(tags = []) {
   );
 }
 
-function buildFinalDescription({
-  originalHTML,
-  seoDescription
-}) {
-  const cleanSupplierHtml = stripUnsafeTagsFromHtml(originalHTML);
-
-  if (cleanSupplierHtml) {
-    return `
-${seoDescription || ""}
-
-<hr>
-
-${cleanSupplierHtml}
-    `.trim();
-  }
-
-  return String(seoDescription || originalHTML || "").trim();
-}
-
 function resolveOptimizationLocale(storeProfile = {}, product = {}) {
+
   const shopDomain =
     storeProfile.shopDomain ||
     product.shopDomain ||
@@ -86,6 +67,52 @@ function resolveOptimizationLocale(storeProfile = {}, product = {}) {
       storeProfile.language ||
       "en"
   };
+
+}
+
+function buildFinalDescription({
+  source,
+  originalHTML,
+  seoDescription
+}) {
+
+  const normalizedSource = String(source || "").toLowerCase();
+
+  const cleanSupplierHtml =
+    stripUnsafeTagsFromHtml(originalHTML);
+
+  if (normalizedSource === "usadrop") {
+
+    if (cleanSupplierHtml) {
+
+      return `
+${seoDescription || ""}
+
+<hr>
+
+${cleanSupplierHtml}
+`.trim();
+
+    }
+
+    return String(seoDescription || "").trim();
+
+  }
+
+  if (cleanSupplierHtml) {
+
+    return `
+${seoDescription || ""}
+
+<hr>
+
+${cleanSupplierHtml}
+`.trim();
+
+  }
+
+  return String(seoDescription || originalHTML || "").trim();
+
 }
 
 async function aiSeoOptimizer(product = {}, storeProfile = {}) {
@@ -114,15 +141,13 @@ RULES
 - Write in the target language only
 - Return JSON only
 - Create a clean ecommerce SEO title
-- Do not use commas, hyphens, semicolons, or decorative punctuation in the title
+- Do not use commas hyphens semicolons or decorative punctuation in the title
 - Create a long SEO description in HTML
 - Keep the description commercially strong but natural
 - Avoid exaggerated claims
 - The SEO description must be significantly richer than the original
 - Generate relevant ecommerce keyword tags
-- Focus on clarity, search intent, and conversion
-- When target language is Spanish, write in neutral Spanish optimized for Mexico
-- Preserve supplier HTML for final output, but do not include raw HTML wrappers in the generated SEO block
+- Focus on clarity search intent and conversion
 
 TARGET LANGUAGE:
 ${language}
@@ -142,11 +167,11 @@ ${promptDescription}
 RETURN JSON ONLY
 
 {
-  "title": "",
-  "description": "",
-  "seoTitle": "",
-  "seoDescription": "",
-  "keywords": []
+"title":"",
+"description":"",
+seoTitle":"",
+seoDescription":"",
+keywords":[]
 }
 `;
 
@@ -195,6 +220,7 @@ RETURN JSON ONLY
     );
 
     const finalDescription = buildFinalDescription({
+      source,
       originalHTML,
       seoDescription: result.description || ""
     });
