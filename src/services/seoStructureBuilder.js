@@ -17,6 +17,7 @@ function normalize(text = "") {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[,:;\-–—]/g, " ")
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -37,10 +38,10 @@ function buildSearchKeywords(product = {}) {
   const words = [];
 
   if (product.title) {
-    words.push(...product.title.split(" "));
+    words.push(...String(product.title).split(" "));
   }
 
-  if (product.tags) {
+  if (Array.isArray(product.tags)) {
     words.push(...product.tags);
   }
 
@@ -48,9 +49,13 @@ function buildSearchKeywords(product = {}) {
     words.push(product.category);
   }
 
+  if (product.baseCategory) {
+    words.push(product.baseCategory);
+  }
+
   const clean = words
-    .map(w => normalize(w))
-    .filter(w => w.length > 3);
+    .map((w) => normalize(w))
+    .filter((w) => w.length > 3);
 
   const unique = [...new Set(clean)];
 
@@ -73,14 +78,24 @@ function buildSchema(product = {}) {
 
 function seoStructureBuilder(product = {}) {
 
-  const slug = buildSlug(product.title);
+  const cleanTitle = String(product.title || "")
+    .replace(/[,:;\-–—]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  const searchKeywords = buildSearchKeywords(product);
-
-  const schema = buildSchema(product);
+  const slug = buildSlug(cleanTitle);
+  const searchKeywords = buildSearchKeywords({
+    ...product,
+    title: cleanTitle
+  });
+  const schema = buildSchema({
+    ...product,
+    title: cleanTitle
+  });
 
   return {
     ...product,
+    title: cleanTitle,
     handle: slug,
     slug,
     searchKeywords,
