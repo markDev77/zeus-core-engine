@@ -2,7 +2,8 @@
 ========================================
 ZEUS AI SEO OPTIMIZER
 ========================================
-IA SEO enrichment
+IA SEO enrichment sin depender
+del SDK de OpenAI
 ========================================
 */
 
@@ -28,10 +29,21 @@ function stripHtmlForPrompt(html = "") {
 }
 
 function cleanSeoTitle(title = "") {
-  return String(title || "")
+
+  let clean = String(title || "")
     .replace(/[,:;\-–—]+/g, " ")
+    .replace(/\bportable\b/gi,"")
+    .replace(/\blarge size\b/gi,"")
+    .replace(/\bsterilization\b/gi,"")
+    .replace(/\bear holes\b/gi,"")
     .replace(/\s+/g, " ")
     .trim();
+
+  if (clean.length > 60) {
+    clean = clean.substring(0,60).trim();
+  }
+
+  return clean;
 }
 
 function dedupeTags(tags = []) {
@@ -42,6 +54,26 @@ function dedupeTags(tags = []) {
         .filter(Boolean)
     )
   );
+}
+
+function buildFinalDescription({
+  originalHTML,
+  seoDescription
+}) {
+
+  const cleanSupplierHtml = stripUnsafeTagsFromHtml(originalHTML);
+
+  if (cleanSupplierHtml) {
+    return `
+${seoDescription || ""}
+
+<hr>
+
+${cleanSupplierHtml}
+    `.trim();
+  }
+
+  return String(seoDescription || originalHTML || "").trim();
 }
 
 function resolveOptimizationLocale(storeProfile = {}, product = {}) {
@@ -67,52 +99,6 @@ function resolveOptimizationLocale(storeProfile = {}, product = {}) {
       storeProfile.language ||
       "en"
   };
-
-}
-
-function buildFinalDescription({
-  source,
-  originalHTML,
-  seoDescription
-}) {
-
-  const normalizedSource = String(source || "").toLowerCase();
-
-  const cleanSupplierHtml =
-    stripUnsafeTagsFromHtml(originalHTML);
-
-  if (normalizedSource === "usadrop") {
-
-    if (cleanSupplierHtml) {
-
-      return `
-${seoDescription || ""}
-
-<hr>
-
-${cleanSupplierHtml}
-`.trim();
-
-    }
-
-    return String(seoDescription || "").trim();
-
-  }
-
-  if (cleanSupplierHtml) {
-
-    return `
-${seoDescription || ""}
-
-<hr>
-
-${cleanSupplierHtml}
-`.trim();
-
-  }
-
-  return String(seoDescription || originalHTML || "").trim();
-
 }
 
 async function aiSeoOptimizer(product = {}, storeProfile = {}) {
@@ -135,19 +121,18 @@ async function aiSeoOptimizer(product = {}, storeProfile = {}) {
   const promptDescription = stripHtmlForPrompt(originalHTML);
 
   const prompt = `
-You are an ecommerce SEO optimizer specialized in high-conversion marketplace catalogs.
+You are an ecommerce SEO optimizer specialized in marketplace catalogs.
 
 RULES
 - Write in the target language only
 - Return JSON only
-- Create a clean ecommerce SEO title
-- Do not use commas hyphens semicolons or decorative punctuation in the title
-- Create a long SEO description in HTML
-- Keep the description commercially strong but natural
-- Avoid exaggerated claims
-- The SEO description must be significantly richer than the original
-- Generate relevant ecommerce keyword tags
-- Focus on clarity search intent and conversion
+- Title must be short (max 60 characters)
+- Avoid long supplier titles
+- Create a clean ecommerce title
+- Create a strong SEO description
+- Do NOT include supplier HTML in the generated description
+- The supplier HTML will be appended automatically
+- Generate relevant ecommerce tags
 
 TARGET LANGUAGE:
 ${language}
@@ -169,9 +154,9 @@ RETURN JSON ONLY
 {
 "title":"",
 "description":"",
-seoTitle":"",
-seoDescription":"",
-keywords":[]
+"seoTitle":"",
+"seoDescription":"",
+"keywords":[]
 }
 `;
 
@@ -188,7 +173,7 @@ keywords":[]
         body: JSON.stringify({
           model: "gpt-4o-mini",
           temperature: 0.35,
-          max_tokens: 900,
+          max_tokens: 800,
           messages: [
             {
               role: "user",
@@ -220,7 +205,6 @@ keywords":[]
     );
 
     const finalDescription = buildFinalDescription({
-      source,
       originalHTML,
       seoDescription: result.description || ""
     });
