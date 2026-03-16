@@ -6,6 +6,7 @@ const { getStore } = require("../services/storeRegistry");
 const { aiSeoOptimizer } = require("../services/aiSeoOptimizer");
 const { seoStructureBuilder } = require("../services/seoStructureBuilder");
 const { generateProductSignature } = require("../services/productSignatureEngine");
+const { registerProductSignature } = require("../services/productSignatureRegistry");
 
 /*
 ====================================================
@@ -22,6 +23,8 @@ AI SEO Optimizer
 SEO Structure Builder
 ↓
 Product Signature Engine
+↓
+Product Signature Registry
 ↓
 Category Brain
 ↓
@@ -84,6 +87,36 @@ async function runImportPipeline(input) {
 
   /*
   ==========================================
+  PRODUCT SIGNATURE REGISTRY
+  ==========================================
+  */
+
+  const productId =
+    input.productId ||
+    input.shopifyProductId ||
+    input.id ||
+    input.payload?.id ||
+    input.data?.id ||
+    input.product?.id ||
+    input.store?.productId ||
+    null;
+
+  const shopDomain =
+    input.shopDomain ||
+    input.store?.shopDomain ||
+    input.store?.shop ||
+    null;
+
+  const signatureRegistry = registerProductSignature({
+    signature: signatureData.signature,
+    shopDomain,
+    productId
+  });
+
+  console.log("ZEUS PRODUCT SIGNATURE:", signatureData.signature);
+
+  /*
+  ==========================================
   CATEGORY BRAIN
   ==========================================
   */
@@ -123,41 +156,11 @@ async function runImportPipeline(input) {
     productSignature: signatureData.signature
   };
 
-  console.log("ZEUS PRODUCT SIGNATURE:", signatureData.signature);
-
-  /*
-  ==========================================
-  PRODUCT ID DETECTION
-  ==========================================
-  */
-
-  const productId =
-    input.productId ||
-    input.shopifyProductId ||
-    input.id ||
-    input.payload?.id ||
-    input.data?.id ||
-    input.product?.id ||
-    input.store?.productId ||
-    null;
-
-  console.log("ZEUS DETECTED PRODUCT ID:", productId);
-
-  if (!productId) {
-    console.warn("ZEUS WARNING: productId not detected in pipeline input");
-  }
-
   /*
   ==========================================
   STORE DETECTION
   ==========================================
   */
-
-  const shopDomain =
-    input.shopDomain ||
-    input.store?.shopDomain ||
-    input.store?.shop ||
-    null;
 
   const registeredStore = shopDomain
     ? getStore(shopDomain)
@@ -251,7 +254,8 @@ async function runImportPipeline(input) {
     product,
     baseCategory,
     regionalCategory,
-    confidence
+    confidence,
+    signatureRegistry
   };
 
 }
