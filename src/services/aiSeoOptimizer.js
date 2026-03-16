@@ -7,6 +7,82 @@ del SDK de OpenAI
 ========================================
 */
 
+function stripMediaTagsFromHtml(html = "") {
+  return String(html || "")
+    .replace(/<img\b[^>]*>/gi, "")
+    .replace(/<picture\b[\s\S]*?<\/picture>/gi, "")
+    .replace(/<video\b[\s\S]*?<\/video>/gi, "")
+    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, "")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, "")
+    .trim();
+}
+
+function stripHtmlForPrompt(html = "") {
+  return String(html || "")
+    .replace(/<img\b[^>]*>/gi, " ")
+    .replace(/<picture\b[\s\S]*?<\/picture>/gi, " ")
+    .replace(/<video\b[\s\S]*?<\/video>/gi, " ")
+    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, " ")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanSeoTitle(title = "") {
+  return String(title || "")
+    .replace(/[,:;\-–—]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function dedupeTags(tags = []) {
+  return Array.from(
+    new Set(
+      (tags || [])
+        .map((tag) => String(tag || "").trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function buildFinalDescription({
+  source,
+  originalHTML,
+  seoDescription
+}) {
+  const normalizedSource = String(source || "").toLowerCase();
+  const cleanSupplierHtml = stripMediaTagsFromHtml(originalHTML);
+
+  if (normalizedSource === "usadrop") {
+    if (cleanSupplierHtml) {
+      return `
+${seoDescription || ""}
+
+<hr>
+
+${cleanSupplierHtml}
+      `.trim();
+    }
+
+    return String(seoDescription || "").trim();
+  }
+
+  if (cleanSupplierHtml && cleanSupplierHtml !== originalHTML) {
+    return `
+${seoDescription || ""}
+
+<hr>
+
+${cleanSupplierHtml}
+    `.trim();
+  }
+
+  return String(seoDescription || originalHTML || "").trim();
+}
+
 async function aiSeoOptimizer(product = {}, storeProfile = {}) {
 
   if (!product.title) {
@@ -22,34 +98,52 @@ async function aiSeoOptimizer(product = {}, storeProfile = {}) {
     storeProfile.language ||
     "en";
 
+  const source =
+    product.source ||
+    storeProfile.source ||
+    "native";
+
   const originalHTML = product.description || "";
+  const promptDescription = stripHtmlForPrompt(originalHTML);
 
   const prompt = `
-You are an ecommerce SEO optimizer.
+You are an ecommerce SEO optimizer specialized in high-conversion marketplace catalogs.
 
-Product title:
+RULES
+- Write in the target language only
+- Return JSON only
+- Create a clean ecommerce SEO title
+- Do not use commas, hyphens, semicolons, or decorative punctuation in the title
+- Create a long SEO description in HTML
+- Keep the description commercially strong but natural
+- Avoid exaggerated claims
+- The SEO description must be significantly richer than the original
+- Generate relevant ecommerce keyword tags
+- Focus on clarity, search intent, and conversion
+
+TARGET LANGUAGE:
+${language}
+
+TARGET REGION:
+${region}
+
+SOURCE:
+${source}
+
+PRODUCT TITLE:
 ${product.title}
 
-Product description:
-${product.description}
+PRODUCT DESCRIPTION:
+${promptDescription}
 
-Generate:
-
-1 Improved SEO title
-2 Long SEO description
-3 Keyword tags
-
-Language: ${language}
-Market: ${region}
-
-Return JSON only:
+RETURN JSON ONLY
 
 {
-"title":"",
-"description":"",
-"seoTitle":"",
-"seoDescription":"",
-"keywords":[]
+  "title": "",
+  "description": "",
+  "seoTitle": "",
+  "seoDescription": "",
+  "keywords": []
 }
 `;
 
@@ -66,7 +160,7 @@ Return JSON only:
         body: JSON.stringify({
           model: "gpt-4o-mini",
           temperature: 0.35,
-          max_tokens: 700,
+          max_tokens: 900,
           messages: [
             {
               role: "user",
@@ -79,7 +173,7 @@ Return JSON only:
 
     const data = await response.json();
 
-    if (!data.choices) {
+    if (!data.choices || !data.choices[0]?.message?.content) {
       return product;
     }
 
@@ -93,27 +187,26 @@ Return JSON only:
       return product;
     }
 
-    let finalDescription = result.description || originalHTML;
+    const cleanTitle = cleanSeoTitle(
+      result.title || product.title
+    );
 
-    if (originalHTML.includes("<img")) {
-
-      finalDescription =
-        originalHTML +
-        "\n\n" +
-        (result.description || "");
-
-    }
+    const finalDescription = buildFinalDescription({
+      source,
+      originalHTML,
+      seoDescription: result.description || ""
+    });
 
     return {
       ...product,
-      title: result.title || product.title,
-      description: finalDescription,
-      seoTitle: result.seoTitle || product.title,
-      seoDescription: result.seoDescription || "",
-      tags: [
+      title: cleanTitle,
+      description: finalDescription || originalHTML,
+      seoTitle: cleanSeoTitle(result.seoTitle || cleanTitle),
+      seoDescription: String(result.seoDescription || "").trim(),
+      tags: dedupeTags([
         ...(product.tags || []),
-        ...(result.keywords || [])
-      ]
+        ...((result.keywords || []).map((k) => String(k || "").trim()))
+      ])
     };
 
   } catch (error) {
