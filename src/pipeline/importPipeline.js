@@ -7,12 +7,12 @@ const { aiSeoOptimizer } = require("../services/aiSeoOptimizer");
 const { seoStructureBuilder } = require("../services/seoStructureBuilder");
 const { generateProductSignature } = require("../services/productSignatureEngine");
 const { registerProductSignature } = require("../services/productSignatureRegistry");
+const { checkDuplicateProduct } = require("../services/duplicateProductBlocker");
 
 /*
 ====================================================
 ZEUS IMPORT PIPELINE
 ====================================================
-Flujo:
 
 Input
 ↓
@@ -24,6 +24,8 @@ SEO Structure Builder
 ↓
 Product Signature Engine
 ↓
+Duplicate Product Blocker
+↓
 Product Signature Registry
 ↓
 Category Brain
@@ -31,6 +33,7 @@ Category Brain
 Regional Mapping
 ↓
 Sync Engine
+
 ====================================================
 */
 
@@ -87,7 +90,7 @@ async function runImportPipeline(input) {
 
   /*
   ==========================================
-  PRODUCT SIGNATURE REGISTRY
+  PRODUCT IDENTIFIERS
   ==========================================
   */
 
@@ -107,13 +110,46 @@ async function runImportPipeline(input) {
     input.store?.shop ||
     null;
 
-  const signatureRegistry = registerProductSignature({
+  console.log("ZEUS PRODUCT SIGNATURE:", signatureData.signature);
+
+  /*
+  ==========================================
+  DUPLICATE PRODUCT CHECK
+  ==========================================
+  */
+
+  const duplicateCheck = checkDuplicateProduct({
     signature: signatureData.signature,
     shopDomain,
     productId
   });
 
-  console.log("ZEUS PRODUCT SIGNATURE:", signatureData.signature);
+  console.log("ZEUS DUPLICATE CHECK:", duplicateCheck);
+
+  if (duplicateCheck.status === "BLOCK") {
+
+    console.log("ZEUS DUPLICATE PRODUCT BLOCKED");
+
+    return {
+      status: "blocked",
+      reason: duplicateCheck.reason,
+      signature: signatureData.signature,
+      existing: duplicateCheck.existing
+    };
+
+  }
+
+  /*
+  ==========================================
+  PRODUCT SIGNATURE REGISTRY
+  ==========================================
+  */
+
+  const signatureRegistry = registerProductSignature({
+    signature: signatureData.signature,
+    shopDomain,
+    productId
+  });
 
   /*
   ==========================================
