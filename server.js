@@ -436,7 +436,9 @@ async function handleProductCreate(req, res) {
       return res.status(200).send("ok");
     }
 
-    const store = getStore(shop);
+    const { getStoreFresh } = require("./src/services/storeRegistry");
+
+const store = await getStoreFresh(shop);
 
     if (!store) {
       console.log("ZEUS STORE NOT REGISTERED:", shop);
