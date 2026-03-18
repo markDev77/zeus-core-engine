@@ -16,19 +16,25 @@ const router = express.Router();
 
 const pendingStates = new Map();
 
+/*
+====================================================
+UTILS
+====================================================
+*/
+
 function normalizePlatformCountry(rawCountry) {
   if (!rawCountry || typeof rawCountry !== "string") {
     return "US";
   }
-
   return rawCountry.trim().toUpperCase();
 }
 
 /*
-----------------------------------------
+====================================================
 INSTALL ROUTE
-----------------------------------------
+====================================================
 */
+
 router.get("/install", (req, res) => {
   try {
     const shop = normalizeShopDomain(req.query.shop);
@@ -53,7 +59,10 @@ router.get("/install", (req, res) => {
 
     const installUrl = generateInstallUrl(shop, state);
 
+    console.log("SHOPIFY INSTALL START:", shop);
+
     return res.redirect(installUrl);
+
   } catch (error) {
     console.error("INSTALL ERROR:", error);
     return res.status(500).send("INSTALL ERROR");
@@ -61,10 +70,11 @@ router.get("/install", (req, res) => {
 });
 
 /*
-----------------------------------------
+====================================================
 SHOPIFY OAUTH CALLBACK
-----------------------------------------
+====================================================
 */
+
 router.get("/auth/callback", async (req, res) => {
   try {
     const { shop, code, state } = req.query;
@@ -87,12 +97,27 @@ router.get("/auth/callback", async (req, res) => {
       return res.status(400).send("Invalid OAuth state");
     }
 
+    console.log("SHOPIFY OAUTH CALLBACK:", safeShop);
+
+    /*
+    ============================================
+    TOKEN EXCHANGE
+    ============================================
+    */
+
     const tokenData = await exchangeToken(safeShop, code);
     const accessToken = tokenData?.access_token;
 
     if (!accessToken) {
+      console.error("TOKEN ERROR:", tokenData);
       return res.status(500).send("Missing Shopify access token");
     }
+
+    /*
+    ============================================
+    REGION PROFILE
+    ============================================
+    */
 
     let regionProfile = getRegionProfile(
       pendingState.profileSeed.country || "US"
@@ -116,6 +141,12 @@ router.get("/auth/callback", async (req, res) => {
         categoryLocale: "global"
       };
     }
+
+    /*
+    ============================================
+    STORE REGISTRATION (CRÍTICO)
+    ============================================
+    */
 
     const store = await registerStore(safeShop, accessToken, {
       storeId: pendingState.profileSeed.storeId || safeShop,
@@ -148,25 +179,41 @@ router.get("/auth/callback", async (req, res) => {
       }
     });
 
-    await registerWebhooks(safeShop, accessToken);
+    console.log("STORE REGISTERED + PERSISTED:", safeShop);
+
+    /*
+    ============================================
+    WEBHOOK REGISTRATION
+    ============================================
+    */
+
+    try {
+      await registerWebhooks(safeShop, accessToken);
+      console.log("SHOPIFY WEBHOOKS REGISTERED:", safeShop);
+    } catch (err) {
+      console.error("WEBHOOK REGISTER ERROR:", err.message);
+    }
 
     pendingStates.delete(state);
 
-    console.log("SHOPIFY STORE CONNECTED:", safeShop);
-    console.log("SHOPIFY STORE PERSISTED:", safeShop);
+    /*
+    ============================================
+    RESPONSE
+    ============================================
+    */
 
     const profile = store?.profile || regionProfile;
 
     return res.send(`
       <h2>ZEUS installed successfully</h2>
-      <p>Store: ${safeShop}</p>
-      <p>Store ID: ${store.storeId}</p>
-      <p>Country: ${profile.country}</p>
-      <p>Language: ${profile.language}</p>
-      <p>Currency: ${profile.currency}</p>
-      <p>Plan: ${store.billing?.plan || "free"}</p>
-      <p>Free tokens: ${store.billing?.sku_limit || 5}</p>
+      <p><b>Store:</b> ${safeShop}</p>
+      <p><b>Plan:</b> ${store?.billing?.plan || "free"}</p>
+      <p><b>Free tokens:</b> ${store?.billing?.sku_limit || 5}</p>
+      <p><b>Country:</b> ${profile.country}</p>
+      <p><b>Language:</b> ${profile.language}</p>
+      <p><b>Currency:</b> ${profile.currency}</p>
     `);
+
   } catch (error) {
     console.error("OAUTH ERROR:", error);
     return res.status(500).send(`OAuth Error: ${error.message}`);
