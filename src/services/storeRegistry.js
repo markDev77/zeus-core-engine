@@ -557,7 +557,7 @@ function getStoreByApiCredentials(storeId, apiKey) {
   return null;
 }
 
-function registerStore(shopDomain, accessToken, metadata = {}) {
+async function registerStore(shopDomain, accessToken, metadata = {}) {
   const normalizedShopDomain = normalizeShopDomain(shopDomain);
 
   if (!normalizedShopDomain) {
