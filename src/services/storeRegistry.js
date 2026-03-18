@@ -591,13 +591,11 @@ async function registerStore(shopDomain, accessToken, metadata = {}) {
 
   storesByDomain.set(normalizedShopDomain, store);
 
-  persistStore(store).catch((error) => {
-    console.error("STORE REGISTRY PERSIST ERROR:", error.message);
-  });
+  await persistStore(store);
 
-  console.log("STORE REGISTERED:", normalizedShopDomain);
+  console.log("STORE REGISTERED + PERSISTED:", normalizedShopDomain);
 
-  return store;
+  return storesByDomain.get(normalizedShopDomain) || store;
 }
 
 function updateStorePlan(shopDomain, planData = {}) {
@@ -719,5 +717,6 @@ module.exports = {
   listStores,
   incrementStoreUsage,
   getStoreUsage,
-  getStoreUsageFresh
+  getStoreUsageFresh,
+  persistStore
 };
