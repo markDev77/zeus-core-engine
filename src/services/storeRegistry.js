@@ -464,6 +464,8 @@ async function persistStore(store) {
         data.activatedAt
       ]
     );
+
+    console.log("STORE REGISTRY DB UPSERT OK:", data.shopDomain);
   } catch (error) {
     console.error("STORE REGISTRY PERSIST ERROR:", error);
     throw error;
