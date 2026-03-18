@@ -394,73 +394,80 @@ async function persistStore(store) {
     throw new Error("store persistence requires shopDomain and accessToken");
   }
 
-  const result = await db.query(
-    `
-      INSERT INTO stores (
-        shop_domain,
-        access_token,
-        platform,
-        region,
-        language,
-        currency,
-        marketplace,
-        installed_at,
-        plan,
-        billing_status,
-        sku_limit,
-        stripe_customer,
-        stripe_subscription,
-        activated_at
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      ON CONFLICT (shop_domain)
-      DO UPDATE SET
-        access_token = EXCLUDED.access_token,
-        platform = EXCLUDED.platform,
-        region = EXCLUDED.region,
-        language = EXCLUDED.language,
-        currency = EXCLUDED.currency,
-        marketplace = EXCLUDED.marketplace,
-        plan = EXCLUDED.plan,
-        billing_status = EXCLUDED.billing_status,
-        sku_limit = EXCLUDED.sku_limit,
-        stripe_customer = EXCLUDED.stripe_customer,
-        stripe_subscription = EXCLUDED.stripe_subscription,
-        activated_at = EXCLUDED.activated_at
-      RETURNING
-        id,
-        shop_domain,
-        access_token,
-        platform,
-        region,
-        language,
-        currency,
-        marketplace,
-        installed_at,
-        plan,
-        billing_status,
-        sku_limit,
-        stripe_customer,
-        stripe_subscription,
-        activated_at
-    `,
-    [
-      data.shopDomain,
-      data.accessToken,
-      data.platform,
-      data.region,
-      data.language,
-      data.currency,
-      data.marketplace,
-      data.installedAt,
-      data.plan,
-      data.billingStatus,
-      data.skuLimit,
-      data.stripeCustomer,
-      data.stripeSubscription,
-      data.activatedAt
-    ]
-  );
+  let result;
+
+  try {
+    result = await db.query(
+      `
+        INSERT INTO stores (
+          shop_domain,
+          access_token,
+          platform,
+          region,
+          language,
+          currency,
+          marketplace,
+          installed_at,
+          plan,
+          billing_status,
+          sku_limit,
+          stripe_customer,
+          stripe_subscription,
+          activated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        ON CONFLICT (shop_domain)
+        DO UPDATE SET
+          access_token = EXCLUDED.access_token,
+          platform = EXCLUDED.platform,
+          region = EXCLUDED.region,
+          language = EXCLUDED.language,
+          currency = EXCLUDED.currency,
+          marketplace = EXCLUDED.marketplace,
+          plan = EXCLUDED.plan,
+          billing_status = EXCLUDED.billing_status,
+          sku_limit = EXCLUDED.sku_limit,
+          stripe_customer = EXCLUDED.stripe_customer,
+          stripe_subscription = EXCLUDED.stripe_subscription,
+          activated_at = EXCLUDED.activated_at
+        RETURNING
+          id,
+          shop_domain,
+          access_token,
+          platform,
+          region,
+          language,
+          currency,
+          marketplace,
+          installed_at,
+          plan,
+          billing_status,
+          sku_limit,
+          stripe_customer,
+          stripe_subscription,
+          activated_at
+      `,
+      [
+        data.shopDomain,
+        data.accessToken,
+        data.platform,
+        data.region,
+        data.language,
+        data.currency,
+        data.marketplace,
+        data.installedAt,
+        data.plan,
+        data.billingStatus,
+        data.skuLimit,
+        data.stripeCustomer,
+        data.stripeSubscription,
+        data.activatedAt
+      ]
+    );
+  } catch (error) {
+    console.error("STORE REGISTRY PERSIST ERROR:", error);
+    throw error;
+  }
 
   const cachedStore = storesByDomain.get(data.shopDomain);
   const persistedStore = hydrateStoreFromRow({
@@ -591,11 +598,11 @@ async function registerStore(shopDomain, accessToken, metadata = {}) {
 
   storesByDomain.set(normalizedShopDomain, store);
 
-  await persistStore(store);
+  const persistedStore = await persistStore(store);
 
   console.log("STORE REGISTERED + PERSISTED:", normalizedShopDomain);
 
-  return storesByDomain.get(normalizedShopDomain) || store;
+  return storesByDomain.get(normalizedShopDomain) || persistedStore;
 }
 
 function updateStorePlan(shopDomain, planData = {}) {
