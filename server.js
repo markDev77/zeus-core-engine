@@ -45,7 +45,7 @@ STORE REGISTRY
 */
 
 const {
-  getStoreFresh,
+  getStore,
   initStoreRegistry,
   updateStorePlan
 } = require("./src/services/storeRegistry");
@@ -436,7 +436,7 @@ async function handleProductCreate(req, res) {
       return res.status(200).send("ok");
     }
 
-    const store = await getStoreFresh(shop);
+    const store = getStore(shop);
 
     if (!store) {
       console.log("ZEUS STORE NOT REGISTERED:", shop);
@@ -674,9 +674,9 @@ SERVER
 const PORT = process.env.PORT || 10000;
 
 async function startServer() {
-  await testConnection();
   await runZeusMigration();
   await initStoreRegistry();
+  await testConnection();
 
   app.listen(PORT, () => {
     console.log("ZEUS CORE ENGINE running");
