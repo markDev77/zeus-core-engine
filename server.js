@@ -45,7 +45,7 @@ STORE REGISTRY
 */
 
 const {
-  getStoreFresh,
+  getStore,
   initStoreRegistry,
   updateStorePlan
 } = require("./src/services/storeRegistry");
@@ -54,19 +54,13 @@ const {
 LOOP PROTECTION
 */
 
-const {
-  isZeusUpdate,
-  markZeusUpdate
-} = require("./src/services/loopProtection");
+const { isZeusUpdate, markZeusUpdate } = require("./src/services/loopProtection");
 
 /*
 JOB QUEUE
 */
 
-const {
-  enqueueJob,
-  getQueueStatus
-} = require("./src/services/jobQueue");
+const { enqueueJob, getQueueStatus } = require("./src/services/jobQueue");
 
 /*
 STRIPE
@@ -162,6 +156,7 @@ app.post("/create-checkout-session", async (req, res) => {
     });
 
     res.json({ url: session.url });
+
   } catch (error) {
     console.error("STRIPE SESSION ERROR:", error);
     res.status(500).json({ error: "stripe_error" });
@@ -182,9 +177,7 @@ function verifyShopifyWebhook(req) {
 
   const hmacHeader = req.headers["x-shopify-hmac-sha256"];
 
-  if (!hmacHeader) {
-    return false;
-  }
+  if (!hmacHeader) return false;
 
   let bodyBuffer;
 
@@ -250,7 +243,7 @@ DEBUG BILLING ACTIVATION
 ====================================================
 */
 
-app.get("/debug/activate-plan", async (req, res) => {
+app.get("/debug/activate-plan", (req, res) => {
   try {
     const { shop, plan } = req.query;
 
@@ -261,7 +254,7 @@ app.get("/debug/activate-plan", async (req, res) => {
       });
     }
 
-    const updatedStore = await updateStorePlan(shop, {
+    const updatedStore = updateStorePlan(shop, {
       plan,
       status: "active",
       activatedAt: new Date().toISOString()
@@ -443,7 +436,7 @@ async function handleProductCreate(req, res) {
       return res.status(200).send("ok");
     }
 
-    const store = await getStoreFresh(shop);
+    const store = getStore(shop);
 
     if (!store) {
       console.log("ZEUS STORE NOT REGISTERED:", shop);
@@ -467,16 +460,20 @@ async function handleProductCreate(req, res) {
       title: product.title,
       description: product.body_html || "",
       tags: product.tags ? product.tags.split(",") : [],
+
       platform: "shopify",
+
       store: {
         shopDomain: store.shopDomain,
         accessToken: store.accessToken,
         productId: product.id
       },
+
       storeProfile: {
         region: "US",
         language: "en"
       },
+
       source: "shopify"
     };
 
@@ -525,18 +522,9 @@ DATABASE MIGRATION (CATEGORY BRAIN)
 async function runZeusMigration() {
   const { Pool } = require("pg");
 
-  const isLocalDatabase =
-    process.env.DATABASE_URL &&
-    (
-      process.env.DATABASE_URL.includes("localhost") ||
-      process.env.DATABASE_URL.includes("127.0.0.1")
-    );
-
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: isLocalDatabase
-      ? false
-      : { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false }
   });
 
   const client = await pool.connect();
@@ -671,7 +659,6 @@ async function runZeusMigration() {
     console.log("ZEUS DB MIGRATION OK");
   } catch (err) {
     console.error("ZEUS MIGRATION ERROR", err);
-    throw err;
   } finally {
     client.release();
     await pool.end();
