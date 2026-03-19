@@ -557,12 +557,47 @@ function getStoreByApiCredentials(storeId, apiKey) {
   return null;
 }
 
-function registerStore(shopDomain, accessToken, metadata = {}) {
+async function registerStore(shopDomain, accessToken, metadata = {}) {
   const normalizedShopDomain = normalizeShopDomain(shopDomain);
 
   if (!normalizedShopDomain) {
     throw new Error("Invalid shopDomain");
   }
+
+  const existingStore = getStore(normalizedShopDomain);
+  const profile = buildProfile(metadata);
+
+  const store = {
+    ...(existingStore || {}),
+    storeId: metadata.storeId || normalizedShopDomain,
+    clientId: metadata.clientId || existingStore?.clientId || null,
+    shopDomain: normalizedShopDomain,
+    shop: normalizedShopDomain,
+    storeDomain: normalizedShopDomain,
+    accessToken,
+    platform: metadata.platform || existingStore?.platform || DEFAULT_PLATFORM,
+    createdAt:
+      existingStore?.createdAt ||
+      new Date().toISOString(),
+    installedAt:
+      existingStore?.installedAt ||
+      new Date().toISOString(),
+    profile,
+    billing: buildBilling(
+      existingStore?.billing,
+      metadata.billing || {}
+    )
+  };
+
+  storesByDomain.set(normalizedShopDomain, store);
+
+  // 🔥 FIX REAL
+  await persistStore(store);
+
+  console.log("🔥 STORE REGISTERED (DB OK):", normalizedShopDomain);
+
+  return store;
+}
 
   const existingStore = getStore(normalizedShopDomain);
   const profile = buildProfile(metadata);
