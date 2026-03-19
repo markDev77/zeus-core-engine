@@ -45,9 +45,10 @@ STORE REGISTRY
 */
 
 const {
-  getStore,
+ getStore,
   initStoreRegistry,
-  updateStorePlan
+  updateStorePlan,
+  registerStore
 } = require("./src/services/storeRegistry");
 
 /*
