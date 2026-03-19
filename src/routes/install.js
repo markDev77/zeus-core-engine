@@ -1,166 +1,427 @@
-const express = require("express");
+const { transformProduct } = require("../services/productTransformer");
+const categoryBrain = require("../services/categoryBrain");
+const { mapRegionalCategory } = require("../services/regionalCategoryMapper");
+const { syncProduct } = require("../services/syncEngine");
+const { getStore } = require("../services/storeRegistry");
 
 const {
-  normalizeShopDomain,
-  generateState,
-  generateInstallUrl,
-  exchangeToken,
-  verifyHmac
-} = require("../auth/shopifyOAuth");
+  assertStoreCanProcess,
+  consumeStoreQuota,
+  getStoreAccessSnapshot
+} = require("../services/storeAccessControl");
 
-const { registerStore } = require("../services/storeRegistry");
-const { getRegionProfile } = require("../data/regionProfiles");
-const { registerWebhooks } = require("../services/shopifyWebhookRegistrar");
+const { aiSeoOptimizer } = require("../services/aiSeoOptimizer");
+const { seoStructureBuilder } = require("../services/seoStructureBuilder");
 
-const router = express.Router();
+const { generateProductSignature } = require("../services/productSignatureEngine");
+const { registerProductSignature } = require("../services/productSignatureRegistry");
+const { checkDuplicateProduct } = require("../services/duplicateProductBlocker");
 
-const pendingStates = new Map();
+const RECENT_PRODUCTS_TTL_MS = 120000;
+const recentProductRuns = new Map();
 
-function normalizePlatformCountry(rawCountry) {
-  if (!rawCountry || typeof rawCountry !== "string") {
-    return "US";
+/*
+==========================================
+LOOP PROTECTION
+==========================================
+*/
+function shouldSkipRecentRun(shopDomain, productId) {
+  if (!shopDomain || !productId) return false;
+
+  const key = `${shopDomain}:${productId}`;
+  const now = Date.now();
+  const lastRun = recentProductRuns.get(key);
+
+  if (lastRun && now - lastRun < RECENT_PRODUCTS_TTL_MS) {
+    return true;
   }
-  return rawCountry.trim().toUpperCase();
+
+  recentProductRuns.set(key, now);
+
+  for (const [k, v] of recentProductRuns.entries()) {
+    if (now - v > RECENT_PRODUCTS_TTL_MS) {
+      recentProductRuns.delete(k);
+    }
+  }
+
+  return false;
 }
 
 /*
-----------------------------------------
-INSTALL ROUTE
-----------------------------------------
+==========================================
+STORE PROFILE BUILDER
+==========================================
 */
-router.get("/install", (req, res) => {
-  try {
-    const shop = normalizeShopDomain(req.query.shop);
+function buildEffectiveStoreProfile(input = {}, shopDomain = "") {
+  const base = {
+    ...(input.storeProfile || {})
+  };
 
-    if (!shop) {
-      return res.status(400).send("Invalid or missing shop parameter");
-    }
-
-    const state = generateState();
-
-    pendingStates.set(shop, {
-      state,
-      profileSeed: {
-        country: normalizePlatformCountry(req.query.country || "US"),
-        language: req.query.language || null,
-        currency: req.query.currency || null,
-        marketplace: req.query.marketplace || "shopify",
-        clientId: req.query.clientId || null,
-        storeId: req.query.storeId || null
-      }
-    });
-
-    const installUrl = generateInstallUrl(shop, state);
-
-    return res.redirect(installUrl);
-  } catch (error) {
-    console.error("INSTALL ERROR:", error);
-    return res.status(500).send("INSTALL ERROR");
+  if (shopDomain === "eawi7g-hj.myshopify.com") {
+    return {
+      ...base,
+      region: "MX",
+      country: "MX",
+      language: "es",
+      currency: "MXN",
+      shopDomain
+    };
   }
-});
+
+  return {
+    ...base,
+    shopDomain
+  };
+}
 
 /*
-----------------------------------------
-SHOPIFY OAUTH CALLBACK
-----------------------------------------
+==========================================
+MAIN PIPELINE
+==========================================
 */
-router.get("/auth/callback", async (req, res) => {
+async function runImportPipeline(input) {
+
+  if (!input) {
+    throw new Error("ZEUS PIPELINE: input missing");
+  }
+
+  console.log("ZEUS PIPELINE RAW INPUT:");
+  console.log(JSON.stringify(input, null, 2));
+
+  /*
+  ==========================================
+  SOURCE DETECTION
+  ==========================================
+  */
+  const source =
+    input.source ||
+    input.origin ||
+    "shopify";
+
+  /*
+  ==========================================
+  IDENTIFIERS
+  ==========================================
+  */
+  const productId =
+    input.productId ||
+    input.shopifyProductId ||
+    input.id ||
+    input.payload?.id ||
+    input.data?.id ||
+    input.product?.id ||
+    input.store?.productId ||
+    null;
+
+  const shopDomain =
+    input.shopDomain ||
+    input.store?.shopDomain ||
+    input.store?.shop ||
+    null;
+
+  /*
+  ==========================================
+  LOOP GUARD
+  ==========================================
+  */
+  if (shouldSkipRecentRun(shopDomain, productId)) {
+    console.log("ZEUS LOOP GUARD SKIP:", { shopDomain, productId });
+
+    return {
+      status: "skipped",
+      reason: "loop_guard_recent_product",
+      productId,
+      shopDomain
+    };
+  }
+
+  /*
+  ==========================================
+  STORE VALIDATION
+  ==========================================
+  */
+  const registeredStore = shopDomain
+    ? getStore(shopDomain)
+    : null;
+
+  if (!registeredStore) {
+    console.warn("ZEUS STORE NOT REGISTERED:", shopDomain);
+
+    return {
+      status: "blocked",
+      reason: "store_not_registered",
+      productId,
+      shopDomain
+    };
+  }
+
+  let initialAccessSnapshot = null;
+
   try {
-    const { shop, code, state } = req.query;
+    initialAccessSnapshot = assertStoreCanProcess(shopDomain);
+  } catch (error) {
+    return {
+      status: "blocked",
+      reason: error.code || "store_access_denied",
+      message: error.message,
+      shopDomain,
+      productId,
+      access: error.details || null
+    };
+  }
 
-    const safeShop = normalizeShopDomain(shop);
+  const effectiveStoreProfile = buildEffectiveStoreProfile(
+    input,
+    shopDomain
+  );
 
-    if (!safeShop || !code || !state) {
-      return res.status(400).send("Missing OAuth parameters");
-    }
+  /*
+  ==========================================
+  TRANSFORM
+  ==========================================
+  */
+  const transformed = transformProduct({
+    ...input,
+    source,
+    storeProfile: effectiveStoreProfile
+  });
 
-    const validHmac = verifyHmac(req.query);
+  /*
+  ==========================================
+  PLATFORM
+  ==========================================
+  */
+  const platform =
+    input.platform ||
+    input.store?.platform ||
+    registeredStore.platform ||
+    "shopify";
 
-    if (!validHmac) {
-      return res.status(400).send("Invalid HMAC signature");
-    }
+  /*
+  ==========================================
+  CATEGORY BRAIN
+  ==========================================
+  */
+  const classification = await categoryBrain.suggestCategory({
+    title: transformed.title,
+    description: transformed.description,
+    tags: transformed.tags,
+    platform,
+    storeDomain: shopDomain
+  });
 
-    const pendingState = pendingStates.get(safeShop);
+  const baseCategory = classification.category;
+  const confidence = classification.confidence;
 
-    if (!pendingState || pendingState.state !== state) {
-      return res.status(400).send("Invalid OAuth state");
-    }
+  /*
+  ==========================================
+  REGIONAL CATEGORY
+  ==========================================
+  */
+  const regionalCategory = mapRegionalCategory({
+    baseCategory,
+    storeProfile: effectiveStoreProfile
+  });
 
-    const tokenData = await exchangeToken(safeShop, code);
-    const accessToken = tokenData.access_token;
+  /*
+  ==========================================
+  SEO OPTIMIZER
+  ==========================================
+  */
+  let aiOptimized;
 
-    /*
-    REGION PROFILE
-    */
-    let regionProfile = getRegionProfile(
-      pendingState.profileSeed.country || "US"
+  try {
+    aiOptimized = await aiSeoOptimizer(
+      {
+        ...transformed,
+        source,
+        shopDomain,
+        baseCategory,
+        regionalCategory,
+        category: baseCategory,
+        categoryConfidence: confidence,
+        categoryDecision: classification.decision,
+        categoryMatchedTerms: classification.matchedTerms || [],
+        googleTaxonomyPath: classification.googleTaxonomyPath || null,
+        platformCategory: classification.platformCategory || null,
+        platformCategoryPath: classification.platformPath || null,
+        categoryLearned: classification.learned || false,
+        categoryLearningSource: classification.learningSource || null
+      },
+      effectiveStoreProfile,
+      { source }
     );
+  } catch (err) {
+    aiOptimized = transformed;
+  }
 
-    if (!regionProfile) {
-      console.log("ZEUS REGION PROFILE FALLBACK");
+  /*
+  ==========================================
+  SEO STRUCTURE
+  ==========================================
+  */
+  const seoStructured = seoStructureBuilder(aiOptimized);
 
-      regionProfile = {
-        country: "US",
-        language: "en",
-        currency: "USD",
-        marketplace: "shopify",
-        catalogOrigin: "global",
-        translationMode: "auto",
-        marketSignalMode: "global",
-        seoLocale: "en-US",
-        titleStyle: "standard",
-        descriptionStyle: "seo",
-        tagStyle: "generic",
-        categoryLocale: "global"
-      };
-    }
+  /*
+  ==========================================
+  SIGNATURE
+  ==========================================
+  */
+  const signatureData = generateProductSignature(seoStructured);
 
-    /*
-    REGISTER STORE
-    */
-    const store = await registerStore(safeShop, accessToken, {
-      storeId: pendingState.profileSeed.storeId || safeShop,
-      clientId: pendingState.profileSeed.clientId || null,
+  /*
+  ==========================================
+  DUPLICATE CHECK
+  ==========================================
+  */
+  const duplicateCheck = checkDuplicateProduct({
+    signature: signatureData.signature,
+    shopDomain,
+    productId
+  });
 
-      platform: "shopify",
-      storeDomain: safeShop,
+  if (duplicateCheck.status === "BLOCK") {
+    return {
+      status: "blocked",
+      reason: duplicateCheck.reason,
+      signature: signatureData.signature,
+      existing: duplicateCheck.existing,
+      shopDomain,
+      productId
+    };
+  }
 
-      country: regionProfile.country,
-      language:
-        pendingState.profileSeed.language || regionProfile.language,
-      currency:
-        pendingState.profileSeed.currency || regionProfile.currency,
-      marketplace:
-        pendingState.profileSeed.marketplace ||
-        regionProfile.marketplace,
+  /*
+  ==========================================
+  SIGNATURE REGISTRY
+  ==========================================
+  */
+  const signatureRegistry = registerProductSignature({
+    signature: signatureData.signature,
+    shopDomain,
+    productId
+  });
 
-      catalogOrigin: regionProfile.catalogOrigin,
-      translationMode: regionProfile.translationMode,
-      marketSignalMode: regionProfile.marketSignalMode,
-      seoLocale: regionProfile.seoLocale,
+  /*
+  ==========================================
+  FINAL PRODUCT
+  ==========================================
+  */
+  const product = {
+    ...seoStructured,
+    source,
+    baseCategory,
+    regionalCategory,
+    category: baseCategory,
+    categoryConfidence: confidence,
+    categoryDecision: classification.decision,
+    productSignature: signatureData.signature,
+    shopDomain
+  };
 
-      titleStyle: regionProfile.titleStyle,
-      descriptionStyle: regionProfile.descriptionStyle,
-      tagStyle: regionProfile.tagStyle,
-      categoryLocale: regionProfile.categoryLocale
+  /*
+  ==========================================
+  STORE CONTEXT
+  ==========================================
+  */
+  const store = {
+    shopDomain,
+    accessToken:
+      registeredStore?.accessToken ||
+      input.store?.accessToken ||
+      null,
+    productId
+  };
+
+  if (!store.accessToken) {
+    return {
+      status: "blocked",
+      reason: "store_token_missing",
+      shopDomain,
+      productId
+    };
+  }
+
+  /*
+  ==========================================
+  SECOND GATE
+  ==========================================
+  */
+  let preSyncAccessSnapshot = null;
+
+  try {
+    preSyncAccessSnapshot = assertStoreCanProcess(shopDomain);
+  } catch (error) {
+    return {
+      status: "blocked",
+      reason: error.code || "store_access_denied",
+      message: error.message,
+      shopDomain,
+      productId,
+      access: error.details || null
+    };
+  }
+
+  /*
+  ==========================================
+  SYNC
+  ==========================================
+  */
+  let syncCompleted = false;
+  let usageSnapshot = null;
+
+  try {
+    await syncProduct({
+      platform,
+      store,
+      product
     });
 
-    await registerWebhooks(safeShop, accessToken);
-
-    pendingStates.delete(safeShop);
-
-    console.log("🔥 SHOPIFY STORE CONNECTED:", safeShop);
-
-    /*
-    REDIRECT TO ACTIVATION FLOW
-    */
-    return res.redirect(
-      `https://zeusinfra.io/activation?shop=${safeShop}`
-    );
+    syncCompleted = true;
   } catch (error) {
-    console.error("OAUTH ERROR:", error);
-    return res.status(500).send(`OAuth Error: ${error.message}`);
+    return {
+      status: "error",
+      reason: "sync_failed",
+      message: error.message,
+      shopDomain,
+      productId,
+      product
+    };
   }
-});
 
-module.exports = router;
+  /*
+  ==========================================
+  QUOTA
+  ==========================================
+  */
+  if (syncCompleted) {
+    try {
+      usageSnapshot = await consumeStoreQuota(shopDomain, 1);
+    } catch (error) {}
+  }
+
+  /*
+  ==========================================
+  RETURN
+  ==========================================
+  */
+  return {
+    status: "processed",
+    product,
+    baseCategory,
+    regionalCategory,
+    confidence,
+    signatureRegistry,
+    access: {
+      initial: initialAccessSnapshot,
+      preSync:
+        preSyncAccessSnapshot ||
+        getStoreAccessSnapshot(shopDomain)
+    },
+    usage: usageSnapshot
+  };
+}
+
+module.exports = {
+  runImportPipeline
+};
