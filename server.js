@@ -526,7 +526,6 @@ function nowIso() {
 function log(tag, obj) {
   console.log(`[${nowIso()}] ${tag}`, obj ?? "");
 }
-
 /* ==========================
    STORE LAYER
 ========================== */
@@ -552,13 +551,24 @@ function validateStore(store) {
 
 async function getStore(shop) {
   const normalizedShop = normalizeShopDomain(shop);
-  const result = await pool.query("SELECT * FROM stores WHERE shop = $1", [normalizedShop]);
+
+  const result = await pool.query(
+    "SELECT * FROM stores WHERE shop = $1",
+    [normalizedShop]
+  );
 
   if (!result.rows.length) {
     throw new Error("STORE NOT REGISTERED");
   }
 
   const store = result.rows[0];
+
+  console.log("ZEUS STORE DEBUG:", {
+    shop: normalizedShop,
+    hasToken: !!store.access_token,
+    status: store.status
+  });
+
   validateStore(store);
   return store;
 }
@@ -578,6 +588,12 @@ async function upsertStore(data) {
   } = data;
 
   const normalizedShop = normalizeShopDomain(shop);
+
+  console.log("ZEUS UPSERT STORE:", {
+    shop: normalizedShop,
+    tokenPrefix: String(access_token || "").slice(0, 12),
+    tokenLength: String(access_token || "").length
+  });
 
   const result = await pool.query(
     `
@@ -646,13 +662,52 @@ async function upsertStore(data) {
 async function getToken(shop) {
   const normalizedShop = normalizeShopDomain(shop);
 
+  console.log("ZEUS GETTOKEN REQUEST:", {
+    inputShop: shop,
+    normalizedShop
+  });
+
   try {
     const store = await getStore(normalizedShop);
-    return store.access_token;
+
+    const token = store.access_token;
+
+    console.log("ZEUS GETTOKEN DEBUG:", {
+      shop: normalizedShop,
+      source: "stores",
+      tokenPrefix: String(token || "").slice(0, 12),
+      tokenLength: String(token || "").length,
+      hasToken: !!token
+    });
+
+    return token;
   } catch (storeErr) {
-    const result = await pool.query("SELECT access_token FROM shop_tokens WHERE shop = $1", [normalizedShop]);
-    if (!result.rows.length) throw storeErr;
-    return result.rows[0].access_token;
+    console.warn("ZEUS GETTOKEN STORE FALLBACK:", {
+      shop: normalizedShop,
+      error: storeErr.message
+    });
+
+    const result = await pool.query(
+      "SELECT access_token FROM shop_tokens WHERE shop = $1",
+      [normalizedShop]
+    );
+
+    if (!result.rows.length) {
+      console.error("ZEUS TOKEN NOT FOUND:", normalizedShop);
+      throw storeErr;
+    }
+
+    const token = result.rows[0].access_token;
+
+    console.log("ZEUS GETTOKEN DEBUG:", {
+      shop: normalizedShop,
+      source: "shop_tokens",
+      tokenPrefix: String(token || "").slice(0, 12),
+      tokenLength: String(token || "").length,
+      hasToken: !!token
+    });
+
+    return token;
   }
 }
 
