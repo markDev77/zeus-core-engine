@@ -591,46 +591,14 @@ async function registerStore(shopDomain, accessToken, metadata = {}) {
 
   storesByDomain.set(normalizedShopDomain, store);
 
-await persistStore(store);
-
-console.log("🔥 STORE REGISTERED (DB OK):", normalizedShopDomain);
-
-return store;
-}
-
-  const existingStore = getStore(normalizedShopDomain);
-  const profile = buildProfile(metadata);
-
-  const store = {
-    ...(existingStore || {}),
-    storeId: metadata.storeId || normalizedShopDomain,
-    clientId: metadata.clientId || existingStore?.clientId || null,
-    shopDomain: normalizedShopDomain,
-    shop: normalizedShopDomain,
-    storeDomain: normalizedShopDomain,
-    accessToken,
-    platform: metadata.platform || existingStore?.platform || DEFAULT_PLATFORM,
-    createdAt:
-      existingStore?.createdAt ||
-      new Date().toISOString(),
-    installedAt:
-      existingStore?.installedAt ||
-      new Date().toISOString(),
-    profile,
-    billing: buildBilling(
-      existingStore?.billing,
-      metadata.billing || {}
-    )
-  };
-
   await persistStore(store);
 
-  console.log("STORE REGISTERED:", normalizedShopDomain);
+  console.log("🔥 STORE REGISTERED (DB OK):", normalizedShopDomain);
 
   return store;
 }
 
-function updateStorePlan(shopDomain, planData = {}) {
+async function updateStorePlan(shopDomain, planData = {}) {
   const store = getStore(shopDomain);
 
   if (!store) {
