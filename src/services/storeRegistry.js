@@ -101,7 +101,7 @@ function hydrateStoreFromRow(row) {
     return null;
   }
 
-  const shopDomain = normalizeShopDomain(row.shop_domain);
+  const shopDomain = normalizeShopDomain(row.shop);
 
   return {
     id: row.id,
@@ -186,7 +186,7 @@ async function ensureTables() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS stores (
       id BIGSERIAL PRIMARY KEY,
-      shop_domain TEXT NOT NULL UNIQUE,
+      shop TEXT NOT NULL UNIQUE,
       access_token TEXT NOT NULL,
       region TEXT NOT NULL,
       language TEXT NOT NULL,
@@ -242,11 +242,11 @@ async function ensureTables() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS store_usage (
       id BIGSERIAL PRIMARY KEY,
-      shop_domain TEXT NOT NULL,
+      shop TEXT NOT NULL,
       period_key TEXT NOT NULL,
       optimized_count INTEGER NOT NULL DEFAULT 0,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE (shop_domain, period_key)
+      UNIQUE (shop, period_key)
     )
   `);
 }
@@ -259,7 +259,7 @@ async function loadStoresFromDatabase() {
     `
       SELECT
         s.id,
-        s.shop_domain,
+        s.shop,
         s.access_token,
         s.platform,
         s.region,
@@ -276,7 +276,7 @@ async function loadStoresFromDatabase() {
         COALESCE(u.optimized_count, 0) AS current_period_usage
       FROM stores s
       LEFT JOIN store_usage u
-        ON u.shop_domain = s.shop_domain
+        ON u.shop = s.shop
        AND u.period_key = $1
       ORDER BY s.id ASC
     `,
@@ -310,7 +310,7 @@ async function fetchStoreFromDatabase(shopDomain) {
     `
       SELECT
         s.id,
-        s.shop_domain,
+        s.shop,
         s.access_token,
         s.platform,
         s.region,
@@ -327,9 +327,9 @@ async function fetchStoreFromDatabase(shopDomain) {
         COALESCE(u.optimized_count, 0) AS current_period_usage
       FROM stores s
       LEFT JOIN store_usage u
-        ON u.shop_domain = s.shop_domain
+        ON u.shop = s.shop
        AND u.period_key = $2
-      WHERE s.shop_domain = $1
+      WHERE s.shop = $1
       LIMIT 1
     `,
     [normalizedShopDomain, currentPeriodKey]
@@ -397,7 +397,7 @@ async function persistStore(store) {
   const result = await db.query(
     `
       INSERT INTO stores (
-        shop_domain,
+        shop,
         access_token,
         platform,
         region,
@@ -413,7 +413,7 @@ async function persistStore(store) {
         activated_at
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      ON CONFLICT (shop_domain)
+      ON CONFLICT (shop)
       DO UPDATE SET
         access_token = EXCLUDED.access_token,
         platform = EXCLUDED.platform,
@@ -429,7 +429,7 @@ async function persistStore(store) {
         activated_at = EXCLUDED.activated_at
       RETURNING
         id,
-        shop_domain,
+        shop,
         access_token,
         platform,
         region,
@@ -591,13 +591,15 @@ function registerStore(shopDomain, accessToken, metadata = {}) {
 
   storesByDomain.set(normalizedShopDomain, store);
 
-  persistStore(store).catch((error) => {
-    console.error("STORE REGISTRY PERSIST ERROR:", error.message);
-  });
-
-  console.log("STORE REGISTERED:", normalizedShopDomain);
-
-  return store;
+  return persistStore(store)
+    .then((persistedStore) => {
+      console.log("STORE REGISTERED:", normalizedShopDomain);
+      return persistedStore || store;
+    })
+    .catch((error) => {
+      console.error("STORE REGISTRY PERSIST ERROR:", error.message);
+      throw error;
+    });
 }
 
 function updateStorePlan(shopDomain, planData = {}) {
@@ -643,13 +645,13 @@ async function incrementStoreUsage(shopDomain, count = 1) {
   const result = await db.query(
     `
       INSERT INTO store_usage (
-        shop_domain,
+        shop,
         period_key,
         optimized_count,
         updated_at
       )
       VALUES ($1, $2, $3, NOW())
-      ON CONFLICT (shop_domain, period_key)
+      ON CONFLICT (shop, period_key)
       DO UPDATE SET
         optimized_count = store_usage.optimized_count + EXCLUDED.optimized_count,
         updated_at = NOW()
