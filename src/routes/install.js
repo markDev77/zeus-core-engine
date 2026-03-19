@@ -10,7 +10,6 @@ const {
 
 const { registerStore } = require("../services/storeRegistry");
 const { getRegionProfile } = require("../data/regionProfiles");
-
 const { registerWebhooks } = require("../services/shopifyWebhookRegistrar");
 
 const router = express.Router();
@@ -21,7 +20,6 @@ function normalizePlatformCountry(rawCountry) {
   if (!rawCountry || typeof rawCountry !== "string") {
     return "US";
   }
-
   return rawCountry.trim().toUpperCase();
 }
 
@@ -32,7 +30,6 @@ INSTALL ROUTE
 */
 router.get("/install", (req, res) => {
   try {
-
     const shop = normalizeShopDomain(req.query.shop);
 
     if (!shop) {
@@ -56,12 +53,9 @@ router.get("/install", (req, res) => {
     const installUrl = generateInstallUrl(shop, state);
 
     return res.redirect(installUrl);
-
   } catch (error) {
-
     console.error("INSTALL ERROR:", error);
     return res.status(500).send("INSTALL ERROR");
-
   }
 });
 
@@ -71,9 +65,7 @@ SHOPIFY OAUTH CALLBACK
 ----------------------------------------
 */
 router.get("/auth/callback", async (req, res) => {
-
   try {
-
     const { shop, code, state } = req.query;
 
     const safeShop = normalizeShopDomain(shop);
@@ -105,7 +97,6 @@ router.get("/auth/callback", async (req, res) => {
     );
 
     if (!regionProfile) {
-
       console.log("ZEUS REGION PROFILE FALLBACK");
 
       regionProfile = {
@@ -122,14 +113,12 @@ router.get("/auth/callback", async (req, res) => {
         tagStyle: "generic",
         categoryLocale: "global"
       };
-
     }
 
     /*
     REGISTER STORE
     */
-    const store = registerStore(safeShop, accessToken, {
-
+    const store = await registerStore(safeShop, accessToken, {
       storeId: pendingState.profileSeed.storeId || safeShop,
       clientId: pendingState.profileSeed.clientId || null,
 
@@ -137,9 +126,13 @@ router.get("/auth/callback", async (req, res) => {
       storeDomain: safeShop,
 
       country: regionProfile.country,
-      language: pendingState.profileSeed.language || regionProfile.language,
-      currency: pendingState.profileSeed.currency || regionProfile.currency,
-      marketplace: pendingState.profileSeed.marketplace || regionProfile.marketplace,
+      language:
+        pendingState.profileSeed.language || regionProfile.language,
+      currency:
+        pendingState.profileSeed.currency || regionProfile.currency,
+      marketplace:
+        pendingState.profileSeed.marketplace ||
+        regionProfile.marketplace,
 
       catalogOrigin: regionProfile.catalogOrigin,
       translationMode: regionProfile.translationMode,
@@ -150,33 +143,24 @@ router.get("/auth/callback", async (req, res) => {
       descriptionStyle: regionProfile.descriptionStyle,
       tagStyle: regionProfile.tagStyle,
       categoryLocale: regionProfile.categoryLocale
-
     });
 
     await registerWebhooks(safeShop, accessToken);
 
     pendingStates.delete(safeShop);
 
-    console.log("SHOPIFY STORE CONNECTED:", safeShop);
+    console.log("🔥 SHOPIFY STORE CONNECTED:", safeShop);
 
-    const profile = store?.profile || regionProfile;
-
-    return res.send(`
-      <h2>ZEUS installed successfully</h2>
-      <p>Store: ${safeShop}</p>
-      <p>Store ID: ${store.storeId}</p>
-      <p>Country: ${profile.country}</p>
-      <p>Language: ${profile.language}</p>
-      <p>Currency: ${profile.currency}</p>
-    `);
-
+    /*
+    REDIRECT TO ACTIVATION FLOW
+    */
+    return res.redirect(
+      `https://zeusinfra.io/activation?shop=${safeShop}`
+    );
   } catch (error) {
-
     console.error("OAUTH ERROR:", error);
     return res.status(500).send(`OAuth Error: ${error.message}`);
-
   }
-
 });
 
 module.exports = router;
