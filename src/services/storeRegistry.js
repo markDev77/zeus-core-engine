@@ -557,7 +557,7 @@ function getStoreByApiCredentials(storeId, apiKey) {
   return null;
 }
 
-async function registerStore(shopDomain, accessToken, metadata = {}) {
+function registerStore(shopDomain, accessToken, metadata = {}) {
   const normalizedShopDomain = normalizeShopDomain(shopDomain);
 
   if (!normalizedShopDomain) {
@@ -591,14 +591,16 @@ async function registerStore(shopDomain, accessToken, metadata = {}) {
 
   storesByDomain.set(normalizedShopDomain, store);
 
-  await persistStore(store);
+  persistStore(store).catch((error) => {
+    console.error("STORE REGISTRY PERSIST ERROR:", error.message);
+  });
 
-  console.log("🔥 STORE REGISTERED (DB OK):", normalizedShopDomain);
+  console.log("STORE REGISTERED:", normalizedShopDomain);
 
   return store;
 }
 
-async function updateStorePlan(shopDomain, planData = {}) {
+function updateStorePlan(shopDomain, planData = {}) {
   const store = getStore(shopDomain);
 
   if (!store) {
@@ -617,7 +619,9 @@ async function updateStorePlan(shopDomain, planData = {}) {
   store.billing = mergedBilling;
   storesByDomain.set(store.shopDomain, store);
 
-  await persistStore(store);
+  persistStore(store).catch((error) => {
+    console.error("STORE REGISTRY BILLING PERSIST ERROR:", error.message);
+  });
 
   return store;
 }
