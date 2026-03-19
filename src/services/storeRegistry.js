@@ -654,9 +654,7 @@ function updateStorePlan(shopDomain, planData = {}) {
   store.billing = mergedBilling;
   storesByDomain.set(store.shopDomain, store);
 
-  persistStore(store).catch((error) => {
-    console.error("STORE REGISTRY BILLING PERSIST ERROR:", error.message);
-  });
+  await persistStore(store);
 
   return store;
 }
