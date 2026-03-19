@@ -45,23 +45,28 @@ STORE REGISTRY
 */
 
 const {
- getStore,
+  getStoreFresh,
   initStoreRegistry,
-  updateStorePlan,
-  registerStore
+  updateStorePlan
 } = require("./src/services/storeRegistry");
 
 /*
 LOOP PROTECTION
 */
 
-const { isZeusUpdate, markZeusUpdate } = require("./src/services/loopProtection");
+const {
+  isZeusUpdate,
+  markZeusUpdate
+} = require("./src/services/loopProtection");
 
 /*
 JOB QUEUE
 */
 
-const { enqueueJob, getQueueStatus } = require("./src/services/jobQueue");
+const {
+  enqueueJob,
+  getQueueStatus
+} = require("./src/services/jobQueue");
 
 /*
 STRIPE
@@ -109,57 +114,8 @@ SHOPIFY OAUTH
 */
 
 app.use("/", installRoutes);
-====================================================
-AUTH CALLBACK (REGISTRO REAL DE STORE)
-====================================================
-*/
 
-const fetch = require("node-fetch");
-
-app.get("/auth/callback", async (req, res) => {
-  try {
-    const { shop, code } = req.query;
-
-    if (!shop || !code) {
-      return res.status(400).send("Missing shop or code");
-    }
-
-    const tokenResponse = await fetch(
-      `https://${shop}/admin/oauth/access_token`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          client_id: process.env.SHOPIFY_API_KEY,
-          client_secret: process.env.SHOPIFY_API_SECRET,
-          code
-        })
-      }
-    );
-
-    const tokenData = await tokenResponse.json();
-
-    if (!tokenData.access_token) {
-      console.error("❌ NO ACCESS TOKEN:", tokenData);
-      return res.status(500).send("OAuth failed");
-    }
-
-    const accessToken = tokenData.access_token;
-
-    // 🔥 FIX CRÍTICO
-    await registerStore(shop, accessToken);
-
-    console.log("🔥 STORE REGISTERED:", shop);
-
-    return res.redirect(`/activation?shop=${shop}`);
-
-  } catch (error) {
-    console.error("❌ AUTH CALLBACK ERROR:", error);
-    return res.status(500).send("Auth error");
-  }
-});
+/*
 ====================================================
 STRIPE CHECKOUT
 ====================================================
@@ -206,7 +162,6 @@ app.post("/create-checkout-session", async (req, res) => {
     });
 
     res.json({ url: session.url });
-
   } catch (error) {
     console.error("STRIPE SESSION ERROR:", error);
     res.status(500).json({ error: "stripe_error" });
@@ -227,7 +182,9 @@ function verifyShopifyWebhook(req) {
 
   const hmacHeader = req.headers["x-shopify-hmac-sha256"];
 
-  if (!hmacHeader) return false;
+  if (!hmacHeader) {
+    return false;
+  }
 
   let bodyBuffer;
 
@@ -293,7 +250,7 @@ DEBUG BILLING ACTIVATION
 ====================================================
 */
 
-app.get("/debug/activate-plan", (req, res) => {
+app.get("/debug/activate-plan", async (req, res) => {
   try {
     const { shop, plan } = req.query;
 
@@ -304,7 +261,7 @@ app.get("/debug/activate-plan", (req, res) => {
       });
     }
 
-    const updatedStore = updateStorePlan(shop, {
+    const updatedStore = await updateStorePlan(shop, {
       plan,
       status: "active",
       activatedAt: new Date().toISOString()
@@ -486,7 +443,7 @@ async function handleProductCreate(req, res) {
       return res.status(200).send("ok");
     }
 
-    const store = getStore(shop);
+    const store = await getStoreFresh(shop);
 
     if (!store) {
       console.log("ZEUS STORE NOT REGISTERED:", shop);
@@ -510,20 +467,16 @@ async function handleProductCreate(req, res) {
       title: product.title,
       description: product.body_html || "",
       tags: product.tags ? product.tags.split(",") : [],
-
       platform: "shopify",
-
       store: {
         shopDomain: store.shopDomain,
         accessToken: store.accessToken,
         productId: product.id
       },
-
       storeProfile: {
         region: "US",
         language: "en"
       },
-
       source: "shopify"
     };
 
@@ -572,9 +525,18 @@ DATABASE MIGRATION (CATEGORY BRAIN)
 async function runZeusMigration() {
   const { Pool } = require("pg");
 
+  const isLocalDatabase =
+    process.env.DATABASE_URL &&
+    (
+      process.env.DATABASE_URL.includes("localhost") ||
+      process.env.DATABASE_URL.includes("127.0.0.1")
+    );
+
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: isLocalDatabase
+      ? false
+      : { rejectUnauthorized: false }
   });
 
   const client = await pool.connect();
@@ -709,6 +671,7 @@ async function runZeusMigration() {
     console.log("ZEUS DB MIGRATION OK");
   } catch (err) {
     console.error("ZEUS MIGRATION ERROR", err);
+    throw err;
   } finally {
     client.release();
     await pool.end();
