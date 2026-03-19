@@ -1,21 +1,23 @@
+/*
+========================================
+ZEUS SYNC ENGINE
+========================================
+Motor de sincronización de productos
+según plataforma destino
+========================================
+*/
+
 const { updateShopifyProduct } = require("./shopifySync");
 const { checkBillingAccess } = require("./billingLimiter");
 
 /*
-========================================
 LOOP PROTECTION (HARDENED)
-========================================
 */
 const loopProtection = require("./loopProtection");
 
 const checkZeusProcessed = loopProtection.checkZeusProcessed;
 const markZeusProcessed = loopProtection.markZeusProcessed;
 
-/*
-========================================
-SYNC ENGINE
-========================================
-*/
 async function syncProduct({
   platform,
   store,
@@ -24,7 +26,7 @@ async function syncProduct({
 
   /*
   ========================================
-  VALIDACIONES BASE
+  VALIDACIONES
   ========================================
   */
 
@@ -60,53 +62,44 @@ async function syncProduct({
 
   /*
   ========================================
-  ROUTING POR PLATAFORMA
+  PLATFORM ROUTING
   ========================================
   */
 
   switch (platform) {
 
-    /*
-    ========================================
-    SHOPIFY
-    ========================================
-    */
     case "shopify":
 
       /*
       ========================================
-      BILLING GATE (CRÍTICO)
+      BILLING CHECK
       ========================================
       */
+
       const billingCheck = checkBillingAccess(shopDomain);
 
-      if (!billingCheck || billingCheck.allowed !== true) {
-        console.log("ZEUS BILLING BLOCKED:", shopDomain);
+      if (!billingCheck.allowed) {
+        console.log("ZEUS ACCESS BLOCKED BEFORE SYNC", shopDomain);
         return;
       }
 
       /*
       ========================================
-      LOOP PROTECTION (CRÍTICO)
+      LOOP PROTECTION (SAFE MODE)
       ========================================
       */
+
       if (typeof checkZeusProcessed === "function") {
 
-        try {
+        const alreadyProcessed = await checkZeusProcessed(
+          shopDomain,
+          accessToken,
+          productId
+        );
 
-          const alreadyProcessed = await checkZeusProcessed(
-            shopDomain,
-            accessToken,
-            productId
-          );
-
-          if (alreadyProcessed) {
-            console.log("ZEUS LOOP SKIPPED:", productId);
-            return;
-          }
-
-        } catch (error) {
-          console.error("LOOP CHECK ERROR:", error.message);
+        if (alreadyProcessed) {
+          console.log("LOOP SKIPPED", productId);
+          return;
         }
 
       } else {
@@ -118,97 +111,74 @@ async function syncProduct({
       SYNC START
       ========================================
       */
-      console.log("ZEUS SYNC START:", {
+
+      console.log("SYNC START", productId);
+
+      await updateShopifyProduct({
         shopDomain,
-        productId
+        accessToken,
+        productId,
+        title: product.title,
+        description:
+          product.description ||
+          product.body_html ||
+          "",
+        tags:
+          product.tags ||
+          [],
+
+        productType:
+          product.baseCategory ||
+          product.category ||
+          "general",
+
+        baseCategory:
+          product.baseCategory ||
+          product.category ||
+          "general",
+
+        categorySearch:
+          product.platformCategoryPath ||
+          product.baseCategory ||
+          product.category ||
+          "general",
+
+        source:
+          product.source ||
+          product.origin ||
+          "native",
+
+        searchKeywords:
+          product.searchKeywords ||
+          [],
+
+        seoTitle:
+          product.seoTitle ||
+          product.title ||
+          "",
+
+        seoDescription:
+          product.seoDescription ||
+          "",
+
+        productSignature:
+          product.productSignature ||
+          ""
       });
-
-      try {
-
-        await updateShopifyProduct({
-          shopDomain,
-          accessToken,
-          productId,
-
-          title: product.title,
-
-          description:
-            product.description ||
-            product.body_html ||
-            "",
-
-          tags:
-            product.tags ||
-            [],
-
-          productType:
-            product.baseCategory ||
-            product.category ||
-            "general",
-
-          baseCategory:
-            product.baseCategory ||
-            product.category ||
-            "general",
-
-          categorySearch:
-            product.platformCategoryPath ||
-            product.baseCategory ||
-            product.category ||
-            "general",
-
-          source:
-            product.source ||
-            product.origin ||
-            "native",
-
-          searchKeywords:
-            product.searchKeywords ||
-            [],
-
-          seoTitle:
-            product.seoTitle ||
-            product.title ||
-            "",
-
-          seoDescription:
-            product.seoDescription ||
-            "",
-
-          productSignature:
-            product.productSignature ||
-            ""
-        });
-
-      } catch (error) {
-
-        console.error("ZEUS SHOPIFY UPDATE ERROR:", {
-          productId,
-          message: error.message
-        });
-
-        throw error;
-
-      }
 
       /*
       ========================================
-      MARK PROCESSED
+      MARK AS PROCESSED (SAFE MODE)
       ========================================
       */
+
       if (typeof markZeusProcessed === "function") {
 
-        try {
-
-          await markZeusProcessed(
-            shopDomain,
-            accessToken,
-            productId
-          );
-
-        } catch (error) {
-          console.error("LOOP MARK ERROR:", error.message);
-        }
+        await markZeusProcessed(
+          shopDomain,
+          accessToken,
+          productId
+        );
 
       } else {
         console.error("LOOP PROTECTION NOT AVAILABLE (markZeusProcessed)");
@@ -216,18 +186,14 @@ async function syncProduct({
 
       /*
       ========================================
-      SUCCESS
+      SUCCESS LOG
       ========================================
       */
-      console.log("ZEUS SHOPIFY SYNC SUCCESS:", productId);
+
+      console.log("SHOPIFY UPDATE SUCCESS", productId);
 
       break;
 
-    /*
-    ========================================
-    DEFAULT
-    ========================================
-    */
     default:
 
       console.warn(
@@ -241,11 +207,6 @@ async function syncProduct({
 
 }
 
-/*
-========================================
-EXPORT
-========================================
-*/
 module.exports = {
   syncProduct
 };
