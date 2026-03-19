@@ -1,17 +1,40 @@
 /*
 ========================================
-SHOPIFY ADMIN API CLIENT
+SHOPIFY ADMIN API CLIENT (MULTI-STORE FIX)
 ========================================
 */
 
 const fetch = require("node-fetch");
 
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
-const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+/*
+----------------------------------------
+HELPER: RESOLVE ACCESS TOKEN
+----------------------------------------
+*/
 
-async function updateProduct(productId, data) {
+function resolveAccessToken(store) {
+  return store?.accessToken || store?.access_token || null;
+}
 
-  const url = `https://${SHOPIFY_STORE}/admin/api/2024-01/products/${productId}.json`;
+/*
+----------------------------------------
+UPDATE PRODUCT
+----------------------------------------
+*/
+
+async function updateProduct(store, productId, data) {
+
+  if (!store || !store.shop) {
+    throw new Error("STORE INVALID OR NOT PROVIDED");
+  }
+
+  const accessToken = resolveAccessToken(store);
+
+  if (!accessToken) {
+    throw new Error("NO ACCESS TOKEN FOUND IN STORE");
+  }
+
+  const url = `https://${store.shop}/admin/api/2024-01/products/${productId}.json`;
 
   const payload = {
     product: {
@@ -22,22 +45,43 @@ async function updateProduct(productId, data) {
     }
   };
 
-  const response = await fetch(url, {
-
-    method: "PUT",
-
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN
-    },
-
-    body: JSON.stringify(payload)
-
+  console.log("SHOPIFY REQUEST DEBUG:", {
+    shop: store.shop,
+    hasToken: !!accessToken
   });
 
-  return response.json();
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": accessToken
+    },
+    body: JSON.stringify(payload)
+  });
 
+  const responseText = await response.text();
+
+  let parsed;
+
+  try {
+    parsed = JSON.parse(responseText);
+  } catch (e) {
+    parsed = responseText;
+  }
+
+  if (!response.ok) {
+    console.error("SHOPIFY API ERROR:", parsed);
+    throw new Error(JSON.stringify(parsed));
+  }
+
+  return parsed;
 }
+
+/*
+----------------------------------------
+EXPORTS
+----------------------------------------
+*/
 
 module.exports = {
   updateProduct
