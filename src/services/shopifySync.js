@@ -503,6 +503,14 @@ async function updateShopifyProduct({
     throw new Error("Missing Shopify access token");
   }
 
+  console.log("TOKEN INSPECT:", {
+    shop: shopDomain,
+    token: resolvedAccessToken,
+    prefix: String(resolvedAccessToken).slice(0, 10),
+    length: resolvedAccessToken.length,
+    type: typeof resolvedAccessToken
+  });
+
   const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
 
   const normalizedProductType = normalizeProductType(productType);
