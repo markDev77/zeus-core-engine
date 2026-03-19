@@ -591,12 +591,11 @@ async function registerStore(shopDomain, accessToken, metadata = {}) {
 
   storesByDomain.set(normalizedShopDomain, store);
 
-  // 🔥 FIX REAL
-  await persistStore(store);
+await persistStore(store);
 
-  console.log("🔥 STORE REGISTERED (DB OK):", normalizedShopDomain);
+console.log("🔥 STORE REGISTERED (DB OK):", normalizedShopDomain);
 
-  return store;
+return store;
 }
 
   const existingStore = getStore(normalizedShopDomain);
@@ -624,11 +623,7 @@ async function registerStore(shopDomain, accessToken, metadata = {}) {
     )
   };
 
-  storesByDomain.set(normalizedShopDomain, store);
-
-  persistStore(store).catch((error) => {
-    console.error("STORE REGISTRY PERSIST ERROR:", error.message);
-  });
+  await persistStore(store);
 
   console.log("STORE REGISTERED:", normalizedShopDomain);
 
