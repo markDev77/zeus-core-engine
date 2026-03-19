@@ -4,7 +4,9 @@ const axios = require("axios");
 const { Pool } = require("pg");
 const cheerio = require("cheerio");
 const crypto = require("crypto");
-
+function resolveAccessToken(store) {
+  return store?.accessToken || store?.access_token || null;
+}
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
