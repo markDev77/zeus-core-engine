@@ -8,6 +8,59 @@ const crypto = require("crypto");
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
+/* ==========================
+   SHOPIFY OAUTH
+========================== */
+
+app.get("/auth", (req, res) => {
+  const { shop } = req.query;
+
+  if (!shop) return res.status(400).send("Missing shop");
+
+  const redirectUri = `${process.env.BASE_URL}/auth/callback`;
+
+  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${process.env.SHOPIFY_API_KEY}&scope=write_products,read_products,write_inventory,read_fulfillments,write_fulfillments&redirect_uri=${redirectUri}`;
+
+  res.redirect(installUrl);
+});
+
+app.get("/auth/callback", async (req, res) => {
+  try {
+    const { shop, code } = req.query;
+
+    if (!shop || !code) {
+      return res.status(400).send("Missing shop or code");
+    }
+
+    const tokenResponse = await axios.post(
+      `https://${shop}/admin/oauth/access_token`,
+      {
+        client_id: process.env.SHOPIFY_API_KEY,
+        client_secret: process.env.SHOPIFY_API_SECRET,
+        code
+      }
+    );
+
+    const accessToken = tokenResponse.data.access_token;
+
+    await pool.query(
+      `
+      INSERT INTO shop_tokens (shop, access_token)
+      VALUES ($1, $2)
+      ON CONFLICT (shop)
+      DO UPDATE SET access_token = EXCLUDED.access_token
+      `,
+      [shop, accessToken]
+    );
+
+    console.log("✅ TOKEN GUARDADO:", shop);
+
+    res.send("App instalada correctamente 🚀");
+  } catch (error) {
+    console.error("❌ AUTH ERROR:", error.response?.data || error.message);
+    res.status(500).send("Auth failed");
+  }
+});
 const PORT = process.env.PORT || 10000;
 const { DATABASE_URL, OPENAI_API_KEY } = process.env;
 
