@@ -324,6 +324,15 @@ function log(tag, obj) {
    STORE LAYER
 ========================== */
 
+function normalizeShopDomain(shop) {
+  return String(shop || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^admin\.shopify\.com\/store\//, "")
+    .replace(/\/+$/, "");
+}
+
 function validateStore(store) {
   if (!store) throw new Error("STORE NOT REGISTERED");
   if (!store.access_token) throw new Error("STORE WITHOUT TOKEN");
@@ -335,7 +344,8 @@ function validateStore(store) {
 }
 
 async function getStore(shop) {
-  const result = await pool.query("SELECT * FROM stores WHERE shop = $1", [shop]);
+  const normalizedShop = normalizeShopDomain(shop);
+  const result = await pool.query("SELECT * FROM stores WHERE shop = $1", [normalizedShop]);
 
   if (!result.rows.length) {
     throw new Error("STORE NOT REGISTERED");
@@ -359,6 +369,8 @@ async function upsertStore(data) {
     sku_limit = 20,
     tokens = 5
   } = data;
+
+  const normalizedShop = normalizeShopDomain(shop);
 
   const result = await pool.query(
     `
@@ -398,7 +410,7 @@ async function upsertStore(data) {
     RETURNING *;
     `,
     [
-      shop,
+      normalizedShop,
       access_token,
       region,
       language,
@@ -418,18 +430,20 @@ async function upsertStore(data) {
     ON CONFLICT (shop)
     DO UPDATE SET access_token = EXCLUDED.access_token
     `,
-    [shop, access_token]
+    [normalizedShop, access_token]
   );
 
   return result.rows[0];
 }
 
 async function getToken(shop) {
+  const normalizedShop = normalizeShopDomain(shop);
+
   try {
-    const store = await getStore(shop);
+    const store = await getStore(normalizedShop);
     return store.access_token;
   } catch (storeErr) {
-    const result = await pool.query("SELECT access_token FROM shop_tokens WHERE shop = $1", [shop]);
+    const result = await pool.query("SELECT access_token FROM shop_tokens WHERE shop = $1", [normalizedShop]);
     if (!result.rows.length) throw storeErr;
     return result.rows[0].access_token;
   }
@@ -484,20 +498,23 @@ app.post("/register-store", async (req, res) => {
 const shopQueues = new Map();
 
 function getShopQueue(shop) {
-  if (!shopQueues.has(shop)) {
-    shopQueues.set(shop, { queue: [], processing: false, lastReqAt: 0 });
+  const normalizedShop = normalizeShopDomain(shop);
+
+  if (!shopQueues.has(normalizedShop)) {
+    shopQueues.set(normalizedShop, { queue: [], processing: false, lastReqAt: 0 });
   }
-  return shopQueues.get(shop);
+  return shopQueues.get(normalizedShop);
 }
 
 function enqueueShopJob(shop, jobName, fn) {
-  const q = getShopQueue(shop);
+  const normalizedShop = normalizeShopDomain(shop);
+  const q = getShopQueue(normalizedShop);
   const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   q.queue.push({ jobId, jobName, fn });
-  log("QUEUE: enqueued", { shop, jobName, jobId, depth: q.queue.length });
+  log("QUEUE: enqueued", { shop: normalizedShop, jobName, jobId, depth: q.queue.length });
 
-  processShopQueue(shop).catch((err) => {
+  processShopQueue(normalizedShop).catch((err) => {
     console.error("QUEUE processor error:", err.message);
   });
 
@@ -505,7 +522,8 @@ function enqueueShopJob(shop, jobName, fn) {
 }
 
 async function processShopQueue(shop) {
-  const q = getShopQueue(shop);
+  const normalizedShop = normalizeShopDomain(shop);
+  const q = getShopQueue(normalizedShop);
   if (q.processing) return;
 
   q.processing = true;
@@ -513,7 +531,7 @@ async function processShopQueue(shop) {
     while (q.queue.length > 0) {
       const item = q.queue.shift();
       log("QUEUE: start", {
-        shop,
+        shop: normalizedShop,
         jobName: item.jobName,
         jobId: item.jobId,
         remaining: q.queue.length
@@ -521,10 +539,10 @@ async function processShopQueue(shop) {
 
       try {
         await item.fn();
-        log("QUEUE: done", { shop, jobName: item.jobName, jobId: item.jobId });
+        log("QUEUE: done", { shop: normalizedShop, jobName: item.jobName, jobId: item.jobId });
       } catch (err) {
         console.error("QUEUE: job failed", {
-          shop,
+          shop: normalizedShop,
           jobName: item.jobName,
           jobId: item.jobId,
           error: err.response?.data || err.message
@@ -545,7 +563,8 @@ function sleep(ms) {
 }
 
 async function throttleShopify(shop) {
-  const q = getShopQueue(shop);
+  const normalizedShop = normalizeShopDomain(shop);
+  const q = getShopQueue(normalizedShop);
   const elapsed = Date.now() - q.lastReqAt;
   const wait = Math.max(0, SHOPIFY_MIN_INTERVAL_MS - elapsed);
   if (wait > 0) await sleep(wait);
@@ -561,7 +580,8 @@ function getRetryAfterMs(error) {
 }
 
 async function shopifyRequest(shop, config, attempt = 0) {
-  await throttleShopify(shop);
+  const normalizedShop = normalizeShopDomain(shop);
+  await throttleShopify(normalizedShop);
 
   try {
     return await axios(config);
@@ -573,10 +593,10 @@ async function shopifyRequest(shop, config, attempt = 0) {
 
     const retryAfter = getRetryAfterMs(err);
     const backoff = retryAfter ?? BASE_BACKOFF_MS * Math.pow(2, attempt);
-    log("Shopify retry", { shop, status, attempt: attempt + 1, wait_ms: backoff });
+    log("Shopify retry", { shop: normalizedShop, status, attempt: attempt + 1, wait_ms: backoff });
 
     await sleep(backoff);
-    return shopifyRequest(shop, config, attempt + 1);
+    return shopifyRequest(normalizedShop, config, attempt + 1);
   }
 }
 
@@ -591,22 +611,23 @@ async function upsertProductMetafield({
 }) {
   if (!shop || !accessToken || !productId || !namespace || !key) return null;
 
-  const base = `https://${shop}/admin/api/${PRODUCT_API_VERSION}`;
+  const normalizedShop = normalizeShopDomain(shop);
+  const base = `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}`;
 
   try {
     const listUrl = `${base}/products/${productId}/metafields.json?namespace=${encodeURIComponent(namespace)}&key=${encodeURIComponent(key)}`;
-    const list = await shopifyRequest(shop, {
+    const list = await shopifyRequest(normalizedShop, {
       method: "GET",
       url: listUrl,
       headers: { "X-Shopify-Access-Token": accessToken }
     });
 
-    const items = list?.metafields || [];
+    const items = list?.data?.metafields || [];
     const found = items[0];
 
     if (found?.id) {
       const putUrl = `${base}/metafields/${found.id}.json`;
-      const res = await shopifyRequest(shop, {
+      const res = await shopifyRequest(normalizedShop, {
         method: "PUT",
         url: putUrl,
         headers: { "X-Shopify-Access-Token": accessToken },
@@ -618,11 +639,11 @@ async function upsertProductMetafield({
           }
         }
       });
-      return res?.metafield || null;
+      return res?.data?.metafield || null;
     }
 
     const postUrl = `${base}/products/${productId}/metafields.json`;
-    const res = await shopifyRequest(shop, {
+    const res = await shopifyRequest(normalizedShop, {
       method: "POST",
       url: postUrl,
       headers: { "X-Shopify-Access-Token": accessToken },
@@ -635,7 +656,7 @@ async function upsertProductMetafield({
         }
       }
     });
-    return res?.metafield || null;
+    return res?.data?.metafield || null;
   } catch (e) {
     console.log("[metafield] upsert failed:", e?.message || e);
     return null;
@@ -855,6 +876,8 @@ function buildAftershipUrl(carrierSlug, trackingNumber) {
 }
 
 async function updateTrackingOnFulfillment(shop, accessToken, fulfillmentId, carrierSlug, trackingNumber, trackingUrl) {
+  const normalizedShop = normalizeShopDomain(shop);
+
   const payload = {
     fulfillment: {
       notify_customer: false,
@@ -866,9 +889,9 @@ async function updateTrackingOnFulfillment(shop, accessToken, fulfillmentId, car
     }
   };
 
-  await shopifyRequest(shop, {
+  await shopifyRequest(normalizedShop, {
     method: "POST",
-    url: `https://${shop}/admin/api/${FULFILLMENT_API_VERSION}/fulfillments/${fulfillmentId}/update_tracking.json`,
+    url: `https://${normalizedShop}/admin/api/${FULFILLMENT_API_VERSION}/fulfillments/${fulfillmentId}/update_tracking.json`,
     headers: { "X-Shopify-Access-Token": accessToken },
     data: payload
   });
@@ -885,15 +908,19 @@ function gidToNumericId(gid) {
 }
 
 async function shopifyGraphQL(shop, accessToken, query, variables) {
-  return shopifyRequest(shop, {
+  const normalizedShop = normalizeShopDomain(shop);
+
+  const response = await shopifyRequest(normalizedShop, {
     method: "POST",
-    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/graphql.json`,
+    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/graphql.json`,
     headers: {
       "X-Shopify-Access-Token": accessToken,
       "Content-Type": "application/json"
     },
     data: { query, variables }
   });
+
+  return response.data;
 }
 
 function chunk(arr, size) {
@@ -903,6 +930,7 @@ function chunk(arr, size) {
 }
 
 async function findProductIdsBySkus(shop, accessToken, skus) {
+  const normalizedShop = normalizeShopDomain(shop);
   const uniq = Array.from(new Set((skus || []).map((s) => String(s || "").trim()).filter(Boolean)));
   if (uniq.length === 0) return [];
 
@@ -924,9 +952,9 @@ async function findProductIdsBySkus(shop, accessToken, skus) {
 
   for (const batch of batches) {
     const q = batch.map((s) => `sku:${s.replace(/"/g, "")}`).join(" OR ");
-    const resp = await shopifyGraphQL(shop, accessToken, GQL, { q });
+    const resp = await shopifyGraphQL(normalizedShop, accessToken, GQL, { q });
 
-    const edges = resp?.data?.data?.productVariants?.edges || [];
+    const edges = resp?.data?.productVariants?.edges || [];
     for (const e of edges) {
       const pid = gidToNumericId(e?.node?.product?.id);
       if (pid) productIds.add(pid);
@@ -941,11 +969,12 @@ async function findProductIdsBySkus(shop, accessToken, skus) {
 ========================== */
 
 async function transformProductById(shop, accessToken, productId) {
+  const normalizedShop = normalizeShopDomain(shop);
   await sleep(PRODUCT_CREATE_WARMUP_MS);
 
-  const freshProduct = await shopifyRequest(shop, {
+  const freshProduct = await shopifyRequest(normalizedShop, {
     method: "GET",
-    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
     headers: { "X-Shopify-Access-Token": accessToken }
   });
 
@@ -957,9 +986,9 @@ async function transformProductById(shop, accessToken, productId) {
     .filter((sku) => sku && !isValidUsadropSku(sku));
 
   if (invalidSkus.length) {
-    await shopifyRequest(shop, {
+    await shopifyRequest(normalizedShop, {
       method: "PUT",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
       data: {
         product: {
@@ -970,7 +999,7 @@ async function transformProductById(shop, accessToken, productId) {
       }
     });
     log("Producto bloqueado por ORIGEN AUTORIZADO (SKU inválido)", {
-      shop,
+      shop: normalizedShop,
       productId,
       invalidSkus: invalidSkus.slice(0, 10)
     });
@@ -978,9 +1007,9 @@ async function transformProductById(shop, accessToken, productId) {
   }
 
   if (isBlockedProduct(realProduct.title, realProduct.body_html)) {
-    await shopifyRequest(shop, {
+    await shopifyRequest(normalizedShop, {
       method: "PUT",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
       data: {
         product: {
@@ -991,28 +1020,37 @@ async function transformProductById(shop, accessToken, productId) {
       }
     });
 
-    log("Producto bloqueado por política marketplace", { shop, productId, title: realProduct.title });
+    log("Producto bloqueado por política marketplace", {
+      shop: normalizedShop,
+      productId,
+      title: realProduct.title
+    });
     return;
   }
 
-  await ensureMainImage(shop, accessToken, productId, realProduct);
+  await ensureMainImage(normalizedShop, accessToken, productId, realProduct);
 
   const imageKey = buildImageFingerprintKey(realProduct, 3);
   const sigHash = computeProductSignature(imageKey, realVariants.length);
   const sigTag = `${ZEUS_SIGNATURE_TAG_PREFIX}${sigHash}`;
 
-  const dupIds = await findProductsByTag(shop, accessToken, sigTag);
+  const dupIds = await findProductsByTag(normalizedShop, accessToken, sigTag);
   const hasDup = dupIds.some((id) => String(id) !== String(productId));
 
   if (hasDup) {
     const tags = buildTagSetFromProduct(realProduct, ["DUPLICATE_SIGNATURE", sigTag]).join(", ");
-    await shopifyRequest(shop, {
+    await shopifyRequest(normalizedShop, {
       method: "PUT",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
       data: { product: { id: productId, status: "draft", tags } }
     });
-    log("Producto bloqueado por duplicidad estructural (signature hash)", { shop, productId, sigTag, dupIds });
+    log("Producto bloqueado por duplicidad estructural (signature hash)", {
+      shop: normalizedShop,
+      productId,
+      sigTag,
+      dupIds
+    });
     return;
   }
 
@@ -1029,9 +1067,9 @@ async function transformProductById(shop, accessToken, productId) {
   const detectedCat = detectCategory(translatedTitle);
   const tags = buildTagSetFromProduct(realProduct, [detectedCat, sigTag]).join(", ");
 
-  await shopifyRequest(shop, {
+  await shopifyRequest(normalizedShop, {
     method: "PUT",
-    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
     headers: { "X-Shopify-Access-Token": accessToken },
     data: {
       product: {
@@ -1047,7 +1085,7 @@ async function transformProductById(shop, accessToken, productId) {
   });
 
   await upsertProductMetafield({
-    shop,
+    shop: normalizedShop,
     accessToken,
     productId,
     namespace: "custom",
@@ -1060,9 +1098,9 @@ async function transformProductById(shop, accessToken, productId) {
     const usd = parseFloat(variant.price);
     const mxnPrice = calculatePrice(Number.isFinite(usd) ? usd : 0);
 
-    await shopifyRequest(shop, {
+    await shopifyRequest(normalizedShop, {
       method: "PUT",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
       data: {
         variant: {
@@ -1076,9 +1114,9 @@ async function transformProductById(shop, accessToken, productId) {
     });
   }
 
-  const locations = await shopifyRequest(shop, {
+  const locations = await shopifyRequest(normalizedShop, {
     method: "GET",
-    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/locations.json`,
+    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/locations.json`,
     headers: { "X-Shopify-Access-Token": accessToken }
   });
 
@@ -1086,9 +1124,9 @@ async function transformProductById(shop, accessToken, productId) {
   if (!locationId) throw new Error("No locations found to set inventory");
 
   for (const variant of realVariants) {
-    await shopifyRequest(shop, {
+    await shopifyRequest(normalizedShop, {
       method: "POST",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/inventory_levels/set.json`,
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/inventory_levels/set.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
       data: {
         location_id: locationId,
@@ -1099,7 +1137,7 @@ async function transformProductById(shop, accessToken, productId) {
   }
 
   log("Producto transformado (FULL)", {
-    shop,
+    shop: normalizedShop,
     productId,
     variants: realVariants.length,
     bannedWordsCount: getBannedWords().length
@@ -1111,9 +1149,11 @@ async function transformProductById(shop, accessToken, productId) {
 ========================== */
 
 async function transformProductStableById(shop, accessToken, productId) {
-  const freshProduct = await shopifyRequest(shop, {
+  const normalizedShop = normalizeShopDomain(shop);
+
+  const freshProduct = await shopifyRequest(normalizedShop, {
     method: "GET",
-    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
     headers: { "X-Shopify-Access-Token": accessToken }
   });
 
@@ -1125,9 +1165,9 @@ async function transformProductStableById(shop, accessToken, productId) {
     .filter((sku) => sku && !isValidUsadropSku(sku));
 
   if (invalidSkus.length) {
-    await shopifyRequest(shop, {
+    await shopifyRequest(normalizedShop, {
       method: "PUT",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
       data: {
         product: {
@@ -1138,7 +1178,7 @@ async function transformProductStableById(shop, accessToken, productId) {
       }
     });
     log("Producto bloqueado por ORIGEN AUTORIZADO (SKU inválido)", {
-      shop,
+      shop: normalizedShop,
       productId,
       invalidSkus: invalidSkus.slice(0, 10)
     });
@@ -1146,9 +1186,9 @@ async function transformProductStableById(shop, accessToken, productId) {
   }
 
   if (isBlockedProduct(realProduct.title, realProduct.body_html)) {
-    await shopifyRequest(shop, {
+    await shopifyRequest(normalizedShop, {
       method: "PUT",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
       data: {
         product: {
@@ -1160,14 +1200,14 @@ async function transformProductStableById(shop, accessToken, productId) {
     });
 
     log("Producto bloqueado por política marketplace (STABLE)", {
-      shop,
+      shop: normalizedShop,
       productId,
       title: realProduct.title
     });
     return;
   }
 
-  await ensureMainImage(shop, accessToken, productId, realProduct);
+  await ensureMainImage(normalizedShop, accessToken, productId, realProduct);
 
   const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
@@ -1182,9 +1222,9 @@ async function transformProductStableById(shop, accessToken, productId) {
   const detectedCat = detectCategory(translatedTitle);
   const tags = buildTagSetFromProduct(realProduct, [detectedCat]).join(", ");
 
-  await shopifyRequest(shop, {
+  await shopifyRequest(normalizedShop, {
     method: "PUT",
-    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
     headers: { "X-Shopify-Access-Token": accessToken },
     data: {
       product: {
@@ -1199,7 +1239,7 @@ async function transformProductStableById(shop, accessToken, productId) {
     }
   });
 
-  log("Producto transformado (STABLE)", { shop, productId });
+  log("Producto transformado (STABLE)", { shop: normalizedShop, productId });
 }
 
 /* ==========================
@@ -1207,18 +1247,20 @@ async function transformProductStableById(shop, accessToken, productId) {
 ========================== */
 
 async function cleanProductById(shop, accessToken, productId) {
-  const freshProduct = await shopifyRequest(shop, {
+  const normalizedShop = normalizeShopDomain(shop);
+
+  const freshProduct = await shopifyRequest(normalizedShop, {
     method: "GET",
-    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
     headers: { "X-Shopify-Access-Token": accessToken }
   });
 
   const realProduct = freshProduct.data.product;
 
   if (isBlockedProduct(realProduct.title, realProduct.body_html)) {
-    await shopifyRequest(shop, {
+    await shopifyRequest(normalizedShop, {
       method: "PUT",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
       data: {
         product: {
@@ -1230,14 +1272,14 @@ async function cleanProductById(shop, accessToken, productId) {
     });
 
     log("Producto bloqueado por política marketplace (CLEAN)", {
-      shop,
+      shop: normalizedShop,
       productId,
       title: realProduct.title
     });
     return;
   }
 
-  await ensureMainImage(shop, accessToken, productId, realProduct);
+  await ensureMainImage(normalizedShop, accessToken, productId, realProduct);
 
   const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
@@ -1250,9 +1292,9 @@ async function cleanProductById(shop, accessToken, productId) {
 
   translatedTitle = ensureNonEmptyTitle(translatedTitle, titleBefore);
 
-  await shopifyRequest(shop, {
+  await shopifyRequest(normalizedShop, {
     method: "PUT",
-    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
     headers: { "X-Shopify-Access-Token": accessToken },
     data: {
       product: {
@@ -1263,8 +1305,128 @@ async function cleanProductById(shop, accessToken, productId) {
     }
   });
 
-  log("Producto limpiado (CLEAN ONLY)", { shop, productId });
+  log("Producto limpiado (CLEAN ONLY)", { shop: normalizedShop, productId });
 }
+
+/* ==========================
+   RUN ZEUS MANUAL
+   Body:
+   {
+     "shop": "xxx.myshopify.com",
+     "mode": "FULL|STABLE|CLEAN",
+     "limit": 1,
+     "product_ids": [123],
+     "skus": ["PD.123"]
+   }
+========================== */
+
+app.post("/run-zeus", async (req, res) => {
+  try {
+    const rawShop = req.body?.shop;
+    const shop = normalizeShopDomain(rawShop);
+    const executionMode = String(req.body?.mode || "FULL").toUpperCase();
+    const requestedLimit = Number(req.body?.limit || 1);
+    const bodyProductIds = Array.isArray(req.body?.product_ids) ? req.body.product_ids : [];
+    const bodySkus = Array.isArray(req.body?.skus) ? req.body.skus : [];
+
+    if (!shop) {
+      return res.status(400).json({ ok: false, error: "shop requerido" });
+    }
+
+    if (!["FULL", "STABLE", "CLEAN"].includes(executionMode)) {
+      return res.status(400).json({
+        ok: false,
+        error: "Modo inválido. Usa FULL | STABLE | CLEAN"
+      });
+    }
+
+    const store = await getStore(shop);
+    const accessToken = store.access_token;
+    const tokens = Number(store.tokens || 0);
+    const status = String(store.status || "active").toLowerCase();
+
+    if (status !== "active") {
+      return res.status(400).json({
+        ok: false,
+        error: `Store inactiva: ${status}`
+      });
+    }
+
+    if (tokens <= 0) {
+      return res.status(400).json({
+        ok: false,
+        error: "No tokens disponibles"
+      });
+    }
+
+    let targetProductIds = [];
+
+    if (bodyProductIds.length > 0) {
+      targetProductIds = bodyProductIds.map((x) => Number(x)).filter(Boolean);
+    } else if (bodySkus.length > 0) {
+      targetProductIds = await findProductIdsBySkus(shop, accessToken, bodySkus);
+    } else {
+      const safeLimit = Math.max(1, Math.min(10, requestedLimit));
+      const productsResp = await shopifyRequest(shop, {
+        method: "GET",
+        url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products.json?limit=${safeLimit}&status=active`,
+        headers: { "X-Shopify-Access-Token": accessToken }
+      });
+
+      const products = productsResp.data?.products || [];
+      targetProductIds = products.map((p) => Number(p.id)).filter(Boolean);
+    }
+
+    if (targetProductIds.length === 0) {
+      return res.json({
+        ok: true,
+        queued: 0,
+        message: "No se encontraron productos para ejecutar ZEUS"
+      });
+    }
+
+    const processableCount = Math.min(tokens, targetProductIds.length);
+    const selectedProductIds = targetProductIds.slice(0, processableCount);
+
+    const jobIds = selectedProductIds.map((productId) =>
+      enqueueShopJob(shop, `run-zeus(${executionMode})`, async () => {
+        if (executionMode === "FULL") {
+          await transformProductById(shop, accessToken, productId);
+        } else if (executionMode === "STABLE") {
+          await transformProductStableById(shop, accessToken, productId);
+        } else {
+          await cleanProductById(shop, accessToken, productId);
+        }
+
+        await pool.query(
+          "UPDATE stores SET tokens = tokens - 1 WHERE shop = $1 AND tokens > 0",
+          [shop]
+        );
+
+        log("RUN-ZEUS TOKEN CONSUMED", {
+          shop,
+          productId,
+          mode: executionMode
+        });
+      })
+    );
+
+    return res.json({
+      ok: true,
+      queued: selectedProductIds.length,
+      mode: executionMode,
+      product_ids: selectedProductIds,
+      jobIds,
+      tokens_before: tokens
+    });
+  } catch (err) {
+    console.error("run-zeus error:", err.response?.data || err.message);
+    return res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});
 
 /* ==========================
    WEBHOOK: PRODUCTS CREATE (FULL)
@@ -1273,7 +1435,7 @@ async function cleanProductById(shop, accessToken, productId) {
 app.post("/webhook/products-create", async (req, res) => {
   res.status(200).send("ok");
 
-  const shop = req.headers["x-shopify-shop-domain"];
+  const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
   if (!shop) return;
 
   const productId = req.body?.id;
@@ -1292,7 +1454,7 @@ app.post("/webhook/products-create", async (req, res) => {
 app.post("/webhook/fulfillment", async (req, res) => {
   res.status(200).send("ok");
 
-  const shop = req.headers["x-shopify-shop-domain"];
+  const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
   const topic = req.headers["x-shopify-topic"];
   if (!shop) return;
 
@@ -1319,7 +1481,9 @@ app.post("/webhook/fulfillment", async (req, res) => {
 
 app.post("/reconcile", async (req, res) => {
   try {
-    const { shop, product_ids } = req.body || {};
+    const shop = normalizeShopDomain(req.body?.shop);
+    const product_ids = req.body?.product_ids;
+
     if (!shop || !Array.isArray(product_ids) || product_ids.length === 0) {
       return res.status(400).json({
         ok: false,
@@ -1347,7 +1511,9 @@ app.post("/reconcile", async (req, res) => {
 
 app.post("/reconcile-by-skus", async (req, res) => {
   try {
-    const { shop, skus } = req.body || {};
+    const shop = normalizeShopDomain(req.body?.shop);
+    const skus = req.body?.skus;
+
     if (!shop || !Array.isArray(skus) || skus.length === 0) {
       return res.status(400).json({
         ok: false,
@@ -1386,7 +1552,8 @@ app.post("/reconcile-by-skus", async (req, res) => {
 
 app.post("/force-full", async (req, res) => {
   try {
-    const { shop, product_id } = req.body || {};
+    const shop = normalizeShopDomain(req.body?.shop);
+    const product_id = req.body?.product_id;
 
     if (!shop || !product_id) {
       return res.status(400).json({
@@ -1413,7 +1580,8 @@ app.post("/force-full", async (req, res) => {
 
 app.post("/force-full-by-skus", async (req, res) => {
   try {
-    const { shop, skus } = req.body || {};
+    const shop = normalizeShopDomain(req.body?.shop);
+    const skus = req.body?.skus;
 
     if (!shop || !Array.isArray(skus) || skus.length === 0) {
       return res.status(400).json({
@@ -1449,7 +1617,8 @@ app.post("/force-full-by-skus", async (req, res) => {
 
 app.post("/force-stable", async (req, res) => {
   try {
-    const { shop, product_id } = req.body || {};
+    const shop = normalizeShopDomain(req.body?.shop);
+    const product_id = req.body?.product_id;
 
     if (!shop || !product_id) {
       return res.status(400).json({
@@ -1476,7 +1645,8 @@ app.post("/force-stable", async (req, res) => {
 
 app.post("/force-stable-by-skus", async (req, res) => {
   try {
-    const { shop, skus } = req.body || {};
+    const shop = normalizeShopDomain(req.body?.shop);
+    const skus = req.body?.skus;
 
     if (!shop || !Array.isArray(skus) || skus.length === 0) {
       return res.status(400).json({
@@ -1512,7 +1682,9 @@ app.post("/force-stable-by-skus", async (req, res) => {
 
 app.post("/optimize", async (req, res) => {
   try {
-    const { shop, product_id, mode } = req.body || {};
+    const shop = normalizeShopDomain(req.body?.shop);
+    const product_id = req.body?.product_id;
+    const mode = req.body?.mode;
 
     if (!shop || !product_id) {
       return res.status(400).json({
@@ -1607,7 +1779,7 @@ app.get("/health", (req, res) => {
     time: nowIso(),
     shopsInMemory: shopQueues.size,
     bannedWordsCount: getBannedWords().length,
-    version: "zeus-transformer-v1.6.0-store-layer"
+    version: "zeus-transformer-v1.7.0-run-zeus"
   });
 });
 
