@@ -593,11 +593,10 @@ async function upsertStore(data) {
       sku_limit,
       tokens,
       installed_at,
-      activated_at,
-      created_at
+      activated_at
     )
     VALUES (
-      $1, $2, 'shopify', 'active', $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), NOW()
+      $1, $2, 'shopify', 'active', $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
     )
     ON CONFLICT (shop)
     DO UPDATE SET
