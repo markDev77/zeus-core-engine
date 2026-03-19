@@ -18,6 +18,18 @@ const DEFAULT_WEIGHT_VALUE = 1;
 const DEFAULT_WEIGHT_UNIT = "kg";
 const USADROP_SKU_REGEX = /^PD\.\d+$/i;
 
+function resolveAccessToken(accessToken) {
+  if (!accessToken) {
+    return null;
+  }
+
+  if (typeof accessToken === "string") {
+    return accessToken;
+  }
+
+  return accessToken.accessToken || accessToken.access_token || null;
+}
+
 function normalizeProductType(value) {
   if (!value) return "general";
 
@@ -115,6 +127,12 @@ function sleep(ms) {
 }
 
 async function shopifyGraphQL(shopDomain, accessToken, query, variables = {}) {
+  const resolvedAccessToken = resolveAccessToken(accessToken);
+
+  if (!resolvedAccessToken) {
+    throw new Error("Missing Shopify access token");
+  }
+
   const url = `https://${shopDomain}/admin/api/${SHOPIFY_GRAPHQL_VERSION}/graphql.json`;
 
   const response = await axios.post(
@@ -125,7 +143,7 @@ async function shopifyGraphQL(shopDomain, accessToken, query, variables = {}) {
     },
     {
       headers: {
-        "X-Shopify-Access-Token": accessToken,
+        "X-Shopify-Access-Token": resolvedAccessToken,
         "Content-Type": "application/json"
       },
       timeout: 15000
@@ -140,11 +158,17 @@ async function shopifyGraphQL(shopDomain, accessToken, query, variables = {}) {
 }
 
 async function getShopifyProduct(shopDomain, accessToken, productId) {
+  const resolvedAccessToken = resolveAccessToken(accessToken);
+
+  if (!resolvedAccessToken) {
+    throw new Error("Missing Shopify access token");
+  }
+
   const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
 
   const response = await axios.get(url, {
     headers: {
-      "X-Shopify-Access-Token": accessToken,
+      "X-Shopify-Access-Token": resolvedAccessToken,
       "Content-Type": "application/json"
     },
     timeout: 15000
@@ -154,11 +178,17 @@ async function getShopifyProduct(shopDomain, accessToken, productId) {
 }
 
 async function getShopifyLocationId(shopDomain, accessToken) {
+  const resolvedAccessToken = resolveAccessToken(accessToken);
+
+  if (!resolvedAccessToken) {
+    throw new Error("Missing Shopify access token");
+  }
+
   const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/locations.json`;
 
   const response = await axios.get(url, {
     headers: {
-      "X-Shopify-Access-Token": accessToken,
+      "X-Shopify-Access-Token": resolvedAccessToken,
       "Content-Type": "application/json"
     },
     timeout: 15000
@@ -194,6 +224,12 @@ async function attachFallbackMainImage({
     return;
   }
 
+  const resolvedAccessToken = resolveAccessToken(accessToken);
+
+  if (!resolvedAccessToken) {
+    throw new Error("Missing Shopify access token");
+  }
+
   const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}/images.json`;
 
   await axios.post(
@@ -205,7 +241,7 @@ async function attachFallbackMainImage({
     },
     {
       headers: {
-        "X-Shopify-Access-Token": accessToken,
+        "X-Shopify-Access-Token": resolvedAccessToken,
         "Content-Type": "application/json"
       },
       timeout: 15000
@@ -224,6 +260,12 @@ async function updateVariantUsadropPolicy({
       ? currentPrice
       : calculatePrice(currentPrice);
 
+  const resolvedAccessToken = resolveAccessToken(accessToken);
+
+  if (!resolvedAccessToken) {
+    throw new Error("Missing Shopify access token");
+  }
+
   const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/variants/${variant.id}.json`;
 
   await axios.put(
@@ -239,7 +281,7 @@ async function updateVariantUsadropPolicy({
     },
     {
       headers: {
-        "X-Shopify-Access-Token": accessToken,
+        "X-Shopify-Access-Token": resolvedAccessToken,
         "Content-Type": "application/json"
       },
       timeout: 15000
@@ -253,6 +295,12 @@ async function updateInventoryUsadropPolicy({
   inventoryItemId,
   locationId
 }) {
+  const resolvedAccessToken = resolveAccessToken(accessToken);
+
+  if (!resolvedAccessToken) {
+    throw new Error("Missing Shopify access token");
+  }
+
   const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/inventory_levels/set.json`;
 
   await axios.post(
@@ -264,7 +312,7 @@ async function updateInventoryUsadropPolicy({
     },
     {
       headers: {
-        "X-Shopify-Access-Token": accessToken,
+        "X-Shopify-Access-Token": resolvedAccessToken,
         "Content-Type": "application/json"
       },
       timeout: 15000
@@ -449,7 +497,9 @@ async function updateShopifyProduct({
     throw new Error("Missing shopDomain or productId");
   }
 
-  if (!accessToken) {
+  const resolvedAccessToken = resolveAccessToken(accessToken);
+
+  if (!resolvedAccessToken) {
     throw new Error("Missing Shopify access token");
   }
 
@@ -515,6 +565,12 @@ async function updateShopifyProduct({
 
   try {
     console.log("ZEUS SHOPIFY SYNC START:", productId);
+    console.log("ZEUS SHOPIFY TOKEN DEBUG:", {
+      shopDomain,
+      productId,
+      hasToken: !!resolvedAccessToken,
+      tokenPrefix: String(resolvedAccessToken).slice(0, 8)
+    });
     console.log("ZEUS SHOPIFY PAYLOAD:", JSON.stringify(payload, null, 2));
 
     const response = await axios.put(
@@ -522,7 +578,7 @@ async function updateShopifyProduct({
       payload,
       {
         headers: {
-          "X-Shopify-Access-Token": accessToken,
+          "X-Shopify-Access-Token": resolvedAccessToken,
           "Content-Type": "application/json"
         },
         timeout: 15000
@@ -531,13 +587,13 @@ async function updateShopifyProduct({
 
     await attachFallbackMainImage({
       shopDomain,
-      accessToken,
+      accessToken: resolvedAccessToken,
       productId
     });
 
     await pushShopifyCategory({
       shopDomain,
-      accessToken,
+      accessToken: resolvedAccessToken,
       productId,
       categorySearch:
         categorySearch ||
@@ -547,7 +603,7 @@ async function updateShopifyProduct({
 
     await applyUsadropVariantPolicy({
       shopDomain,
-      accessToken,
+      accessToken: resolvedAccessToken,
       productId,
       source
     });
