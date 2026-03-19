@@ -8,61 +8,27 @@ const crypto = require("crypto");
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
+const PORT = process.env.PORT || 10000;
+const { DATABASE_URL, OPENAI_API_KEY } = process.env;
+
 /* ==========================
-   SHOPIFY OAUTH
+   SHOPIFY CUSTOM APP NOTE
+   (NO OAuth estándar por ahora)
 ========================== */
 
 app.get("/auth", (req, res) => {
-  const { shop } = req.query;
-
-  if (!shop) return res.status(400).send("Missing shop");
-
-  const redirectUri = `${process.env.BASE_URL}/auth/callback`;
-
-  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${process.env.SHOPIFY_API_KEY}&scope=write_products,read_products,write_inventory,read_fulfillments,write_fulfillments&redirect_uri=${redirectUri}`;
-
-  res.redirect(installUrl);
+  return res.status(410).json({
+    ok: false,
+    error: "ZEUS usa custom app install flow. Usa la URL especial de instalación de Shopify y luego /register-store."
+  });
 });
 
-app.get("/auth/callback", async (req, res) => {
-  try {
-    const { shop, code } = req.query;
-
-    if (!shop || !code) {
-      return res.status(400).send("Missing shop or code");
-    }
-
-    const tokenResponse = await axios.post(
-      `https://${shop}/admin/oauth/access_token`,
-      {
-        client_id: process.env.SHOPIFY_API_KEY,
-        client_secret: process.env.SHOPIFY_API_SECRET,
-        code
-      }
-    );
-
-    const accessToken = tokenResponse.data.access_token;
-
-    await pool.query(
-      `
-      INSERT INTO shop_tokens (shop, access_token)
-      VALUES ($1, $2)
-      ON CONFLICT (shop)
-      DO UPDATE SET access_token = EXCLUDED.access_token
-      `,
-      [shop, accessToken]
-    );
-
-    console.log("✅ TOKEN GUARDADO:", shop);
-
-    res.send("App instalada correctamente 🚀");
-  } catch (error) {
-    console.error("❌ AUTH ERROR:", error.response?.data || error.message);
-    res.status(500).send("Auth failed");
-  }
+app.get("/auth/callback", (req, res) => {
+  return res.status(410).json({
+    ok: false,
+    error: "OAuth callback deshabilitado para custom app. Usa /register-store."
+  });
 });
-const PORT = process.env.PORT || 10000;
-const { DATABASE_URL, OPENAI_API_KEY } = process.env;
 
 /* ==========================
    CONFIG NEGOCIO
@@ -109,7 +75,6 @@ const DEFAULT_BANNED_WORDS = [
   "cuchillo",
   "navaja"
 ];
-
 
 /* ==========================
    ORIGEN AUTORIZADO + DEDUP
@@ -178,11 +143,11 @@ async function findProductsByTag(shop, accessToken, tag) {
 function getBannedWords() {
   const extra = (process.env.ZEUS_BANNED_WORDS || "")
     .split(",")
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
 
   const all = [...DEFAULT_BANNED_WORDS, ...extra];
-  return Array.from(new Set(all.map(w => w.toLowerCase())));
+  return Array.from(new Set(all.map((w) => w.toLowerCase())));
 }
 
 const LEATHER_WORDS = ["cuero", "piel genuina", "piel real"];
@@ -193,7 +158,6 @@ const LEATHER_REPLACEMENT = "piel sintética";
 ========================== */
 
 const MARKETPLACE_BLOCK_WORDS = [
-  // armas / punzocortantes / autodefensa
   "defensa",
   "autodefensa",
   "self defense",
@@ -208,13 +172,11 @@ const MARKETPLACE_BLOCK_WORDS = [
   "punta",
   "táctico",
   "tactico",
-  // municiones / explosivos
   "municion",
   "munición",
   "ammunition",
   "granada",
   "explosivo",
-  // pistolas / rifles
   "pistola",
   "rifle",
   "gun",
@@ -224,13 +186,11 @@ const MARKETPLACE_BLOCK_WORDS = [
 function isBlockedProduct(title, bodyHtml) {
   const t = String(title || "").toLowerCase();
   const b = cheerio.load(bodyHtml || "", { decodeEntities: false }).text().toLowerCase();
-  return MARKETPLACE_BLOCK_WORDS.some(w => t.includes(w) || b.includes(w));
+  return MARKETPLACE_BLOCK_WORDS.some((w) => t.includes(w) || b.includes(w));
 }
 
 /* ==========================
    IMAGE FALLBACK FROM HTML
-   Si no hay imagen principal (product.images vacío),
-   toma la primera <img src="..."> del body_html y la sube como imagen del producto
 ========================== */
 
 function extractFirstImageFromHtml(html) {
@@ -241,18 +201,16 @@ function extractFirstImageFromHtml(html) {
 
   const s = String(src).trim();
   if (!s) return null;
-  if (s.startsWith("data:")) return null; // evita base64
+  if (s.startsWith("data:")) return null;
   return s;
 }
+
 function normalizeImageFingerprint(src) {
   if (!src || typeof src !== "string") return "";
   let clean = src.trim();
-  // Drop surrounding quotes if any
   clean = clean.replace(/^['"]|['"]$/g, "");
-  // Remove query/hash
   clean = clean.split("#")[0].split("?")[0];
 
-  // If it's a full URL, keep only the path; otherwise keep as-is
   try {
     if (/^https?:\/\//i.test(clean)) {
       const u = new URL(clean);
@@ -264,7 +222,6 @@ function normalizeImageFingerprint(src) {
     clean = clean.toLowerCase();
   }
 
-  // Take last path segment if available; fallback to full (relative) path
   const parts = clean.split("/").filter(Boolean);
   const last = parts.length ? parts[parts.length - 1] : clean;
   return last || "";
@@ -286,7 +243,6 @@ function extractImageFingerprintsFromHtml(html, limit = 3) {
 function buildImageFingerprintKey(realProduct, limit = 3) {
   const fps = [];
 
-  // 1) From Shopify product images
   const imgs = Array.isArray(realProduct?.images) ? realProduct.images : [];
   for (const img of imgs) {
     const src = img?.src || img?.url || img?.originalSrc;
@@ -295,14 +251,12 @@ function buildImageFingerprintKey(realProduct, limit = 3) {
     if (fps.length >= limit) break;
   }
 
-  // 2) From HTML (often includes supplier images)
   const htmlFps = extractImageFingerprintsFromHtml(realProduct?.body_html || "", limit);
   for (const fp of htmlFps) {
     if (fp) fps.push(fp);
-    if (fps.length >= limit * 2) break; // allow a bit more then de-dupe
+    if (fps.length >= limit * 2) break;
   }
 
-  // De-dupe preserving order
   const seen = new Set();
   const uniq = [];
   for (const fp of fps) {
@@ -367,10 +321,167 @@ function log(tag, obj) {
 }
 
 /* ==========================
+   STORE LAYER
+========================== */
+
+function validateStore(store) {
+  if (!store) throw new Error("STORE NOT REGISTERED");
+  if (!store.access_token) throw new Error("STORE WITHOUT TOKEN");
+
+  const status = String(store.status || "active").toLowerCase();
+  if (status !== "active") {
+    throw new Error(`STORE NOT ACTIVE: ${status}`);
+  }
+}
+
+async function getStore(shop) {
+  const result = await pool.query("SELECT * FROM stores WHERE shop = $1", [shop]);
+
+  if (!result.rows.length) {
+    throw new Error("STORE NOT REGISTERED");
+  }
+
+  const store = result.rows[0];
+  validateStore(store);
+  return store;
+}
+
+async function upsertStore(data) {
+  const {
+    shop,
+    access_token,
+    region = "global",
+    language = "es",
+    currency = "USD",
+    marketplace = "shopify",
+    plan = "free",
+    billing_status = "active",
+    sku_limit = 20,
+    tokens = 5
+  } = data;
+
+  const result = await pool.query(
+    `
+    INSERT INTO stores (
+      shop,
+      access_token,
+      platform,
+      status,
+      region,
+      language,
+      currency,
+      marketplace,
+      plan,
+      billing_status,
+      sku_limit,
+      tokens,
+      installed_at,
+      activated_at
+    )
+    VALUES (
+      $1, $2, 'shopify', 'active', $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
+    )
+    ON CONFLICT (shop)
+    DO UPDATE SET
+      access_token = EXCLUDED.access_token,
+      platform = 'shopify',
+      status = 'active',
+      region = COALESCE(stores.region, EXCLUDED.region),
+      language = COALESCE(stores.language, EXCLUDED.language),
+      currency = COALESCE(stores.currency, EXCLUDED.currency),
+      marketplace = COALESCE(stores.marketplace, EXCLUDED.marketplace),
+      plan = COALESCE(stores.plan, EXCLUDED.plan),
+      billing_status = COALESCE(stores.billing_status, EXCLUDED.billing_status),
+      sku_limit = COALESCE(stores.sku_limit, EXCLUDED.sku_limit),
+      tokens = COALESCE(stores.tokens, EXCLUDED.tokens),
+      activated_at = COALESCE(stores.activated_at, NOW())
+    RETURNING *;
+    `,
+    [
+      shop,
+      access_token,
+      region,
+      language,
+      currency,
+      marketplace,
+      plan,
+      billing_status,
+      sku_limit,
+      tokens
+    ]
+  );
+
+  await pool.query(
+    `
+    INSERT INTO shop_tokens (shop, access_token)
+    VALUES ($1, $2)
+    ON CONFLICT (shop)
+    DO UPDATE SET access_token = EXCLUDED.access_token
+    `,
+    [shop, access_token]
+  );
+
+  return result.rows[0];
+}
+
+async function getToken(shop) {
+  try {
+    const store = await getStore(shop);
+    return store.access_token;
+  } catch (storeErr) {
+    const result = await pool.query("SELECT access_token FROM shop_tokens WHERE shop = $1", [shop]);
+    if (!result.rows.length) throw storeErr;
+    return result.rows[0].access_token;
+  }
+}
+
+/* ==========================
+   REGISTER STORE
+========================== */
+
+app.post("/register-store", async (req, res) => {
+  try {
+    const { shop, access_token, region, language, currency, marketplace, plan, billing_status, sku_limit, tokens } =
+      req.body || {};
+
+    if (!shop || !access_token) {
+      return res.status(400).json({
+        ok: false,
+        error: "Body requerido: { shop, access_token }"
+      });
+    }
+
+    const store = await upsertStore({
+      shop,
+      access_token,
+      region,
+      language,
+      currency,
+      marketplace,
+      plan,
+      billing_status,
+      sku_limit,
+      tokens
+    });
+
+    return res.json({
+      ok: true,
+      store
+    });
+  } catch (err) {
+    console.error("register-store error:", err.response?.data || err.message);
+    return res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});
+
+/* ==========================
    COLA EN MEMORIA (por shop)
 ========================== */
 
-const shopQueues = new Map(); // shop -> {queue:[], processing:false, lastReqAt:0}
+const shopQueues = new Map();
 
 function getShopQueue(shop) {
   if (!shopQueues.has(shop)) {
@@ -386,7 +497,7 @@ function enqueueShopJob(shop, jobName, fn) {
   q.queue.push({ jobId, jobName, fn });
   log("QUEUE: enqueued", { shop, jobName, jobId, depth: q.queue.length });
 
-  processShopQueue(shop).catch(err => {
+  processShopQueue(shop).catch((err) => {
     console.error("QUEUE processor error:", err.message);
   });
 
@@ -430,7 +541,7 @@ async function processShopQueue(shop) {
 ========================== */
 
 function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function throttleShopify(shop) {
@@ -469,14 +580,20 @@ async function shopifyRequest(shop, config, attempt = 0) {
   }
 }
 
-
-async function upsertProductMetafield({ shop, accessToken, productId, namespace, key, value, type = "single_line_text_field" }) {
+async function upsertProductMetafield({
+  shop,
+  accessToken,
+  productId,
+  namespace,
+  key,
+  value,
+  type = "single_line_text_field"
+}) {
   if (!shop || !accessToken || !productId || !namespace || !key) return null;
 
   const base = `https://${shop}/admin/api/${PRODUCT_API_VERSION}`;
 
   try {
-    // Buscar si ya existe el metafield (namespace+key) en el producto
     const listUrl = `${base}/products/${productId}/metafields.json?namespace=${encodeURIComponent(namespace)}&key=${encodeURIComponent(key)}`;
     const list = await shopifyRequest(shop, {
       method: "GET",
@@ -487,7 +604,6 @@ async function upsertProductMetafield({ shop, accessToken, productId, namespace,
     const items = list?.metafields || [];
     const found = items[0];
 
-    // Si existe, actualizar
     if (found?.id) {
       const putUrl = `${base}/metafields/${found.id}.json`;
       const res = await shopifyRequest(shop, {
@@ -505,7 +621,6 @@ async function upsertProductMetafield({ shop, accessToken, productId, namespace,
       return res?.metafield || null;
     }
 
-    // Si no existe, crear
     const postUrl = `${base}/products/${productId}/metafields.json`;
     const res = await shopifyRequest(shop, {
       method: "POST",
@@ -528,40 +643,25 @@ async function upsertProductMetafield({ shop, accessToken, productId, namespace,
 }
 
 /* ==========================
-   TOKENS
-========================== */
-
-async function getToken(shop) {
-  const result = await pool.query("SELECT access_token FROM shop_tokens WHERE shop = $1", [shop]);
-  if (!result.rows.length) throw new Error("Token not found");
-  return result.rows[0].access_token;
-}
-
-/* ==========================
    PRICING - BLINDAJE MEDIO
-   + regla 699 (solo rangos indicados)
 ========================== */
 
 function calculatePrice(usdRaw) {
   const usd = Number(usdRaw);
   let adjustedUsd = Number.isFinite(usd) ? usd : 0;
 
-  // Multiplicadores por tramo
   if (adjustedUsd <= 8) adjustedUsd *= 2.1;
   else if (adjustedUsd <= 20) adjustedUsd *= 1.9;
   else if (adjustedUsd <= 40) adjustedUsd *= 1.75;
   else if (adjustedUsd <= 80) adjustedUsd *= 1.65;
   else adjustedUsd *= 1.55;
 
-  // Conversión + fee + blindaje
   let mxn = adjustedUsd * USD_TO_MXN;
   mxn += 350;
   mxn *= 1.16;
 
-  // Psicología retail estándar (terminación 9)
   mxn = Math.ceil(mxn / 10) * 10 - 1;
 
-  // Regla especial (solo estos rangos)
   if ((mxn >= 300 && mxn <= 600) || (mxn >= 700 && mxn <= 740)) {
     mxn = 699;
   }
@@ -731,8 +831,9 @@ function ensureNonEmptyTitle(title, fallback) {
 function pickTrackingNumberFromPayload(payload) {
   if (payload?.tracking_info?.number) return String(payload.tracking_info.number).trim();
   if (payload?.tracking_number) return String(payload.tracking_number).trim();
-  if (Array.isArray(payload?.tracking_numbers) && payload.tracking_numbers.length)
+  if (Array.isArray(payload?.tracking_numbers) && payload.tracking_numbers.length) {
     return String(payload.tracking_numbers[0]).trim();
+  }
   return null;
 }
 
@@ -802,7 +903,7 @@ function chunk(arr, size) {
 }
 
 async function findProductIdsBySkus(shop, accessToken, skus) {
-  const uniq = Array.from(new Set((skus || []).map(s => String(s || "").trim()).filter(Boolean)));
+  const uniq = Array.from(new Set((skus || []).map((s) => String(s || "").trim()).filter(Boolean)));
   if (uniq.length === 0) return [];
 
   const productIds = new Set();
@@ -822,7 +923,7 @@ async function findProductIdsBySkus(shop, accessToken, skus) {
   `;
 
   for (const batch of batches) {
-    const q = batch.map(s => `sku:${s.replace(/"/g, "")}`).join(" OR ");
+    const q = batch.map((s) => `sku:${s.replace(/"/g, "")}`).join(" OR ");
     const resp = await shopifyGraphQL(shop, accessToken, GQL, { q });
 
     const edges = resp?.data?.data?.productVariants?.edges || [];
@@ -837,8 +938,6 @@ async function findProductIdsBySkus(shop, accessToken, skus) {
 
 /* ==========================
    FULL MODE: PRODUCT TRANSFORM
-   (pricing + peso + stock + vendor/tags + compliance)
-   ✅ BLOQUEO + ✅ IMAGEN fallback
 ========================== */
 
 async function transformProductById(shop, accessToken, productId) {
@@ -851,12 +950,8 @@ async function transformProductById(shop, accessToken, productId) {
   });
 
   const realProduct = freshProduct.data.product;
-  const realVariants = Array.isArray(realProduct?.variants)
-    ? realProduct.variants
-    : [];
+  const realVariants = Array.isArray(realProduct?.variants) ? realProduct.variants : [];
 
-
-  // ✅ ORIGEN AUTORIZADO (SKU PD.XXX)
   const invalidSkus = realVariants
     .map((v) => (v?.sku || "").trim())
     .filter((sku) => sku && !isValidUsadropSku(sku));
@@ -866,13 +961,22 @@ async function transformProductById(shop, accessToken, productId) {
       method: "PUT",
       url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
-      data: { product: { id: productId, status: "draft", tags: buildTagSetFromProduct(realProduct, ["ORIGIN_NOT_AUTHORIZED"]).join(", ") } }
+      data: {
+        product: {
+          id: productId,
+          status: "draft",
+          tags: buildTagSetFromProduct(realProduct, ["ORIGIN_NOT_AUTHORIZED"]).join(", ")
+        }
+      }
     });
-    log("Producto bloqueado por ORIGEN AUTORIZADO (SKU inválido)", { shop, productId, invalidSkus: invalidSkus.slice(0, 10) });
+    log("Producto bloqueado por ORIGEN AUTORIZADO (SKU inválido)", {
+      shop,
+      productId,
+      invalidSkus: invalidSkus.slice(0, 10)
+    });
     return;
   }
 
-  // 🔴 BLOQUEO ESTRUCTURAL (ANTES DE TODO)
   if (isBlockedProduct(realProduct.title, realProduct.body_html)) {
     await shopifyRequest(shop, {
       method: "PUT",
@@ -891,10 +995,8 @@ async function transformProductById(shop, accessToken, productId) {
     return;
   }
 
-  // 🔴 ASEGURAR IMAGEN PRINCIPAL (SI NO TRAE)
   await ensureMainImage(shop, accessToken, productId, realProduct);
 
-  // ✅ DEDUP: firma estructural (título original + 1a imagen + #variantes)
   const imageKey = buildImageFingerprintKey(realProduct, 3);
   const sigHash = computeProductSignature(imageKey, realVariants.length);
   const sigTag = `${ZEUS_SIGNATURE_TAG_PREFIX}${sigHash}`;
@@ -944,7 +1046,6 @@ async function transformProductById(shop, accessToken, productId) {
     }
   });
 
-  // Guardar firma estable para deduplicación (metafield)
   await upsertProductMetafield({
     shop,
     accessToken,
@@ -955,7 +1056,6 @@ async function transformProductById(shop, accessToken, productId) {
     type: "single_line_text_field"
   });
 
-  // Variantes: pricing + peso
   for (const variant of realVariants) {
     const usd = parseFloat(variant.price);
     const mxnPrice = calculatePrice(Number.isFinite(usd) ? usd : 0);
@@ -976,7 +1076,6 @@ async function transformProductById(shop, accessToken, productId) {
     });
   }
 
-  // Inventory fixed stock
   const locations = await shopifyRequest(shop, {
     method: "GET",
     url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/locations.json`,
@@ -1008,8 +1107,7 @@ async function transformProductById(shop, accessToken, productId) {
 }
 
 /* ==========================
-   STABLE MODE (NO toca pricing/peso/stock)
-   ✅ BLOQUEO + ✅ IMAGEN fallback + ✅ traducción/sanitize + vendor/tags/status
+   STABLE MODE
 ========================== */
 
 async function transformProductStableById(shop, accessToken, productId) {
@@ -1020,12 +1118,8 @@ async function transformProductStableById(shop, accessToken, productId) {
   });
 
   const realProduct = freshProduct.data.product;
-  const realVariants = Array.isArray(realProduct?.variants)
-    ? realProduct.variants
-    : [];
+  const realVariants = Array.isArray(realProduct?.variants) ? realProduct.variants : [];
 
-
-  // ✅ ORIGEN AUTORIZADO (SKU PD.XXX)
   const invalidSkus = realVariants
     .map((v) => (v?.sku || "").trim())
     .filter((sku) => sku && !isValidUsadropSku(sku));
@@ -1035,13 +1129,22 @@ async function transformProductStableById(shop, accessToken, productId) {
       method: "PUT",
       url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
-      data: { product: { id: productId, status: "draft", tags: buildTagSetFromProduct(realProduct, ["ORIGIN_NOT_AUTHORIZED"]).join(", ") } }
+      data: {
+        product: {
+          id: productId,
+          status: "draft",
+          tags: buildTagSetFromProduct(realProduct, ["ORIGIN_NOT_AUTHORIZED"]).join(", ")
+        }
+      }
     });
-    log("Producto bloqueado por ORIGEN AUTORIZADO (SKU inválido)", { shop, productId, invalidSkus: invalidSkus.slice(0, 10) });
+    log("Producto bloqueado por ORIGEN AUTORIZADO (SKU inválido)", {
+      shop,
+      productId,
+      invalidSkus: invalidSkus.slice(0, 10)
+    });
     return;
   }
 
-  // 🔴 BLOQUEO ESTRUCTURAL
   if (isBlockedProduct(realProduct.title, realProduct.body_html)) {
     await shopifyRequest(shop, {
       method: "PUT",
@@ -1056,11 +1159,14 @@ async function transformProductStableById(shop, accessToken, productId) {
       }
     });
 
-    log("Producto bloqueado por política marketplace (STABLE)", { shop, productId, title: realProduct.title });
+    log("Producto bloqueado por política marketplace (STABLE)", {
+      shop,
+      productId,
+      title: realProduct.title
+    });
     return;
   }
 
-  // 🔴 IMAGEN fallback si no trae
   await ensureMainImage(shop, accessToken, productId, realProduct);
 
   const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
@@ -1076,7 +1182,6 @@ async function transformProductStableById(shop, accessToken, productId) {
   const detectedCat = detectCategory(translatedTitle);
   const tags = buildTagSetFromProduct(realProduct, [detectedCat]).join(", ");
 
-  // ✅ OJO: NO toca variants / NO toca inventory / NO toca pricing / NO toca peso
   await shopifyRequest(shop, {
     method: "PUT",
     url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
@@ -1098,10 +1203,7 @@ async function transformProductStableById(shop, accessToken, productId) {
 }
 
 /* ==========================
-   CLEAN ONLY (rechazos Nelo)
-   SOLO title + body_html
-   NO toca pricing/peso/stock
-   ✅ BLOQUEO + ✅ IMAGEN fallback
+   CLEAN ONLY
 ========================== */
 
 async function cleanProductById(shop, accessToken, productId) {
@@ -1113,7 +1215,6 @@ async function cleanProductById(shop, accessToken, productId) {
 
   const realProduct = freshProduct.data.product;
 
-  // 🔴 BLOQUEO ESTRUCTURAL
   if (isBlockedProduct(realProduct.title, realProduct.body_html)) {
     await shopifyRequest(shop, {
       method: "PUT",
@@ -1128,11 +1229,14 @@ async function cleanProductById(shop, accessToken, productId) {
       }
     });
 
-    log("Producto bloqueado por política marketplace (CLEAN)", { shop, productId, title: realProduct.title });
+    log("Producto bloqueado por política marketplace (CLEAN)", {
+      shop,
+      productId,
+      title: realProduct.title
+    });
     return;
   }
 
-  // 🔴 IMAGEN fallback si no trae
   await ensureMainImage(shop, accessToken, productId, realProduct);
 
   const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
@@ -1210,8 +1314,7 @@ app.post("/webhook/fulfillment", async (req, res) => {
 });
 
 /* ==========================
-   RECONCILE (manual por product_ids) - CLEAN ONLY
-   Body: { shop, product_ids:[...] }
+   RECONCILE
 ========================== */
 
 app.post("/reconcile", async (req, res) => {
@@ -1224,7 +1327,7 @@ app.post("/reconcile", async (req, res) => {
       });
     }
 
-    product_ids.forEach(pid => {
+    product_ids.forEach((pid) => {
       enqueueShopJob(shop, "reconcile(CLEAN)", async () => {
         const accessToken = await getToken(shop);
         await cleanProductById(shop, accessToken, pid);
@@ -1239,8 +1342,7 @@ app.post("/reconcile", async (req, res) => {
 });
 
 /* ==========================
-   RECONCILE BY SKUS - CLEAN ONLY
-   Body: { shop, skus:[...] }
+   RECONCILE BY SKUS
 ========================== */
 
 app.post("/reconcile-by-skus", async (req, res) => {
@@ -1257,10 +1359,14 @@ app.post("/reconcile-by-skus", async (req, res) => {
     const productIds = await findProductIdsBySkus(shop, accessToken, skus);
 
     if (productIds.length === 0) {
-      return res.json({ ok: true, queued: 0, note: "No se encontraron productos en Shopify para esos SKUs" });
+      return res.json({
+        ok: true,
+        queued: 0,
+        note: "No se encontraron productos en Shopify para esos SKUs"
+      });
     }
 
-    productIds.forEach(pid => {
+    productIds.forEach((pid) => {
       enqueueShopJob(shop, "reconcile-by-skus(CLEAN)", async () => {
         const token = await getToken(shop);
         await cleanProductById(shop, token, pid);
@@ -1276,8 +1382,6 @@ app.post("/reconcile-by-skus", async (req, res) => {
 
 /* ==========================
    FORCE FULL MANUAL
-   Body: { shop, product_id }
-   Ejecuta transformProductById (FULL)
 ========================== */
 
 app.post("/force-full", async (req, res) => {
@@ -1305,7 +1409,6 @@ app.post("/force-full", async (req, res) => {
 
 /* ==========================
    FORCE FULL BY SKUS
-   Body: { shop, skus:[...] }
 ========================== */
 
 app.post("/force-full-by-skus", async (req, res) => {
@@ -1326,7 +1429,7 @@ app.post("/force-full-by-skus", async (req, res) => {
       return res.json({ ok: true, queued: 0, note: "No se encontraron productos para esos SKUs" });
     }
 
-    productIds.forEach(pid => {
+    productIds.forEach((pid) => {
       enqueueShopJob(shop, "force-full-by-skus(FULL)", async () => {
         const token = await getToken(shop);
         await transformProductById(shop, token, pid);
@@ -1341,8 +1444,7 @@ app.post("/force-full-by-skus", async (req, res) => {
 });
 
 /* ==========================
-   FORCE STABLE (NO pricing/peso/stock)
-   Body: { shop, product_id }
+   FORCE STABLE
 ========================== */
 
 app.post("/force-stable", async (req, res) => {
@@ -1369,8 +1471,7 @@ app.post("/force-stable", async (req, res) => {
 });
 
 /* ==========================
-   FORCE STABLE BY SKUS (NO pricing/peso/stock)
-   Body: { shop, skus:[...] }
+   FORCE STABLE BY SKUS
 ========================== */
 
 app.post("/force-stable-by-skus", async (req, res) => {
@@ -1391,7 +1492,7 @@ app.post("/force-stable-by-skus", async (req, res) => {
       return res.json({ ok: true, queued: 0, note: "No se encontraron productos para esos SKUs" });
     }
 
-    productIds.forEach(pid => {
+    productIds.forEach((pid) => {
       enqueueShopJob(shop, "force-stable-by-skus(STABLE)", async () => {
         const token = await getToken(shop);
         await transformProductStableById(shop, token, pid);
@@ -1406,7 +1507,7 @@ app.post("/force-stable-by-skus", async (req, res) => {
 });
 
 /* ==========================
-   ZEUS ONBOARDING OPTIMIZE (MANUAL CONTROLADO)
+   ZEUS ONBOARDING OPTIMIZE
 ========================== */
 
 app.post("/optimize", async (req, res) => {
@@ -1420,21 +1521,8 @@ app.post("/optimize", async (req, res) => {
       });
     }
 
-    const accessToken = await getToken(shop);
-
-    const storeRes = await pool.query(
-      "SELECT tokens, status FROM stores WHERE shop_domain = $1",
-      [shop]
-    );
-
-    if (!storeRes.rows.length) {
-      return res.status(404).json({
-        ok: false,
-        error: "Store no registrada en stores"
-      });
-    }
-
-    const store = storeRes.rows[0];
+    const store = await getStore(shop);
+    const accessToken = store.access_token;
     const tokens = Number(store.tokens || 0);
     const status = String(store.status || "active").toLowerCase();
 
@@ -1478,7 +1566,7 @@ app.post("/optimize", async (req, res) => {
       }
 
       await pool.query(
-        "UPDATE stores SET tokens = tokens - 1 WHERE shop_domain = $1 AND tokens > 0",
+        "UPDATE stores SET tokens = tokens - 1 WHERE shop = $1 AND tokens > 0",
         [shop]
       );
 
@@ -1519,7 +1607,7 @@ app.get("/health", (req, res) => {
     time: nowIso(),
     shopsInMemory: shopQueues.size,
     bannedWordsCount: getBannedWords().length,
-    version: "zeus-transformer-v1.5.1-image-htmlfp-dedup"
+    version: "zeus-transformer-v1.6.0-store-layer"
   });
 });
 
