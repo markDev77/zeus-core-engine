@@ -426,9 +426,18 @@ async function handleProductCreate(req, res) {
     ? JSON.parse(req.body.toString())
     : req.body;
 
-  const shop = req.headers["x-shopify-shop-domain"];
+  const rawShop = req.headers["x-shopify-shop-domain"];
 
-  console.log("SHOPIFY PRODUCT CREATE:", product.id);
+const shop = rawShop
+  ? String(rawShop)
+      .replace("https://", "")
+      .replace("http://", "")
+      .trim()
+      .toLowerCase()
+  : null;
+
+console.log("SHOP RAW:", rawShop);
+console.log("SHOP NORMALIZED:", shop);
 
   try {
     if (isZeusUpdate(product)) {
