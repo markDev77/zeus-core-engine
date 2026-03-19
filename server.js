@@ -11,23 +11,228 @@ app.use(express.json({ limit: "10mb" }));
 const PORT = process.env.PORT || 10000;
 const { DATABASE_URL, OPENAI_API_KEY } = process.env;
 
+const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_CLIENT_ID || "";
+const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || process.env.SHOPIFY_API_CLIENT_SECRET || "";
+const SHOPIFY_SCOPES =
+  process.env.SHOPIFY_SCOPES ||
+  "read_products,write_products,read_inventory,write_inventory,read_locations";
+const HOST =
+  (process.env.HOST || process.env.APP_URL || "").replace(/\/+$/, "");
+
 /* ==========================
-   SHOPIFY CUSTOM APP NOTE
-   (NO OAuth estándar por ahora)
+   OAUTH HELPERS
 ========================== */
 
-app.get("/auth", (req, res) => {
-  return res.status(410).json({
-    ok: false,
-    error: "ZEUS usa custom app install flow. Usa la URL especial de instalación de Shopify y luego /register-store."
-  });
+function safeEqual(a, b) {
+  const aBuf = Buffer.from(String(a || ""), "utf8");
+  const bBuf = Buffer.from(String(b || ""), "utf8");
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
+function buildShopifyCallbackUrl() {
+  if (!HOST) {
+    throw new Error("HOST env missing");
+  }
+  return `${HOST}/auth/callback`;
+}
+
+function validateRequiredOAuthEnv() {
+  if (!SHOPIFY_API_KEY) throw new Error("SHOPIFY_API_KEY env missing");
+  if (!SHOPIFY_API_SECRET) throw new Error("SHOPIFY_API_SECRET env missing");
+  if (!HOST) throw new Error("HOST env missing");
+}
+
+function isValidShopifyShop(shop) {
+  const s = normalizeShopDomain(shop);
+  return /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(s);
+}
+
+function buildOAuthState(shop) {
+  const nonce = crypto.randomBytes(16).toString("hex");
+  return `${nonce}.${normalizeShopDomain(shop)}`;
+}
+
+function parseOAuthState(state) {
+  const raw = String(state || "");
+  const parts = raw.split(".");
+  if (parts.length < 3) {
+    return { nonce: "", shop: "" };
+  }
+  const nonce = parts[0];
+  const shop = parts.slice(1).join(".");
+  return { nonce, shop };
+}
+
+function verifyShopifyHmac(query) {
+  const queryCopy = { ...query };
+  const receivedHmac = String(queryCopy.hmac || "");
+  delete queryCopy.hmac;
+  delete queryCopy.signature;
+
+  const message = Object.keys(queryCopy)
+    .sort()
+    .map((key) => {
+      const value = Array.isArray(queryCopy[key])
+        ? queryCopy[key].join(",")
+        : String(queryCopy[key] ?? "");
+      return `${key}=${value}`;
+    })
+    .join("&");
+
+  const generatedHmac = crypto
+    .createHmac("sha256", SHOPIFY_API_SECRET)
+    .update(message)
+    .digest("hex");
+
+  return safeEqual(generatedHmac, receivedHmac);
+}
+
+/* ==========================
+   SHOPIFY OAUTH
+========================== */
+
+app.get("/auth", async (req, res) => {
+  try {
+    validateRequiredOAuthEnv();
+
+    const shop = normalizeShopDomain(req.query?.shop);
+    if (!shop) {
+      return res.status(400).json({
+        ok: false,
+        error: "shop requerido"
+      });
+    }
+
+    if (!isValidShopifyShop(shop)) {
+      return res.status(400).json({
+        ok: false,
+        error: "shop inválido"
+      });
+    }
+
+    const state = buildOAuthState(shop);
+    const redirectUri = buildShopifyCallbackUrl();
+
+    const installUrl =
+      `https://${shop}/admin/oauth/authorize` +
+      `?client_id=${encodeURIComponent(SHOPIFY_API_KEY)}` +
+      `&scope=${encodeURIComponent(SHOPIFY_SCOPES)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=${encodeURIComponent(state)}`;
+
+    log("OAUTH START", {
+      shop,
+      redirectUri,
+      scopes: SHOPIFY_SCOPES
+    });
+
+    return res.redirect(installUrl);
+  } catch (err) {
+    console.error("auth error:", err.response?.data || err.message);
+    return res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
 });
 
-app.get("/auth/callback", (req, res) => {
-  return res.status(410).json({
-    ok: false,
-    error: "OAuth callback deshabilitado para custom app. Usa /register-store."
-  });
+app.get("/auth/callback", async (req, res) => {
+  try {
+    validateRequiredOAuthEnv();
+
+    const shop = normalizeShopDomain(req.query?.shop);
+    const code = String(req.query?.code || "");
+    const state = String(req.query?.state || "");
+
+    if (!shop || !code || !state || !req.query?.hmac) {
+      return res.status(400).json({
+        ok: false,
+        error: "Parámetros OAuth incompletos"
+      });
+    }
+
+    if (!isValidShopifyShop(shop)) {
+      return res.status(400).json({
+        ok: false,
+        error: "shop inválido"
+      });
+    }
+
+    const parsedState = parseOAuthState(state);
+    if (normalizeShopDomain(parsedState.shop) !== shop) {
+      return res.status(400).json({
+        ok: false,
+        error: "state inválido"
+      });
+    }
+
+    if (!verifyShopifyHmac(req.query)) {
+      return res.status(400).json({
+        ok: false,
+        error: "HMAC inválido"
+      });
+    }
+
+    const tokenResponse = await axios.post(
+      `https://${shop}/admin/oauth/access_token`,
+      {
+        client_id: SHOPIFY_API_KEY,
+        client_secret: SHOPIFY_API_SECRET,
+        code
+      },
+      {
+        headers: { "Content-Type": "application/json" }
+      }
+    );
+
+    const access_token = tokenResponse?.data?.access_token;
+    const scope = tokenResponse?.data?.scope;
+
+    if (!access_token) {
+      throw new Error("OAuth exchange sin access_token");
+    }
+
+    const store = await upsertStore({
+      shop,
+      access_token
+    });
+
+    log("OAUTH SUCCESS", {
+      shop,
+      token_prefix: String(access_token).slice(0, 8),
+      scope
+    });
+
+    return res.status(200).send(`
+      <html>
+        <head>
+          <title>ZEUS OAuth OK</title>
+          <meta charset="utf-8" />
+          <style>
+            body { font-family: Arial, sans-serif; padding: 32px; color: #111; }
+            .box { max-width: 720px; margin: 40px auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; }
+            h1 { margin-top: 0; }
+            code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
+          </style>
+        </head>
+        <body>
+          <div class="box">
+            <h1>ZEUS conectado correctamente</h1>
+            <p><strong>Tienda:</strong> ${store.shop}</p>
+            <p><strong>Status:</strong> ${store.status}</p>
+            <p>Ya puedes ejecutar <code>/run-zeus</code>.</p>
+          </div>
+        </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error("auth/callback error:", err.response?.data || err.message);
+    return res.status(500).json({
+      ok: false,
+      error: err.response?.data || err.message
+    });
+  }
 });
 
 /* ==========================
@@ -133,7 +338,7 @@ async function findProductsByTag(shop, accessToken, tag) {
 
   const data = await shopifyGraphQL(shop, accessToken, q, { query: `tag:${tag}` });
 
-  const edges = data?.products?.edges || [];
+  const edges = data?.data?.products?.edges || data?.products?.edges || [];
   return edges
     .map((e) => e?.node?.id)
     .filter(Boolean)
@@ -388,10 +593,11 @@ async function upsertStore(data) {
       sku_limit,
       tokens,
       installed_at,
-      activated_at
+      activated_at,
+      created_at
     )
     VALUES (
-      $1, $2, 'shopify', 'active', $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
+      $1, $2, 'shopify', 'active', $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), NOW()
     )
     ON CONFLICT (shop)
     DO UPDATE SET
@@ -954,7 +1160,7 @@ async function findProductIdsBySkus(shop, accessToken, skus) {
     const q = batch.map((s) => `sku:${s.replace(/"/g, "")}`).join(" OR ");
     const resp = await shopifyGraphQL(normalizedShop, accessToken, GQL, { q });
 
-    const edges = resp?.data?.productVariants?.edges || [];
+    const edges = resp?.data?.productVariants?.edges || resp?.productVariants?.edges || [];
     for (const e of edges) {
       const pid = gidToNumericId(e?.node?.product?.id);
       if (pid) productIds.add(pid);
@@ -1779,7 +1985,7 @@ app.get("/health", (req, res) => {
     time: nowIso(),
     shopsInMemory: shopQueues.size,
     bannedWordsCount: getBannedWords().length,
-    version: "zeus-transformer-v1.7.0-run-zeus"
+    version: "zeus-transformer-v1.7.1-oauth"
   });
 });
 
