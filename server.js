@@ -1324,7 +1324,10 @@ async function transformProductById(shop, accessToken, productId) {
 
   translatedTitle = ensureNonEmptyTitle(translatedTitle, titleBefore);
   const detectedCat = detectCategory(translatedTitle);
-  const tags = buildTagSetFromProduct(realProduct, [detectedCat, sigTag]).join(", ");
+  const tags = buildTagSetFromProduct(
+  realProduct,
+  [detectedCat, sigTag, "ZEUS_ORIGIN"]
+).join(", ");
 
   await shopifyRequest(normalizedShop, {
     method: "PUT",
