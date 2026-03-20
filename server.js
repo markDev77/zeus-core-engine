@@ -1229,181 +1229,191 @@ async function findProductIdsBySkus(shop, accessToken, skus) {
 
 async function transformProductById(shop, accessToken, productId) {
   const normalizedShop = normalizeShopDomain(shop);
-  await sleep(PRODUCT_CREATE_WARMUP_MS);
 
-  const freshProduct = await shopifyRequest(normalizedShop, {
-    method: "GET",
-    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-    headers: { "X-Shopify-Access-Token": accessToken }
-  });
+  try {
+    await sleep(PRODUCT_CREATE_WARMUP_MS);
 
-  const realProduct = freshProduct.data.product;
-  const realVariants = Array.isArray(realProduct?.variants) ? realProduct.variants : [];
-
-  const invalidSkus = realVariants
-    .map((v) => (v?.sku || "").trim())
-    .filter((sku) => sku && !isValidUsadropSku(sku));
-
-  if (invalidSkus.length) {
-    await shopifyRequest(normalizedShop, {
-      method: "PUT",
+    const freshProduct = await shopifyRequest(normalizedShop, {
+      method: "GET",
       url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken },
-      data: {
-        product: {
-          id: productId,
-          status: "draft",
-          tags: buildTagSetFromProduct(realProduct, ["ORIGIN_NOT_AUTHORIZED"]).join(", ")
+      headers: { "X-Shopify-Access-Token": accessToken }
+    });
+
+    const realProduct = freshProduct.data.product;
+    const realVariants = Array.isArray(realProduct?.variants) ? realProduct.variants : [];
+
+    /* ==========================
+       1. VALIDACIÓN ORIGEN
+    ========================== */
+
+    const invalidSkus = realVariants
+      .map((v) => (v?.sku || "").trim())
+      .filter((sku) => sku && !isValidUsadropSku(sku));
+
+    if (invalidSkus.length) {
+      await shopifyRequest(normalizedShop, {
+        method: "PUT",
+        url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+        headers: { "X-Shopify-Access-Token": accessToken },
+        data: {
+          product: {
+            id: productId,
+            status: "draft",
+            tags: buildTagSetFromProduct(realProduct, ["ORIGIN_NOT_AUTHORIZED"]).join(", ")
+          }
         }
-      }
-    });
-    log("Producto bloqueado por ORIGEN AUTORIZADO (SKU inválido)", {
-      shop: normalizedShop,
-      productId,
-      invalidSkus: invalidSkus.slice(0, 10)
-    });
-    return;
-  }
+      });
 
-  if (isBlockedProduct(realProduct.title, realProduct.body_html)) {
-    await shopifyRequest(normalizedShop, {
-      method: "PUT",
-      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken },
-      data: {
-        product: {
-          id: productId,
-          status: "draft",
-          tags: buildTagSetFromProduct(realProduct, ["BLOCKED_BY_POLICY"]).join(", ")
-        }
-      }
-    });
+      log("Producto bloqueado por ORIGEN AUTORIZADO", {
+        shop: normalizedShop,
+        productId
+      });
 
-    log("Producto bloqueado por política marketplace", {
-      shop: normalizedShop,
-      productId,
-      title: realProduct.title
-    });
-    return;
-  }
-
-  await ensureMainImage(normalizedShop, accessToken, productId, realProduct);
-
-  const imageKey = buildImageFingerprintKey(realProduct, 3);
-  const sigHash = computeProductSignature(imageKey, realVariants.length);
-  const sigTag = `${ZEUS_SIGNATURE_TAG_PREFIX}${sigHash}`;
-
-  const dupIds = await findProductsByTag(normalizedShop, accessToken, sigTag);
-  const hasDup = dupIds.some((id) => String(id) !== String(productId));
-
-  if (hasDup) {
-    const tags = buildTagSetFromProduct(realProduct, ["DUPLICATE_SIGNATURE", sigTag]).join(", ");
-    await shopifyRequest(normalizedShop, {
-      method: "PUT",
-      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken },
-      data: { product: { id: productId, status: "draft", tags } }
-    });
-    log("Producto bloqueado por duplicidad estructural (signature hash)", {
-      shop: normalizedShop,
-      productId,
-      sigTag,
-      dupIds
-    });
-    return;
-  }
-
-  const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
-
-  const translatedTitleRaw = await translateText(realProduct.title);
-  let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html);
-
-  const titleBefore = translatedTitleRaw;
-  let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
-  translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
-
-  translatedTitle = ensureNonEmptyTitle(translatedTitle, titleBefore);
-  const detectedCat = detectCategory(translatedTitle);
-  const tags = buildTagSetFromProduct(
-  realProduct,
-  [detectedCat, sigTag, "ZEUS_ORIGIN"]
-).join(", ");
-
-  await shopifyRequest(normalizedShop, {
-    method: "PUT",
-    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-    headers: { "X-Shopify-Access-Token": accessToken },
-    data: {
-      product: {
-        id: productId,
-        title: translatedTitle,
-        body_html: translatedHtml,
-        vendor: "friDker Internacional",
-        product_type: detectedCat,
-        tags,
-        status: "active"
-      }
+      return { success: false, reason: "invalid_origin" };
     }
-  });
 
-  await upsertProductMetafield({
-    shop: normalizedShop,
-    accessToken,
-    productId,
-    namespace: "custom",
-    key: "zeus_image_signature",
-    value: sigHash,
-    type: "single_line_text_field"
-  });
+    /* ==========================
+       2. BLOQUEO MARKETPLACE
+    ========================== */
 
-  for (const variant of realVariants) {
-    const usd = parseFloat(variant.price);
-    const mxnPrice = calculatePrice(Number.isFinite(usd) ? usd : 0);
+    if (isBlockedProduct(realProduct.title, realProduct.body_html)) {
+      await shopifyRequest(normalizedShop, {
+        method: "PUT",
+        url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+        headers: { "X-Shopify-Access-Token": accessToken },
+        data: {
+          product: {
+            id: productId,
+            status: "draft",
+            tags: buildTagSetFromProduct(realProduct, ["BLOCKED_BY_POLICY"]).join(", ")
+          }
+        }
+      });
+
+      log("Producto bloqueado por política", {
+        shop: normalizedShop,
+        productId
+      });
+
+      return { success: false, reason: "blocked_policy" };
+    }
+
+    /* ==========================
+       3. IMAGEN
+    ========================== */
+
+    await ensureMainImage(normalizedShop, accessToken, productId, realProduct);
+
+    /* ==========================
+       4. DUPLICIDAD (CLAVE)
+    ========================== */
+
+    const imageKey = buildImageFingerprintKey(realProduct, 3);
+    const sigHash = computeProductSignature(imageKey, realVariants.length);
+    const sigTag = `${ZEUS_SIGNATURE_TAG_PREFIX}${sigHash}`;
+
+    const dupIds = await findProductsByTag(normalizedShop, accessToken, sigTag);
+    const hasDup = dupIds.some((id) => String(id) !== String(productId));
+
+    if (hasDup) {
+      await shopifyRequest(normalizedShop, {
+        method: "PUT",
+        url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+        headers: { "X-Shopify-Access-Token": accessToken },
+        data: {
+          product: {
+            id: productId,
+            status: "draft",
+            tags: buildTagSetFromProduct(realProduct, ["DUPLICATE_SIGNATURE", sigTag]).join(", ")
+          }
+        }
+      });
+
+      log("Producto bloqueado por duplicidad", {
+        shop: normalizedShop,
+        productId,
+        sigTag
+      });
+
+      return { success: false, reason: "duplicate" };
+    }
+
+    /* ==========================
+       5. TRANSFORMACIÓN
+    ========================== */
+
+    const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
+
+    const translatedTitleRaw = await translateText(realProduct.title);
+    let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html);
+
+    let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
+    translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
+
+    translatedTitle = ensureNonEmptyTitle(translatedTitle, translatedTitleRaw);
+
+    const detectedCat = detectCategory(translatedTitle);
+
+    const tags = buildTagSetFromProduct(realProduct, [
+      detectedCat,
+      sigTag,
+      "ZEUS_ORIGIN"
+    ]).join(", ");
 
     await shopifyRequest(normalizedShop, {
       method: "PUT",
-      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
       headers: { "X-Shopify-Access-Token": accessToken },
       data: {
-        variant: {
-          id: variant.id,
-          price: String(mxnPrice),
-          sku: variant.sku,
-          weight: DEFAULT_WEIGHT_VALUE,
-          weight_unit: DEFAULT_WEIGHT_UNIT
+        product: {
+          id: productId,
+          title: translatedTitle,
+          body_html: translatedHtml,
+          vendor: "friDker Internacional",
+          product_type: detectedCat,
+          tags,
+          status: "active"
         }
       }
     });
-  }
 
-  const locations = await shopifyRequest(normalizedShop, {
-    method: "GET",
-    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/locations.json`,
-    headers: { "X-Shopify-Access-Token": accessToken }
-  });
+    /* ==========================
+       6. VARIANTES + INVENTARIO
+    ========================== */
 
-  const locationId = locations.data?.locations?.[0]?.id;
-  if (!locationId) throw new Error("No locations found to set inventory");
+    for (const variant of realVariants) {
+      const usd = parseFloat(variant.price);
+      const mxnPrice = calculatePrice(Number.isFinite(usd) ? usd : 0);
 
-  for (const variant of realVariants) {
-    await shopifyRequest(normalizedShop, {
-      method: "POST",
-      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/inventory_levels/set.json`,
-      headers: { "X-Shopify-Access-Token": accessToken },
-      data: {
-        location_id: locationId,
-        inventory_item_id: variant.inventory_item_id,
-        available: FIXED_STOCK
-      }
+      await shopifyRequest(normalizedShop, {
+        method: "PUT",
+        url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
+        headers: { "X-Shopify-Access-Token": accessToken },
+        data: {
+          variant: {
+            id: variant.id,
+            price: String(mxnPrice),
+            sku: variant.sku,
+            weight: DEFAULT_WEIGHT_VALUE,
+            weight_unit: DEFAULT_WEIGHT_UNIT
+          }
+        }
+      });
+    }
+
+    log("Producto transformado (FULL)", {
+      shop: normalizedShop,
+      productId,
+      variants: realVariants.length
     });
-  }
 
-  log("Producto transformado (FULL)", {
-    shop: normalizedShop,
-    productId,
-    variants: realVariants.length,
-    bannedWordsCount: getBannedWords().length
-  });
+    return { success: true };
+
+  } catch (err) {
+    console.error("transformProductById error:", err.response?.data || err.message);
+
+    return { success: false, reason: "error" };
+  }
 }
 
 /* ==========================
