@@ -33,10 +33,7 @@ function safeEqual(a, b) {
 }
 
 function buildShopifyCallbackUrl() {
-  if (!HOST) {
-    throw new Error("HOST env missing");
-  }
-  return `${HOST}/auth/callback`;
+  return "https://zeus-core-engine.onrender.com/auth/callback";
 }
 
 function validateRequiredOAuthEnv() {
