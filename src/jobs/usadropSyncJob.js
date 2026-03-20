@@ -1,25 +1,32 @@
-const { importUsadropProducts } = require("../importers/usadropImporter")
+const { getStore } = require("./storeService");
 
-async function runUsadropSync() {
-
+async function validateStoreAccess(shop) {
     try {
+        const store = await getStore(shop);
 
-        console.log("STARTING USADROP IMPORT")
+        if (!store) {
+            console.log("⛔ STORE NOT FOUND", shop);
+            return { ok: false, reason: "STORE_NOT_FOUND" };
+        }
 
-        const results = await importUsadropProducts(1, 20)
+        if (String(store.status).toLowerCase() !== "active") {
+            console.log("⛔ BLOCKED - STORE INACTIVE", { shop, status: store.status });
+            return { ok: false, reason: "INACTIVE" };
+        }
 
-        console.log("USADROP IMPORT COMPLETE")
+        if (Number(store.tokens) <= 0) {
+            console.log("⛔ BLOCKED - NO TOKENS", { shop, tokens: store.tokens });
+            return { ok: false, reason: "NO_TOKENS" };
+        }
 
-        return results
+        return { ok: true, store };
 
     } catch (err) {
-
-        console.error("USADROP SYNC ERROR:", err)
-
+        console.log("⛔ BLOCKED - STORE ERROR", { shop, error: err.message });
+        return { ok: false, reason: "ERROR" };
     }
-
 }
 
 module.exports = {
-    runUsadropSync
-}
+    validateStoreAccess
+};
