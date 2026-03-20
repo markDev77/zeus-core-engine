@@ -364,12 +364,17 @@ async function importUsadropProducts(options = {}) {
   const fetched = await fetchUsadropProducts(options);
   const results = [];
 
-  for (const product of fetched.products) {
-    try {
-      const pipelineResult = await sendProductToImportPipeline(
-        product,
-        options
-      );
+for (const product of fetched.products) {
+  try {
+
+    if (options.shop) {
+      await consumeToken(options.shop);
+    }
+
+    const pipelineResult = await sendProductToImportPipeline(
+      product,
+      options
+    );
 
       results.push({
         ok: true,
