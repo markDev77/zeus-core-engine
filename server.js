@@ -2061,16 +2061,23 @@ app.get("/health", (req, res) => {
 });
 
 /* ==========================
-   TEST USADROP (TEMPORAL)
+   TEST USADROP (DISABLED SAFE)
 ========================== */
 
-const { runUsadropSync } = require("./src/jobs/usadropSyncJobf");
+// ⚠️ Solo habilitar si el archivo existe
+if (process.env.RUN_USADROP_TEST === "true") {
+  try {
+    const { runUsadropSync } = require("./src/jobs/usadropSyncJob");
 
-setTimeout(async () => {
-  console.log("=== TEST USADROP SYNC ===");
-  await runUsadropSync();
-}, 5000);
+    setTimeout(async () => {
+      console.log("=== TEST USADROP SYNC ===");
+      await runUsadropSync();
+    }, 5000);
 
+  } catch (err) {
+    console.log("USADROP JOB NOT FOUND (safe skip)");
+  }
+}
 /* ==========================
    START SERVER
 ========================== */
