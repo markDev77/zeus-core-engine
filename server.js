@@ -1705,8 +1705,23 @@ app.post("/webhook/products-create", async (req, res) => {
   if (!productId) return;
 
   enqueueShopJob(shop, "products-create(FULL)", async () => {
-    const accessToken = await getToken(shop);
-    await transformProductById(shop, accessToken, productId);
+  const accessToken = await getToken(shop);
+
+  await transformProductById(shop, accessToken, productId);
+
+  // 🔥 CONSUMO DE TOKEN AQUÍ
+  await pool.query(
+    `UPDATE stores 
+     SET 
+       tokens = tokens - 1,
+       tokens_used = tokens_used + 1
+     WHERE shop = $1 AND tokens > 0`,
+    [shop]
+  );
+
+  log("WEBHOOK TOKEN CONSUMED", {
+    shop,
+    productId
   });
 });
 
