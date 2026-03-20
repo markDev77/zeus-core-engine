@@ -1628,13 +1628,13 @@ app.post("/run-zeus", async (req, res) => {
 }
 
 if (String(store.status).toLowerCase() !== "active") {
-  console.log("⛔ BLOCKED BY STATUS", { shop, status: store.status });
-  return;
+  console.log("⛔ BLOCKED BEFORE QUEUE - STATUS", { shop, status: store.status });
+  return res.status(200).send("blocked: inactive");
 }
 
 if (Number(store.tokens) <= 0) {
-  console.log("⛔ BLOCKED BY TOKENS", { shop, tokens: store.tokens });
-  return;
+  console.log("⛔ BLOCKED BEFORE QUEUE - NO TOKENS", { shop, tokens: store.tokens });
+  return res.status(200).send("blocked: no tokens");
 }
     const accessToken = store.access_token;
     
