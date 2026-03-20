@@ -1703,7 +1703,12 @@ app.post("/webhook/products-create", async (req, res) => {
 
   const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
   if (!shop) return;
+const tags = String(req.body?.tags || "");
 
+if (tags.includes("ZEUS_ORIGIN")) {
+  console.log("Webhook skip (ZEUS origin)");
+  return;
+}
   const productId = req.body?.id;
   if (!productId) return;
 
