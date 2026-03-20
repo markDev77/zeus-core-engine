@@ -1772,15 +1772,24 @@ app.post("/webhook/products-create", async (req, res) => {
   if (!productId) return;
 
   enqueueShopJob(shop, "products-create(FULL)", async () => {
-    const accessToken = await getToken(shop);
 
-    await sleep(1500);
+  if (isDuplicateExecution(shop, productId)) {
+    log("DUPLICATE EXECUTION BLOCKED", { shop, productId });
+    return;
+  }
 
-    const productResp = await shopifyRequest(shop, {
-      method: "GET",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken }
-    });
+  const accessToken = await getToken(shop);
+
+  await sleep(1500);
+
+  const productResp = await shopifyRequest(shop, {
+    method: "GET",
+    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+    headers: { "X-Shopify-Access-Token": accessToken }
+  });
+
+  // ...
+});
 
     const realProduct = productResp?.data?.product || {};
     const realTags = String(realProduct.tags || "");
