@@ -372,7 +372,7 @@ async function refreshAllStores() {
 function initStoreRegistry() {
   if (!initPromise) {
     initPromise = (async () => {
-      await ensureTables();
+    // await ensureTables(); // disabled in production
       await loadStoresFromDatabase();
       console.log("STORE REGISTRY READY:", storesByDomain.size);
       return true;
