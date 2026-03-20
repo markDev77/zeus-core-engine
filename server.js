@@ -1723,7 +1723,7 @@ app.post("/webhook/products-create", async (req, res) => {
     productId
   });
 });
-
+});
 /* ==========================
    WEBHOOK: FULFILLMENT TRACKING
 ========================== */
