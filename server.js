@@ -766,6 +766,12 @@ function getShopQueue(shop) {
 }
 
 function enqueueShopJob(shop, jobName, fn) {
+
+  if (isDuplicateExecution(shop, productId)) {
+  log("DUPLICATE EXECUTION BLOCKED", { shop, productId });
+  return;
+}
+
   const normalizedShop = normalizeShopDomain(shop);
   const q = getShopQueue(normalizedShop);
   const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
