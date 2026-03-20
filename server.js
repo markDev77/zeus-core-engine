@@ -1670,14 +1670,10 @@ app.post("/run-zeus", async (req, res) => {
           await cleanProductById(shop, accessToken, productId);
         }
 
-        await pool.query(
-  `UPDATE stores 
-   SET 
-     tokens = tokens - 1,
-     tokens_used = tokens_used + 1
-   WHERE shop = $1 AND tokens > 0`,
-  [shop]
-);
+        await consumeTokenIfAvailable(shop, {
+  source: "manual_or_other",
+  context: "unknown"
+});
 
         log("RUN-ZEUS TOKEN CONSUMED", {
           shop,
