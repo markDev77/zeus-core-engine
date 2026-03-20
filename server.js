@@ -1788,9 +1788,6 @@ app.post("/webhook/products-create", async (req, res) => {
     headers: { "X-Shopify-Access-Token": accessToken }
   });
 
-  // ...
-});
-
     const realProduct = productResp?.data?.product || {};
     const realTags = String(realProduct.tags || "");
 
