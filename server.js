@@ -1222,7 +1222,34 @@ async function findProductIdsBySkus(shop, accessToken, skus) {
 
   return Array.from(productIds);
 }
+/* ==========================
+   ZEUS DEDUPE MEMORY (ANTI DOUBLE EXECUTION)
+========================== */
 
+const zeusExecutionCache = new Map();
+
+function isDuplicateExecution(shop, productId) {
+  const key = `${shop}-${productId}`;
+  const now = Date.now();
+
+  if (zeusExecutionCache.has(key)) {
+    const last = zeusExecutionCache.get(key);
+
+    // ventana de protección 30s
+    if (now - last < 30000) {
+      return true;
+    }
+  }
+
+  zeusExecutionCache.set(key, now);
+
+  // limpieza automática (memory safe)
+  setTimeout(() => {
+    zeusExecutionCache.delete(key);
+  }, 60000);
+
+  return false;
+}
 /* ==========================
    FULL MODE: PRODUCT TRANSFORM
 ========================== */
