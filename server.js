@@ -1770,7 +1770,13 @@ app.post("/webhook/products-create", async (req, res) => {
 
   const productId = Number(req.body?.id);
   if (!productId) return;
-
+  
+  // 🔥 AGREGA ESTO
+const store = await getStore(shop);
+if (Number(store.tokens) <= 0) {
+  log("WEBHOOK BLOCKED - NO TOKENS", { shop, productId });
+  return;
+}
   enqueueShopJob(shop, "products-create(FULL)", async () => {
 
   if (isDuplicateExecution(shop, productId)) {
