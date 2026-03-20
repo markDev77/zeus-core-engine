@@ -2064,7 +2064,7 @@ app.get("/health", (req, res) => {
    TEST USADROP (TEMPORAL)
 ========================== */
 
-const { runUsadropSync } = require("./src/jobs/runUsadropSync");
+const { runUsadropSync } = require("./src/jobs/usadropSyncJobf");
 
 setTimeout(async () => {
   console.log("=== TEST USADROP SYNC ===");
