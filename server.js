@@ -2060,6 +2060,21 @@ app.get("/health", (req, res) => {
   });
 });
 
+/* ==========================
+   TEST USADROP (TEMPORAL)
+========================== */
+
+const { runUsadropSync } = require("./src/jobs/runUsadropSync");
+
+setTimeout(async () => {
+  console.log("=== TEST USADROP SYNC ===");
+  await runUsadropSync();
+}, 5000);
+
+/* ==========================
+   START SERVER
+========================== */
+
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   await initDB();
