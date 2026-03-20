@@ -2117,7 +2117,7 @@ app.get("/health", (req, res) => {
     time: nowIso(),
     shopsInMemory: shopQueues.size,
     bannedWordsCount: getBannedWords().length,
-    version: "zeus-transformer-v1.7.1-oauth"
+    version: "zeus-transformer-v1.7.2-single-charge"
   });
 });
 
