@@ -1708,57 +1708,44 @@ app.post("/run-zeus", async (req, res) => {
    WEBHOOK: PRODUCTS CREATE (FULL)
 ========================== */
 
-app.post("/webhook/products-create", async (req, res) => {
-  res.status(200).send("ok");
+async function consumeTokenIfAvailable(shop, meta = {}) {
+  const normalizedShop = normalizeShopDomain(shop);
 
-  const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
-  if (!shop) return;
-// ✅ ESTO TE FALTA
-  const productId = req.body?.id;
-  if (!productId) return;
+  const result = await pool.query(
+    `
+    UPDATE stores
+    SET
+      tokens = tokens - 1,
+      tokens_used = COALESCE(tokens_used, 0) + 1
+    WHERE shop = $1
+      AND tokens > 0
+    RETURNING shop, tokens, tokens_used
+    `,
+    [normalizedShop]
+  );
 
-  enqueueShopJob(shop, "products-create(FULL)", async () => {
-    const accessToken = await getToken(shop);
+  if (!result.rows.length) {
+    log("TOKEN NOT CONSUMED", { shop: normalizedShop, ...meta, reason: "no_tokens" });
+    return false;
+  }
 
-    // ✅ RECOMENDADO (anti race condition)
-    await sleep(1500);
-
-    const productResp = await shopifyRequest(shop, {
-      method: "GET",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken }
-    });
-
-    const realTags = String(productResp?.data?.product?.tags || "");
-
-    if (realTags.includes("ZEUS_ORIGIN")) {
-      log("Skip token (ZEUS origin - verified)", { shop, productId });
-      return;
-    }
-
-    await transformProductById(shop, accessToken, productId);
-
-    await pool.query(
-      `UPDATE stores 
-       SET tokens = tokens - 1,
-           tokens_used = tokens_used + 1
-       WHERE shop = $1 AND tokens > 0`,
-      [shop]
-    );
-
-    log("WEBHOOK TOKEN CONSUMED", { shop, productId });
+  log("TOKEN CONSUMED", {
+    shop: normalizedShop,
+    ...meta,
+    tokens_after: result.rows[0].tokens,
+    tokens_used: result.rows[0].tokens_used
   });
-})
 
-  // 🔥 VERIFICACIÓN REAL CONTRA SHOPIFY
-  
+  return true;
+}
+
 app.post("/webhook/products-create", async (req, res) => {
   res.status(200).send("ok");
 
   const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
   if (!shop) return;
 
-  const productId = req.body?.id;
+  const productId = Number(req.body?.id);
   if (!productId) return;
 
   enqueueShopJob(shop, "products-create(FULL)", async () => {
@@ -1772,26 +1759,32 @@ app.post("/webhook/products-create", async (req, res) => {
       headers: { "X-Shopify-Access-Token": accessToken }
     });
 
-    const realTags = String(productResp?.data?.product?.tags || "");
+    const realProduct = productResp?.data?.product || {};
+    const realTags = String(realProduct.tags || "");
 
     if (realTags.includes("ZEUS_ORIGIN")) {
       log("Skip token (ZEUS origin - verified)", { shop, productId });
       return;
     }
 
-    await transformProductById(shop, accessToken, productId);
+    const transformResult = await transformProductById(shop, accessToken, productId);
 
-    await pool.query(
-      `UPDATE stores 
-       SET tokens = tokens - 1,
-           tokens_used = tokens_used + 1
-       WHERE shop = $1 AND tokens > 0`,
-      [shop]
-    );
+    if (!transformResult?.success) {
+      log("WEBHOOK TOKEN SKIPPED", {
+        shop,
+        productId,
+        reason: transformResult?.reason || "transform_failed"
+      });
+      return;
+    }
 
-    log("WEBHOOK TOKEN CONSUMED", { shop, productId });
+    await consumeTokenIfAvailable(shop, {
+      source: "webhook",
+      productId
+    });
   });
 });
+
 /* ==========================
    WEBHOOK: FULFILLMENT TRACKING
 ========================== */
