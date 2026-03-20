@@ -1640,24 +1640,24 @@ app.post("/run-zeus", async (req, res) => {
     }
 
     const store = await getStore(shop);
+    if (!store) {
+  return res.status(400).json({
+    ok: false,
+    error: "Store not found"
+  });
+}
+
+if (String(store.status).toLowerCase() !== "active") {
+  console.log("⛔ BLOCKED BY STATUS", { shop, status: store.status });
+  return;
+}
+
+if (Number(store.tokens) <= 0) {
+  console.log("⛔ BLOCKED BY TOKENS", { shop, tokens: store.tokens });
+  return;
+}
     const accessToken = store.access_token;
-    const tokens = Number(store.tokens || 0);
-    const status = String(store.status || "active").toLowerCase();
-
-    if (status !== "active") {
-      return res.status(400).json({
-        ok: false,
-        error: `Store inactiva: ${status}`
-      });
-    }
-
-    if (tokens <= 0) {
-      return res.status(400).json({
-        ok: false,
-        error: "No tokens disponibles"
-      });
-    }
-
+    
     let targetProductIds = [];
 
     if (bodyProductIds.length > 0) {
