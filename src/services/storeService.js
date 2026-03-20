@@ -101,7 +101,53 @@ async function upsertStore(data) {
   return rows[0];
 }
 
+/*
+========================================
+🧠 TOKEN ENGINE (NUEVO - NO INTRUSIVO)
+========================================
+*/
+
+async function consumeToken(shop) {
+  const { rowCount } = await pool.query(
+    `
+    UPDATE stores
+    SET 
+      tokens = tokens - 1,
+      tokens_used = tokens_used + 1,
+      updated_at = NOW()
+    WHERE shop = $1
+      AND tokens > 0
+    `,
+    [shop]
+  );
+
+  if (rowCount === 0) {
+    throw new Error("NO TOKENS AVAILABLE");
+  }
+
+  return true;
+}
+
+async function getTokenBalance(shop) {
+  const { rows } = await pool.query(
+    `
+    SELECT tokens, tokens_used
+    FROM stores
+    WHERE shop = $1
+    `,
+    [shop]
+  );
+
+  if (!rows.length) {
+    throw new Error("STORE NOT FOUND");
+  }
+
+  return rows[0];
+}
+
 module.exports = {
   getStore,
-  upsertStore
+  upsertStore,
+  consumeToken,
+  getTokenBalance
 };
