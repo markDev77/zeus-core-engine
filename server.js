@@ -1706,9 +1706,8 @@ app.post("/webhook/products-create", async (req, res) => {
 
   enqueueShopJob(shop, "products-create(FULL)", async () => {
   const accessToken = await getToken(shop);
-
   await transformProductById(shop, accessToken, productId);
-
+   
   // 🔥 CONSUMO DE TOKEN AQUÍ
   await pool.query(
     `UPDATE stores 
