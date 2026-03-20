@@ -1703,12 +1703,35 @@ app.post("/webhook/products-create", async (req, res) => {
 
   const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
   if (!shop) return;
-const tags = String(req.body?.tags || "");
+enqueueShopJob(shop, "products-create(FULL)", async () => {
+  const accessToken = await getToken(shop);
 
-if (tags.includes("ZEUS_ORIGIN")) {
-  console.log("Webhook skip (ZEUS origin)");
-  return;
-}
+  // 🔥 VERIFICACIÓN REAL CONTRA SHOPIFY
+  const productResp = await shopifyRequest(shop, {
+    method: "GET",
+    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+    headers: { "X-Shopify-Access-Token": accessToken }
+  });
+
+  const realTags = String(productResp?.data?.product?.tags || "");
+
+  if (realTags.includes("ZEUS_ORIGIN")) {
+    log("Skip token (ZEUS origin - verified)", { shop, productId });
+    return;
+  }
+
+  await transformProductById(shop, accessToken, productId);
+
+  await pool.query(
+    `UPDATE stores 
+     SET tokens = tokens - 1,
+         tokens_used = tokens_used + 1
+     WHERE shop = $1 AND tokens > 0`,
+    [shop]
+  );
+
+  log("WEBHOOK TOKEN CONSUMED", { shop, productId });
+})
   const productId = req.body?.id;
   if (!productId) return;
 
