@@ -679,32 +679,12 @@ async function getToken(shop) {
 
     return token;
   } catch (storeErr) {
-    console.warn("ZEUS GETTOKEN STORE FALLBACK:", {
-      shop: normalizedShop,
-      error: storeErr.message
-    });
+  console.error("❌ GETTOKEN FAILED:", {
+    shop: normalizedShop,
+    error: storeErr.message
+  });
 
-    const result = await pool.query(
-      "SELECT access_token FROM shop_tokens WHERE shop = $1",
-      [normalizedShop]
-    );
-
-    if (!result.rows.length) {
-      console.error("ZEUS TOKEN NOT FOUND:", normalizedShop);
-      throw storeErr;
-    }
-
-    const token = result.rows[0].access_token;
-
-    console.log("ZEUS GETTOKEN DEBUG:", {
-      shop: normalizedShop,
-      source: "shop_tokens",
-      tokenPrefix: String(token || "").slice(0, 12),
-      tokenLength: String(token || "").length,
-      hasToken: !!token
-    });
-
-    return token;
+  throw new Error("STORE INVALID OR INACTIVE");
   }
 }
 
