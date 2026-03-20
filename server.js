@@ -1658,9 +1658,13 @@ app.post("/run-zeus", async (req, res) => {
         }
 
         await pool.query(
-          "UPDATE stores SET tokens = tokens - 1 WHERE shop = $1 AND tokens > 0",
-          [shop]
-        );
+  `UPDATE stores 
+   SET 
+     tokens = tokens - 1,
+     tokens_used = tokens_used + 1
+   WHERE shop = $1 AND tokens > 0`,
+  [shop]
+);
 
         log("RUN-ZEUS TOKEN CONSUMED", {
           shop,
