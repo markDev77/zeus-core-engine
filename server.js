@@ -1751,6 +1751,25 @@ if (!shop) return;
 const productId = Number(req.body?.id);
 if (!productId) return;
 
+  // 🔒 VALIDACIÓN ANTES DE ENCOLAR
+let store;
+
+try {
+  store = await getStore(shop);
+} catch (err) {
+  console.log("⛔ BLOCKED BEFORE QUEUE - STORE INVALID", { shop, error: err.message });
+  return;
+}
+
+if (String(store.status).toLowerCase() !== "active") {
+  console.log("⛔ BLOCKED BEFORE QUEUE - STATUS", { shop, status: store.status });
+  return;
+}
+
+if (Number(store.tokens) <= 0) {
+  console.log("⛔ BLOCKED BEFORE QUEUE - NO TOKENS", { shop, tokens: store.tokens });
+  return;
+}
 enqueueShopJob(shop, "products-create(FULL)", async () => {
 
   if (isDuplicateExecution(shop, productId)) {
