@@ -1250,7 +1250,6 @@ async function transformProductById(shop, accessToken, productId) {
     return { success: false };
   }
   try {
-  try {
     await sleep(PRODUCT_CREATE_WARMUP_MS);
 
     const freshProduct = await shopifyRequest(normalizedShop, {
