@@ -366,10 +366,6 @@ async function importUsadropProducts(options = {}) {
 for (const product of fetched.products) {
   try {
 
-    if (options.shop) {
-      await consumeToken(options.shop);
-    }
-
     const pipelineResult = await sendProductToImportPipeline(
       product,
       options
