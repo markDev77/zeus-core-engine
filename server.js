@@ -2166,7 +2166,7 @@ app.get("/health", (req, res) => {
 ========================== */
 
 // ⚠️ Solo habilitar si el archivo existe
-if (process.env.RUN_USADROP_TEST === "true") {
+if (false) (process.env.RUN_USADROP_TEST === "true") {
   try {
     const { runUsadropSync } = require("./src/jobs/usadropSyncJob");
 
