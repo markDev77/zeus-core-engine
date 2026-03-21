@@ -494,6 +494,17 @@ async function initDB() {
   `);
   console.log("shop_tokens table ready");
 }
+(async () => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT current_database(), inet_server_addr(), inet_server_port()"
+    );
+    console.log("ZEUS DB:", rows[0]);
+  } catch (err) {
+    console.log("ZEUS DB ERROR:", err.message);
+  }
+})();
+
 
 /* ==========================
    LOGS
