@@ -90,12 +90,12 @@ function verifyShopifyHmac(query) {
 /* ==========================
    SHOPIFY OAUTH
 ========================== */
-
 app.get("/auth", async (req, res) => {
   try {
     validateRequiredOAuthEnv();
 
     const shop = normalizeShopDomain(req.query?.shop);
+
     if (!shop) {
       return res.status(400).json({
         ok: false,
@@ -192,63 +192,62 @@ app.get("/auth/callback", async (req, res) => {
       throw new Error("OAuth exchange sin access_token");
     }
 
-    await upsertStore({
-  shop,
-  access_token,
-  status: 'active'
-});
-// ========================================
-// ZEUS AUTO RUN (ONBOARDING DEMO)
-// ========================================
-
-setTimeout(async () => {
-  try {
-    console.log("⚡ ZEUS AUTO RUN (ONBOARDING):", shop);
-
-    const accessToken = store.access_token;
-
-    const productsResp = await shopifyRequest(shop, {
-      method: "GET",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products.json?limit=1`,
-      headers: { "X-Shopify-Access-Token": accessToken }
-    });
-
-    const products = productsResp.data?.products || [];
-
-    if (!products.length) {
-      console.log("⚠️ NO PRODUCTS FOUND");
-      return;
-    }
-
-    const productId = products[0].id;
-
-    await transformProductById(shop, accessToken, productId);
-
-    console.log("✅ ZEUS AUTO RUN DONE:", {
+    const store = await upsertStore({
       shop,
-      productId
+      access_token,
+      status: "active"
     });
 
-  } catch (err) {
-    console.error("❌ ZEUS AUTO RUN ERROR:", err.message);
-  }
-}, 3000);
-    
     log("OAUTH SUCCESS", {
       shop,
       token_prefix: String(access_token).slice(0, 8),
       scope
     });
 
-    return res.redirect(`/activation?shop=${store.shop}`);
-} catch (err) {
+    res.redirect(`/activation?shop=${store.shop}`);
+
+    setTimeout(async () => {
+      try {
+        console.log("⚡ ZEUS AUTO RUN (ONBOARDING):", shop);
+
+        const accessToken = store.access_token;
+
+        const productsResp = await shopifyRequest(shop, {
+          method: "GET",
+          url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products.json?limit=1`,
+          headers: { "X-Shopify-Access-Token": accessToken }
+        });
+
+        const products = productsResp.data?.products || [];
+
+        if (!products.length) {
+          console.log("⚠️ NO PRODUCTS FOUND");
+          return;
+        }
+
+        const productId = products[0].id;
+
+        await transformProductById(shop, accessToken, productId);
+
+        console.log("✅ ZEUS AUTO RUN DONE:", {
+          shop,
+          productId
+        });
+      } catch (err) {
+        console.error("❌ ZEUS AUTO RUN ERROR:", err.message);
+      }
+    }, 3000);
+
+  } catch (err) {
     console.error("auth/callback error:", err.response?.data || err.message);
+
     return res.status(500).json({
       ok: false,
       error: err.response?.data || err.message
     });
   }
 });
+
 
 /* ==========================
    CONFIG NEGOCIO
