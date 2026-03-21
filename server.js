@@ -192,10 +192,11 @@ app.get("/auth/callback", async (req, res) => {
       throw new Error("OAuth exchange sin access_token");
     }
 
-    const store = await upsertStore({
-      shop,
-      access_token
-    });
+    await upsertStore({
+  shop,
+  access_token,
+  status: 'active'
+});
 // ========================================
 // ZEUS AUTO RUN (ONBOARDING DEMO)
 // ========================================
