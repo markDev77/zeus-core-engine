@@ -52,7 +52,7 @@ async function upsertStore(data) {
     plan = "free",
     billing_status = "active",
     sku_limit = 100,
-    tokens = 5
+    tokens = 5,
     status = "active"
   } = data;
 
@@ -74,7 +74,7 @@ async function upsertStore(data) {
       activated_at
     )
     VALUES (
-  $1,$2,'shopify',$11,$3,$4,$5,$6,$7,$8,$9,$10,NOW()
+  $1,$2,'shopify',$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW()
     )
     ON CONFLICT (shop)
     DO UPDATE SET
