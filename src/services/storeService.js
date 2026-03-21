@@ -53,6 +53,7 @@ async function upsertStore(data) {
     billing_status = "active",
     sku_limit = 100,
     tokens = 5
+    status = "active"
   } = data;
 
   const { rows } = await pool.query(
@@ -73,12 +74,12 @@ async function upsertStore(data) {
       activated_at
     )
     VALUES (
-      $1,$2,'shopify','active',$3,$4,$5,$6,$7,$8,$9,$10,NOW()
+  $1,$2,'shopify',$11,$3,$4,$5,$6,$7,$8,$9,$10,NOW()
     )
     ON CONFLICT (shop)
     DO UPDATE SET
       access_token = EXCLUDED.access_token,
-      status = 'active',
+      status = EXCLUDED.status,
       plan = EXCLUDED.plan,
       billing_status = EXCLUDED.billing_status,
       tokens = EXCLUDED.tokens
