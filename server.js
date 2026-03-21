@@ -203,29 +203,8 @@ app.get("/auth/callback", async (req, res) => {
       scope
     });
 
-    return res.status(200).send(`
-      <html>
-        <head>
-          <title>ZEUS OAuth OK</title>
-          <meta charset="utf-8" />
-          <style>
-            body { font-family: Arial, sans-serif; padding: 32px; color: #111; }
-            .box { max-width: 720px; margin: 40px auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; }
-            h1 { margin-top: 0; }
-            code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
-          </style>
-        </head>
-        <body>
-          <div class="box">
-            <h1>ZEUS conectado correctamente</h1>
-            <p><strong>Tienda:</strong> ${store.shop}</p>
-            <p><strong>Status:</strong> ${store.status}</p>
-            <p>Ya puedes ejecutar <code>/run-zeus</code>.</p>
-          </div>
-        </body>
-      </html>
-    `);
-  } catch (err) {
+    return res.redirect(`/activation?shop=${store.shop}`);
+} catch (err) {
     console.error("auth/callback error:", err.response?.data || err.message);
     return res.status(500).json({
       ok: false,
