@@ -1,4 +1,10 @@
-const pool = require("../db"); // ajusta a tu conexión real
+const pool = require("../db");
+
+/*
+========================================
+VALIDACIÓN
+========================================
+*/
 
 const REQUIRED = [
   "shop",
@@ -21,10 +27,17 @@ function validateStore(store) {
       throw new Error(`STORE INVALID: missing ${f}`);
     }
   }
+
   if (store.status !== "active") {
     throw new Error("STORE NOT ACTIVE");
   }
 }
+
+/*
+========================================
+GET STORE
+========================================
+*/
 
 async function getStore(shop) {
   const { rows } = await pool.query(
@@ -41,6 +54,12 @@ async function getStore(shop) {
   return store;
 }
 
+/*
+========================================
+UPSERT STORE (FIXED)
+========================================
+*/
+
 async function upsertStore(data) {
   const {
     shop,
@@ -52,9 +71,10 @@ async function upsertStore(data) {
     plan = "free",
     billing_status = "active",
     sku_limit = 100,
-    tokens = 5,
-    status = "active"
+    tokens = 5
   } = data;
+
+  const status = data.status || "active";
 
   const { rows } = await pool.query(
     `
@@ -74,7 +94,7 @@ async function upsertStore(data) {
       activated_at
     )
     VALUES (
-  $1,$2,'shopify',$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW()
+      $1,$2,'shopify',$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW()
     )
     ON CONFLICT (shop)
     DO UPDATE SET
@@ -84,10 +104,11 @@ async function upsertStore(data) {
       billing_status = EXCLUDED.billing_status,
       tokens = EXCLUDED.tokens
     RETURNING *;
-  `,
+    `,
     [
       shop,
       access_token,
+      status,
       region,
       language,
       currency,
@@ -104,7 +125,7 @@ async function upsertStore(data) {
 
 /*
 ========================================
-🧠 TOKEN ENGINE (NUEVO - NO INTRUSIVO)
+TOKEN ENGINE
 ========================================
 */
 
