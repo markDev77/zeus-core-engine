@@ -196,7 +196,43 @@ app.get("/auth/callback", async (req, res) => {
       shop,
       access_token
     });
+// ========================================
+// ZEUS AUTO RUN (ONBOARDING DEMO)
+// ========================================
 
+setTimeout(async () => {
+  try {
+    console.log("⚡ ZEUS AUTO RUN (ONBOARDING):", shop);
+
+    const accessToken = store.access_token;
+
+    const productsResp = await shopifyRequest(shop, {
+      method: "GET",
+      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products.json?limit=1`,
+      headers: { "X-Shopify-Access-Token": accessToken }
+    });
+
+    const products = productsResp.data?.products || [];
+
+    if (!products.length) {
+      console.log("⚠️ NO PRODUCTS FOUND");
+      return;
+    }
+
+    const productId = products[0].id;
+
+    await transformProductById(shop, accessToken, productId);
+
+    console.log("✅ ZEUS AUTO RUN DONE:", {
+      shop,
+      productId
+    });
+
+  } catch (err) {
+    console.error("❌ ZEUS AUTO RUN ERROR:", err.message);
+  }
+}, 3000);
+    
     log("OAUTH SUCCESS", {
       shop,
       token_prefix: String(access_token).slice(0, 8),
