@@ -1238,17 +1238,22 @@ async function transformProductById(shop, accessToken, productId) {
   const normalizedShop = normalizeShopDomain(shop);
 
   // 🔒 BLOQUEO TOTAL ZEUS (NO ESCAPA NADIE)
-  const store = await getStore(shop);
+ const store = await getStore(shop);
 
-  if (String(store.status).toLowerCase() !== "active") {
-    console.log("⛔ BLOCKED INSIDE TRANSFORM - STATUS", { shop });
-    return { success: false };
-  }
+if (!store) {
+  console.log("⛔ HARD BLOCK - STORE NOT FOUND", { shop });
+  return { success: false, hard_block: true };
+}
 
-  if (Number(store.tokens) <= 0) {
-    console.log("⛔ BLOCKED INSIDE TRANSFORM - NO TOKENS", { shop });
-    return { success: false };
-  }
+if (String(store.status).toLowerCase() !== "active") {
+  console.log("⛔ HARD BLOCK - STORE INACTIVE", { shop });
+  return { success: false, hard_block: true };
+}
+
+if (Number(store.tokens) <= 0) {
+  console.log("⛔ HARD BLOCK - NO TOKENS", { shop });
+  return { success: false, hard_block: true };
+}
   try {
     await sleep(PRODUCT_CREATE_WARMUP_MS);
 
