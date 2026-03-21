@@ -745,13 +745,45 @@ function getShopQueue(shop) {
   return shopQueues.get(normalizedShop);
 }
 
-function enqueueShopJob(shop, jobName, fn) {
+// 🔒 ZEUS GLOBAL GUARDED ENQUEUE (ANTI-FUGA TOKENS)
+async function enqueueShopJob(shop, jobName, fn) {
+
+  // ===== GUARD GLOBAL =====
+  try {
+    const store = await getStore(shop);
+
+    if (!store) {
+      console.log("⛔ GLOBAL BLOCK - NO STORE", { shop });
+      return;
+    }
+
+    if (String(store.status).toLowerCase() !== "active") {
+      console.log("⛔ GLOBAL BLOCK - INACTIVE", { shop, status: store.status });
+      return;
+    }
+
+    if (Number(store.tokens) <= 0) {
+      console.log("⛔ GLOBAL BLOCK - NO TOKENS", { shop, tokens: store.tokens });
+      return;
+    }
+
+  } catch (err) {
+    console.log("⛔ GLOBAL BLOCK - STORE ERROR", { shop, error: err.message });
+    return;
+  }
+  // ===== FIN GUARD =====
+
   const normalizedShop = normalizeShopDomain(shop);
   const q = getShopQueue(normalizedShop);
   const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   q.queue.push({ jobId, jobName, fn });
-  log("QUEUE: enqueued", { shop: normalizedShop, jobName, jobId, depth: q.queue.length });
+  log("QUEUE: enqueued", {
+    shop: normalizedShop,
+    jobName,
+    jobId,
+    depth: q.queue.length
+  });
 
   processShopQueue(normalizedShop).catch((err) => {
     console.error("QUEUE processor error:", err.message);
@@ -769,6 +801,7 @@ async function processShopQueue(shop) {
   try {
     while (q.queue.length > 0) {
       const item = q.queue.shift();
+
       log("QUEUE: start", {
         shop: normalizedShop,
         jobName: item.jobName,
@@ -778,7 +811,13 @@ async function processShopQueue(shop) {
 
       try {
         await item.fn();
-        log("QUEUE: done", { shop: normalizedShop, jobName: item.jobName, jobId: item.jobId });
+
+        log("QUEUE: done", {
+          shop: normalizedShop,
+          jobName: item.jobName,
+          jobId: item.jobId
+        });
+
       } catch (err) {
         console.error("QUEUE: job failed", {
           shop: normalizedShop,
@@ -792,7 +831,6 @@ async function processShopQueue(shop) {
     q.processing = false;
   }
 }
-
 /* ==========================
    THROTTLE + RETRY SHOPIFY
 ========================== */
