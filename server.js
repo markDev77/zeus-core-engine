@@ -706,7 +706,6 @@ async function getToken(shop) {
 /* ==========================
    REGISTER STORE
 ========================== */
-
 app.post("/register-store", async (req, res) => {
   try {
     const {
@@ -722,7 +721,6 @@ app.post("/register-store", async (req, res) => {
       tokens
     } = req.body || {};
 
-    // Validación mínima
     if (!shop || !access_token) {
       return res.status(400).json({
         ok: false,
@@ -730,7 +728,6 @@ app.post("/register-store", async (req, res) => {
       });
     }
 
-    // Upsert de la tienda
     const store = await upsertStore({
       shop,
       access_token,
@@ -745,7 +742,6 @@ app.post("/register-store", async (req, res) => {
       status: "active"
     });
 
-    // Respuesta OK
     return res.json({
       ok: true,
       store
@@ -754,14 +750,6 @@ app.post("/register-store", async (req, res) => {
   } catch (err) {
     console.error("register-store error:", err.response?.data || err.message);
 
-    return res.status(500).json({
-      ok: false,
-      error: err.message
-    });
-  }
-});
-  } catch (err) {
-    console.error("register-store error:", err.response?.data || err.message);
     return res.status(500).json({
       ok: false,
       error: err.message
@@ -1680,7 +1668,6 @@ async function cleanProductById(shop, accessToken, productId) {
 
   log("Producto limpiado (CLEAN ONLY)", { shop: normalizedShop, productId });
 }
-
 /* ==========================
    RUN ZEUS MANUAL
    Body:
@@ -1714,24 +1701,26 @@ app.post("/run-zeus", async (req, res) => {
     }
 
     const store = await getStore(shop);
+
     if (!store) {
-  return res.status(400).json({
-    ok: false,
-    error: "Store not found"
-  });
-}
+      return res.status(400).json({
+        ok: false,
+        error: "Store not found"
+      });
+    }
 
-if (String(store.status).toLowerCase() !== "active") {
-  console.log("⛔ BLOCKED BEFORE QUEUE - STATUS", { shop, status: store.status });
-  return res.status(200).send("blocked: inactive");
-}
+    if (String(store.status).toLowerCase() !== "active") {
+      console.log("⛔ BLOCKED BEFORE QUEUE - STATUS", { shop, status: store.status });
+      return res.status(200).send("blocked: inactive");
+    }
 
-if (Number(store.tokens) <= 0) {
-  console.log("⛔ BLOCKED BEFORE QUEUE - NO TOKENS", { shop, tokens: store.tokens });
-  return res.status(200).send("blocked: no tokens");
-}
+    if (Number(store.tokens) <= 0) {
+      console.log("⛔ BLOCKED BEFORE QUEUE - NO TOKENS", { shop, tokens: store.tokens });
+      return res.status(200).send("blocked: no tokens");
+    }
+
     const accessToken = store.access_token;
-    
+
     let targetProductIds = [];
 
     if (bodyProductIds.length > 0) {
@@ -1740,6 +1729,7 @@ if (Number(store.tokens) <= 0) {
       targetProductIds = await findProductIdsBySkus(shop, accessToken, bodySkus);
     } else {
       const safeLimit = Math.max(1, Math.min(10, requestedLimit));
+
       const productsResp = await shopifyRequest(shop, {
         method: "GET",
         url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products.json?limit=${safeLimit}&status=active`,
@@ -1758,7 +1748,7 @@ if (Number(store.tokens) <= 0) {
       });
     }
 
-    const processableCount = Math.min(tokens, targetProductIds.length);
+    const processableCount = Math.min(Number(store.tokens || 0), targetProductIds.length);
     const selectedProductIds = targetProductIds.slice(0, processableCount);
 
     const jobIds = selectedProductIds.map((productId) =>
@@ -1772,9 +1762,9 @@ if (Number(store.tokens) <= 0) {
         }
 
         await consumeTokenIfAvailable(shop, {
-  source: "manual_or_other",
-  context: "unknown"
-});
+          source: "manual_or_other",
+          context: "unknown"
+        });
 
         log("RUN-ZEUS TOKEN CONSUMED", {
           shop,
@@ -1790,8 +1780,9 @@ if (Number(store.tokens) <= 0) {
       mode: executionMode,
       product_ids: selectedProductIds,
       jobIds,
-      tokens_before: tokens
+      tokens_before: store.tokens
     });
+
   } catch (err) {
     console.error("run-zeus error:", err.response?.data || err.message);
     return res.status(500).json({
@@ -1800,6 +1791,7 @@ if (Number(store.tokens) <= 0) {
     });
   }
 });
+
 
 /* ==========================
    WEBHOOK: PRODUCTS CREATE (FULL)
