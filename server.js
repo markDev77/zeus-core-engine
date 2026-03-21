@@ -2154,26 +2154,41 @@ app.post("/optimize", async (req, res) => {
       tokens_before: tokens
     });
 
-    const jobId = enqueueShopJob(shop, "optimize(manual)", async () => {
-      if (executionMode === "FULL") {
-        await transformProductById(shop, accessToken, product_id);
-      } else if (executionMode === "STABLE") {
-        await transformProductStableById(shop, accessToken, product_id);
-      } else {
-        await cleanProductById(shop, accessToken, product_id);
-      }
+    // 🔒 VALIDACIÓN ANTES DE ENQUEUE
+const { rows } = await pool.query(
+  "SELECT tokens, status FROM stores WHERE shop = $1",
+  [shop]
+);
 
-      await consumeTokenIfAvailable(shop, {
-  source: "optimize",
-  productId: product_id
+const store = rows[0];
+
+if (!store || store.status !== "active" || store.tokens <= 0) {
+  return res.status(403).json({
+    error: "NO_TOKENS_AVAILABLE_OR_INACTIVE"
+  });
+}
+
+// ✅ SOLO SI PASA VALIDACIÓN
+const jobId = enqueueShopJob(shop, "optimize(manual)", async () => {
+  if (executionMode === "FULL") {
+    await transformProductById(shop, accessToken, product_id);
+  } else if (executionMode === "STABLE") {
+    await transformProductStableById(shop, accessToken, product_id);
+  } else {
+    await cleanProductById(shop, accessToken, product_id);
+  }
+
+  await consumeTokenIfAvailable(shop, {
+    source: "optimize",
+    productId: product_id
+  });
+
+  log("TOKEN CONSUMED", {
+    shop,
+    product_id,
+    mode: executionMode
+  });
 });
-
-      log("TOKEN CONSUMED", {
-        shop,
-        product_id,
-        mode: executionMode
-      });
-    });
 
     return res.json({
       ok: true,
