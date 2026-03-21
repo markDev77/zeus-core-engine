@@ -1774,19 +1774,25 @@ let store;
 try {
   store = await getStore(shop);
 } catch (err) {
-  console.log("⛔ BLOCKED BEFORE QUEUE - STORE INVALID", { shop, error: err.message });
+  console.log("⛔ BLOCKED BEFORE QUEUE - STORE INVALID", { shop });
+  return;
+}
+
+if (!store) {
+  console.log("⛔ HARD BLOCK WEBHOOK - NO STORE", { shop });
   return;
 }
 
 if (String(store.status).toLowerCase() !== "active") {
-  console.log("⛔ BLOCKED BEFORE QUEUE - STATUS", { shop, status: store.status });
+  console.log("⛔ HARD BLOCK WEBHOOK - INACTIVE", { shop, status: store.status });
   return;
 }
 
 if (Number(store.tokens) <= 0) {
-  console.log("⛔ BLOCKED BEFORE QUEUE - NO TOKENS", { shop, tokens: store.tokens });
+  console.log("⛔ HARD BLOCK WEBHOOK - NO TOKENS", { shop, tokens: store.tokens });
   return;
 }
+
 enqueueShopJob(shop, "products-create(FULL)", async () => {
 
   if (isDuplicateExecution(shop, productId)) {
