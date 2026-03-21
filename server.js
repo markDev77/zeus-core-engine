@@ -2165,13 +2165,12 @@ app.get("/health", (req, res) => {
    TEST USADROP (DISABLED SAFE)
 ========================== */
 
-// ⚠️ Solo habilitar si el archivo existe
-if (false) (process.env.RUN_USADROP_TEST === "true") {
+if (false) {
   try {
     const { runUsadropSync } = require("./src/jobs/usadropSyncJob");
 
     setTimeout(async () => {
-      console.log("=== TEST USADROP SYNC ===");
+      console.log("🚀 TEST USADROP SYNC ====");
       await runUsadropSync();
     }, 5000);
 
