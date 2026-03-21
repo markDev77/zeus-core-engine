@@ -1816,6 +1816,12 @@ if (!shop) return;
 const productId = Number(req.body?.id);
 if (!productId) return;
 
+log("WEBHOOK RECEIVED", {
+  shop,
+  productId,
+  ts: Date.now()
+});
+  
   // 🔒 VALIDACIÓN ANTES DE ENCOLAR
 let store;
 
@@ -1841,7 +1847,18 @@ if (Number(store.tokens) <= 0) {
   return;
 }
 
+log("WEBHOOK ENQUEUE", {
+  shop,
+  productId,
+  ts: Date.now()
+});
+
 enqueueShopJob(shop, "products-create(FULL)", async () => {
+log("JOB START", {
+    shop,
+    productId,
+    ts: Date.now()
+  });
 
   if (isDuplicateExecution(shop, productId)) {
     log("DUPLICATE EXECUTION BLOCKED", { shop, productId });
