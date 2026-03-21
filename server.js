@@ -710,17 +710,7 @@ async function getToken(shop) {
 
 app.post("/register-store", async (req, res) => {
   try {
-    const { shop, access_token, region, language, currency, marketplace, plan, billing_status, sku_limit, tokens } =
-      req.body || {};
-
-    if (!shop || !access_token) {
-      return res.status(400).json({
-        ok: false,
-        error: "Body requerido: { shop, access_token }"
-      });
-    }
-
-    const store = await upsertStore({
+    const {
       shop,
       access_token,
       region,
@@ -731,13 +721,46 @@ app.post("/register-store", async (req, res) => {
       billing_status,
       sku_limit,
       tokens
-      status: 'active'
+    } = req.body || {};
+
+    // Validación mínima
+    if (!shop || !access_token) {
+      return res.status(400).json({
+        ok: false,
+        error: "Body requerido: { shop, access_token }"
+      });
+    }
+
+    // Upsert de la tienda
+    const store = await upsertStore({
+      shop,
+      access_token,
+      region,
+      language,
+      currency,
+      marketplace,
+      plan,
+      billing_status,
+      sku_limit,
+      tokens,
+      status: "active"
     });
 
+    // Respuesta OK
     return res.json({
       ok: true,
       store
     });
+
+  } catch (err) {
+    console.error("register-store error:", err.response?.data || err.message);
+
+    return res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});
   } catch (err) {
     console.error("register-store error:", err.response?.data || err.message);
     return res.status(500).json({
