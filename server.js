@@ -731,6 +731,7 @@ app.post("/register-store", async (req, res) => {
       billing_status,
       sku_limit,
       tokens
+      status: 'active'
     });
 
     return res.json({
