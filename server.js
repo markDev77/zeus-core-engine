@@ -2163,10 +2163,10 @@ app.post("/optimize", async (req, res) => {
         await cleanProductById(shop, accessToken, product_id);
       }
 
-      await pool.query(
-        "UPDATE stores SET tokens = tokens - 1 WHERE shop = $1 AND tokens > 0",
-        [shop]
-      );
+      await consumeTokenIfAvailable(shop, {
+  source: "optimize",
+  productId: product_id
+});
 
       log("TOKEN CONSUMED", {
         shop,
