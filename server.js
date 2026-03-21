@@ -494,17 +494,6 @@ async function initDB() {
   `);
   console.log("shop_tokens table ready");
 }
-(async () => {
-  try {
-    const { rows } = await pool.query(
-      "SELECT current_database(), inet_server_addr(), inet_server_port()"
-    );
-    console.log("ZEUS DB:", rows[0]);
-  } catch (err) {
-    console.log("ZEUS DB ERROR:", err.message);
-  }
-})();
-
 
 /* ==========================
    LOGS
@@ -517,6 +506,7 @@ function nowIso() {
 function log(tag, obj) {
   console.log(`[${nowIso()}] ${tag}`, obj ?? "");
 }
+
 /* ==========================
    STORE LAYER
 ========================== */
@@ -673,12 +663,12 @@ async function getToken(shop) {
 
     return token;
   } catch (storeErr) {
-  console.error("❌ GETTOKEN FAILED:", {
-    shop: normalizedShop,
-    error: storeErr.message
-  });
+    console.error("❌ GETTOKEN FAILED:", {
+      shop: normalizedShop,
+      error: storeErr.message
+    });
 
-  throw new Error("STORE INVALID OR INACTIVE");
+    throw new Error("STORE INVALID OR INACTIVE");
   }
 }
 
@@ -753,8 +743,6 @@ function getShopQueue(shop) {
 
 // 🔒 ZEUS GLOBAL GUARDED ENQUEUE (ANTI-FUGA TOKENS)
 async function enqueueShopJob(shop, jobName, fn) {
-
-  // ===== GUARD GLOBAL =====
   try {
     const store = await getStore(shop);
 
@@ -777,7 +765,6 @@ async function enqueueShopJob(shop, jobName, fn) {
     console.log("⛔ GLOBAL BLOCK - STORE ERROR", { shop, error: err.message });
     return;
   }
-  // ===== FIN GUARD =====
 
   const normalizedShop = normalizeShopDomain(shop);
   const q = getShopQueue(normalizedShop);
@@ -837,6 +824,7 @@ async function processShopQueue(shop) {
     q.processing = false;
   }
 }
+
 /* ==========================
    THROTTLE + RETRY SHOPIFY
 ========================== */
@@ -1246,6 +1234,7 @@ async function findProductIdsBySkus(shop, accessToken, skus) {
 
   return Array.from(productIds);
 }
+
 /* ==========================
    ZEUS DEDUPE MEMORY (ANTI DOUBLE EXECUTION)
 ========================== */
@@ -1259,7 +1248,6 @@ function isDuplicateExecution(shop, productId) {
   if (zeusExecutionCache.has(key)) {
     const last = zeusExecutionCache.get(key);
 
-    // ventana de protección 30s
     if (now - last < 30000) {
       return true;
     }
@@ -1267,13 +1255,13 @@ function isDuplicateExecution(shop, productId) {
 
   zeusExecutionCache.set(key, now);
 
-  // limpieza automática (memory safe)
   setTimeout(() => {
     zeusExecutionCache.delete(key);
   }, 60000);
 
   return false;
 }
+
 /* ==========================
    FULL MODE: PRODUCT TRANSFORM
 ========================== */
@@ -1281,23 +1269,23 @@ function isDuplicateExecution(shop, productId) {
 async function transformProductById(shop, accessToken, productId) {
   const normalizedShop = normalizeShopDomain(shop);
 
-  // 🔒 BLOQUEO TOTAL ZEUS (NO ESCAPA NADIE)
- const store = await getStore(shop);
+  const store = await getStore(shop);
 
-if (!store) {
-  console.log("⛔ HARD BLOCK - STORE NOT FOUND", { shop });
-  return { success: false, hard_block: true };
-}
+  if (!store) {
+    console.log("⛔ HARD BLOCK - STORE NOT FOUND", { shop });
+    return { success: false, hard_block: true };
+  }
 
-if (String(store.status).toLowerCase() !== "active") {
-  console.log("⛔ HARD BLOCK - STORE INACTIVE", { shop });
-  return { success: false, hard_block: true };
-}
+  if (String(store.status).toLowerCase() !== "active") {
+    console.log("⛔ HARD BLOCK - STORE INACTIVE", { shop });
+    return { success: false, hard_block: true };
+  }
 
-if (Number(store.tokens) <= 0) {
-  console.log("⛔ HARD BLOCK - NO TOKENS", { shop });
-  return { success: false, hard_block: true };
-}
+  if (Number(store.tokens) <= 0) {
+    console.log("⛔ HARD BLOCK - NO TOKENS", { shop });
+    return { success: false, hard_block: true };
+  }
+
   try {
     await sleep(PRODUCT_CREATE_WARMUP_MS);
 
@@ -1309,10 +1297,6 @@ if (Number(store.tokens) <= 0) {
 
     const realProduct = freshProduct.data.product;
     const realVariants = Array.isArray(realProduct?.variants) ? realProduct.variants : [];
-
-    /* ==========================
-       1. VALIDACIÓN ORIGEN
-    ========================== */
 
     const invalidSkus = realVariants
       .map((v) => (v?.sku || "").trim())
@@ -1340,10 +1324,6 @@ if (Number(store.tokens) <= 0) {
       return { success: false, reason: "invalid_origin" };
     }
 
-    /* ==========================
-       2. BLOQUEO MARKETPLACE
-    ========================== */
-
     if (isBlockedProduct(realProduct.title, realProduct.body_html)) {
       await shopifyRequest(normalizedShop, {
         method: "PUT",
@@ -1366,15 +1346,7 @@ if (Number(store.tokens) <= 0) {
       return { success: false, reason: "blocked_policy" };
     }
 
-    /* ==========================
-       3. IMAGEN
-    ========================== */
-
     await ensureMainImage(normalizedShop, accessToken, productId, realProduct);
-
-    /* ==========================
-       4. DUPLICIDAD (CLAVE)
-    ========================== */
 
     const imageKey = buildImageFingerprintKey(realProduct, 3);
     const sigHash = computeProductSignature(imageKey, realVariants.length);
@@ -1405,10 +1377,6 @@ if (Number(store.tokens) <= 0) {
 
       return { success: false, reason: "duplicate" };
     }
-
-    /* ==========================
-       5. TRANSFORMACIÓN
-    ========================== */
 
     const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
@@ -1445,10 +1413,6 @@ if (Number(store.tokens) <= 0) {
       }
     });
 
-    /* ==========================
-       6. VARIANTES + INVENTARIO
-    ========================== */
-
     for (const variant of realVariants) {
       const usd = parseFloat(variant.price);
       const mxnPrice = calculatePrice(Number.isFinite(usd) ? usd : 0);
@@ -1479,7 +1443,6 @@ if (Number(store.tokens) <= 0) {
 
   } catch (err) {
     console.error("transformProductById error:", err.response?.data || err.message);
-
     return { success: false, reason: "error" };
   }
 }
@@ -1647,130 +1610,18 @@ async function cleanProductById(shop, accessToken, productId) {
 
   log("Producto limpiado (CLEAN ONLY)", { shop: normalizedShop, productId });
 }
+
 /* ==========================
-   RUN ZEUS MANUAL
-   Body:
-   {
-     "shop": "xxx.myshopify.com",
-     "mode": "FULL|STABLE|CLEAN",
-     "limit": 1,
-     "product_ids": [123],
-     "skus": ["PD.123"]
-   }
+   MANUAL ROUTES DISABLED
 ========================== */
 
 app.post("/run-zeus", async (req, res) => {
-  try {
-    const rawShop = req.body?.shop;
-    const shop = normalizeShopDomain(rawShop);
-    const executionMode = String(req.body?.mode || "FULL").toUpperCase();
-    const requestedLimit = Number(req.body?.limit || 1);
-    const bodyProductIds = Array.isArray(req.body?.product_ids) ? req.body.product_ids : [];
-    const bodySkus = Array.isArray(req.body?.skus) ? req.body.skus : [];
-
-    if (!shop) {
-      return res.status(400).json({ ok: false, error: "shop requerido" });
-    }
-
-    if (!["FULL", "STABLE", "CLEAN"].includes(executionMode)) {
-      return res.status(400).json({
-        ok: false,
-        error: "Modo inválido. Usa FULL | STABLE | CLEAN"
-      });
-    }
-
-    const store = await getStore(shop);
-
-    if (!store) {
-      return res.status(400).json({
-        ok: false,
-        error: "Store not found"
-      });
-    }
-
-    if (String(store.status).toLowerCase() !== "active") {
-      console.log("⛔ BLOCKED BEFORE QUEUE - STATUS", { shop, status: store.status });
-      return res.status(200).send("blocked: inactive");
-    }
-
-    if (Number(store.tokens) <= 0) {
-      console.log("⛔ BLOCKED BEFORE QUEUE - NO TOKENS", { shop, tokens: store.tokens });
-      return res.status(200).send("blocked: no tokens");
-    }
-
-    const accessToken = store.access_token;
-
-    let targetProductIds = [];
-
-    if (bodyProductIds.length > 0) {
-      targetProductIds = bodyProductIds.map((x) => Number(x)).filter(Boolean);
-    } else if (bodySkus.length > 0) {
-      targetProductIds = await findProductIdsBySkus(shop, accessToken, bodySkus);
-    } else {
-      const safeLimit = Math.max(1, Math.min(10, requestedLimit));
-
-      const productsResp = await shopifyRequest(shop, {
-        method: "GET",
-        url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products.json?limit=${safeLimit}&status=active`,
-        headers: { "X-Shopify-Access-Token": accessToken }
-      });
-
-      const products = productsResp.data?.products || [];
-      targetProductIds = products.map((p) => Number(p.id)).filter(Boolean);
-    }
-
-    if (targetProductIds.length === 0) {
-      return res.json({
-        ok: true,
-        queued: 0,
-        message: "No se encontraron productos para ejecutar ZEUS"
-      });
-    }
-
-    const processableCount = Math.min(Number(store.tokens || 0), targetProductIds.length);
-    const selectedProductIds = targetProductIds.slice(0, processableCount);
-
-    const jobIds = selectedProductIds.map((productId) =>
-      enqueueShopJob(shop, `run-zeus(${executionMode})`, async () => {
-        if (executionMode === "FULL") {
-          await transformProductById(shop, accessToken, productId);
-        } else if (executionMode === "STABLE") {
-          await transformProductStableById(shop, accessToken, productId);
-        } else {
-          await cleanProductById(shop, accessToken, productId);
-        }
-
-        await consumeTokenIfAvailable(shop, {
-          source: "manual_or_other",
-          context: "unknown"
-        });
-
-        log("RUN-ZEUS TOKEN CONSUMED", {
-          shop,
-          productId,
-          mode: executionMode
-        });
-      })
-    );
-
-    return res.json({
-      ok: true,
-      queued: selectedProductIds.length,
-      mode: executionMode,
-      product_ids: selectedProductIds,
-      jobIds,
-      tokens_before: store.tokens
-    });
-
-  } catch (err) {
-    console.error("run-zeus error:", err.response?.data || err.message);
-    return res.status(500).json({
-      ok: false,
-      error: err.message
-    });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: "DISABLED_ROUTE_SINGLE_SOURCE_WEBHOOKS",
+    route: "run-zeus"
+  });
 });
-
 
 /* ==========================
    WEBHOOK: PRODUCTS CREATE (FULL)
@@ -1811,93 +1662,74 @@ app.post("/webhook/products-create", async (req, res) => {
   res.status(200).send("ok");
 
   const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
-if (!shop) return;
+  if (!shop) return;
 
-const productId = Number(req.body?.id);
-if (!productId) return;
+  const productId = Number(req.body?.id);
+  if (!productId) return;
 
-log("WEBHOOK RECEIVED", {
-  shop,
-  productId,
-  ts: Date.now()
-});
-  
-  // 🔒 VALIDACIÓN ANTES DE ENCOLAR
-let store;
-
-try {
-  store = await getStore(shop);
-} catch (err) {
-  console.log("⛔ BLOCKED BEFORE QUEUE - STORE INVALID", { shop });
-  return;
-}
-
-if (!store) {
-  console.log("⛔ HARD BLOCK WEBHOOK - NO STORE", { shop });
-  return;
-}
-
-if (String(store.status).toLowerCase() !== "active") {
-  console.log("⛔ HARD BLOCK WEBHOOK - INACTIVE", { shop, status: store.status });
-  return;
-}
-
-if (Number(store.tokens) <= 0) {
-  console.log("⛔ HARD BLOCK WEBHOOK - NO TOKENS", { shop, tokens: store.tokens });
-  return;
-}
-
-log("WEBHOOK ENQUEUE", {
-  shop,
-  productId,
-  ts: Date.now()
-});
-
-enqueueShopJob(shop, "products-create(FULL)", async () => {
-let store;
+  let store;
 
   try {
     store = await getStore(shop);
   } catch (err) {
-    console.log("⛔ JOB BLOCK - STORE INVALID", { shop });
+    console.log("⛔ BLOCKED BEFORE QUEUE - STORE INVALID", { shop });
     return;
   }
 
   if (!store) {
-    console.log("⛔ JOB BLOCK - NO STORE", { shop });
+    console.log("⛔ HARD BLOCK WEBHOOK - NO STORE", { shop });
     return;
   }
 
   if (String(store.status).toLowerCase() !== "active") {
-    console.log("⛔ JOB BLOCK - INACTIVE", { shop });
+    console.log("⛔ HARD BLOCK WEBHOOK - INACTIVE", { shop, status: store.status });
     return;
   }
 
   if (Number(store.tokens) <= 0) {
-    console.log("⛔ JOB BLOCK - NO TOKENS", { shop });
-    return;
-  }
-   
-  log("JOB START", {
-    shop,
-    productId,
-    ts: Date.now()
-  });
-
-  if (isDuplicateExecution(shop, productId)) {
-    log("DUPLICATE EXECUTION BLOCKED", { shop, productId });
+    console.log("⛔ HARD BLOCK WEBHOOK - NO TOKENS", { shop, tokens: store.tokens });
     return;
   }
 
-  const accessToken = await getToken(shop);
+  enqueueShopJob(shop, "products-create(FULL)", async () => {
+    let jobStore;
 
-  await sleep(1500);
+    try {
+      jobStore = await getStore(shop);
+    } catch (err) {
+      console.log("⛔ JOB BLOCK - STORE INVALID", { shop });
+      return;
+    }
 
-  const productResp = await shopifyRequest(shop, {
-    method: "GET",
-    url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-    headers: { "X-Shopify-Access-Token": accessToken }
-  });
+    if (!jobStore) {
+      console.log("⛔ JOB BLOCK - NO STORE", { shop });
+      return;
+    }
+
+    if (String(jobStore.status).toLowerCase() !== "active") {
+      console.log("⛔ JOB BLOCK - INACTIVE", { shop, status: jobStore.status });
+      return;
+    }
+
+    if (Number(jobStore.tokens) <= 0) {
+      console.log("⛔ JOB BLOCK - NO TOKENS", { shop, tokens: jobStore.tokens });
+      return;
+    }
+
+    if (isDuplicateExecution(shop, productId)) {
+      log("DUPLICATE EXECUTION BLOCKED", { shop, productId });
+      return;
+    }
+
+    const accessToken = await getToken(shop);
+
+    await sleep(1500);
+
+    const productResp = await shopifyRequest(shop, {
+      method: "GET",
+      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+      headers: { "X-Shopify-Access-Token": accessToken }
+    });
 
     const realProduct = productResp?.data?.product || {};
     const realTags = String(realProduct.tags || "");
@@ -1954,308 +1786,67 @@ app.post("/webhook/fulfillment", async (req, res) => {
 });
 
 /* ==========================
-   RECONCILE
+   MANUAL ROUTES DISABLED
 ========================== */
 
 app.post("/reconcile", async (req, res) => {
-  try {
-    const shop = normalizeShopDomain(req.body?.shop);
-    const product_ids = req.body?.product_ids;
-
-    if (!shop || !Array.isArray(product_ids) || product_ids.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        error: "Body requerido: { shop: 'xxx.myshopify.com', product_ids: [123,456] }"
-      });
-    }
-
-    product_ids.forEach((pid) => {
-      enqueueShopJob(shop, "reconcile(CLEAN)", async () => {
-        const accessToken = await getToken(shop);
-        await cleanProductById(shop, accessToken, pid);
-      });
-    });
-
-    return res.json({ ok: true, queued: product_ids.length });
-  } catch (err) {
-    console.error("reconcile error:", err.response?.data || err.message);
-    return res.status(500).json({ ok: false, error: err.message });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: "DISABLED_ROUTE_SINGLE_SOURCE_WEBHOOKS",
+    route: "reconcile"
+  });
 });
-
-/* ==========================
-   RECONCILE BY SKUS
-========================== */
 
 app.post("/reconcile-by-skus", async (req, res) => {
-  try {
-    const shop = normalizeShopDomain(req.body?.shop);
-    const skus = req.body?.skus;
-
-    if (!shop || !Array.isArray(skus) || skus.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        error: "Body requerido: { shop: 'xxx.myshopify.com', skus: ['SKU1','SKU2'] }"
-      });
-    }
-
-    const accessToken = await getToken(shop);
-    const productIds = await findProductIdsBySkus(shop, accessToken, skus);
-
-    if (productIds.length === 0) {
-      return res.json({
-        ok: true,
-        queued: 0,
-        note: "No se encontraron productos en Shopify para esos SKUs"
-      });
-    }
-
-    productIds.forEach((pid) => {
-      enqueueShopJob(shop, "reconcile-by-skus(CLEAN)", async () => {
-        const token = await getToken(shop);
-        await cleanProductById(shop, token, pid);
-      });
-    });
-
-    return res.json({ ok: true, queued: productIds.length, product_ids: productIds });
-  } catch (err) {
-    console.error("reconcile-by-skus error:", err.response?.data || err.message);
-    return res.status(500).json({ ok: false, error: err.message });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: "DISABLED_ROUTE_SINGLE_SOURCE_WEBHOOKS",
+    route: "reconcile-by-skus"
+  });
 });
-
-/* ==========================
-   FORCE FULL MANUAL
-========================== */
 
 app.post("/force-full", async (req, res) => {
-  try {
-    const shop = normalizeShopDomain(req.body?.shop);
-    const product_id = req.body?.product_id;
-
-    if (!shop || !product_id) {
-      return res.status(400).json({
-        ok: false,
-        error: "Body requerido: { shop: 'xxx.myshopify.com', product_id: 1234567890 }"
-      });
-    }
-
-    enqueueShopJob(shop, "force-full(FULL)", async () => {
-      const accessToken = await getToken(shop);
-      await transformProductById(shop, accessToken, product_id);
-    });
-
-    return res.json({ ok: true, queued: product_id });
-  } catch (err) {
-    console.error("force-full error:", err.response?.data || err.message);
-    return res.status(500).json({ ok: false, error: err.message });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: "DISABLED_ROUTE_SINGLE_SOURCE_WEBHOOKS",
+    route: "force-full"
+  });
 });
-
-/* ==========================
-   FORCE FULL BY SKUS
-========================== */
 
 app.post("/force-full-by-skus", async (req, res) => {
-  try {
-    const shop = normalizeShopDomain(req.body?.shop);
-    const skus = req.body?.skus;
-
-    if (!shop || !Array.isArray(skus) || skus.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        error: "Body requerido: { shop, skus: ['PD.77','PD.714'] }"
-      });
-    }
-
-    const accessToken = await getToken(shop);
-    const productIds = await findProductIdsBySkus(shop, accessToken, skus);
-
-    if (productIds.length === 0) {
-      return res.json({ ok: true, queued: 0, note: "No se encontraron productos para esos SKUs" });
-    }
-
-    productIds.forEach((pid) => {
-      enqueueShopJob(shop, "force-full-by-skus(FULL)", async () => {
-        const token = await getToken(shop);
-        await transformProductById(shop, token, pid);
-      });
-    });
-
-    return res.json({ ok: true, queued: productIds.length, product_ids: productIds });
-  } catch (err) {
-    console.error("force-full-by-skus error:", err.response?.data || err.message);
-    return res.status(500).json({ ok: false, error: err.message });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: "DISABLED_ROUTE_SINGLE_SOURCE_WEBHOOKS",
+    route: "force-full-by-skus"
+  });
 });
-
-/* ==========================
-   FORCE STABLE
-========================== */
 
 app.post("/force-stable", async (req, res) => {
-  try {
-    const shop = normalizeShopDomain(req.body?.shop);
-    const product_id = req.body?.product_id;
-
-    if (!shop || !product_id) {
-      return res.status(400).json({
-        ok: false,
-        error: "Body requerido: { shop: 'xxx.myshopify.com', product_id: 1234567890 }"
-      });
-    }
-
-    enqueueShopJob(shop, "force-stable(STABLE)", async () => {
-      const accessToken = await getToken(shop);
-      await transformProductStableById(shop, accessToken, product_id);
-    });
-
-    return res.json({ ok: true, queued: product_id });
-  } catch (err) {
-    console.error("force-stable error:", err.response?.data || err.message);
-    return res.status(500).json({ ok: false, error: err.message });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: "DISABLED_ROUTE_SINGLE_SOURCE_WEBHOOKS",
+    route: "force-stable"
+  });
 });
-
-/* ==========================
-   FORCE STABLE BY SKUS
-========================== */
 
 app.post("/force-stable-by-skus", async (req, res) => {
-  try {
-    const shop = normalizeShopDomain(req.body?.shop);
-    const skus = req.body?.skus;
-
-    if (!shop || !Array.isArray(skus) || skus.length === 0) {
-      return res.status(400).json({
-        ok: false,
-        error: "Body requerido: { shop, skus: ['PD.77','PD.714'] }"
-      });
-    }
-
-    const accessToken = await getToken(shop);
-    const productIds = await findProductIdsBySkus(shop, accessToken, skus);
-
-    if (productIds.length === 0) {
-      return res.json({ ok: true, queued: 0, note: "No se encontraron productos para esos SKUs" });
-    }
-
-    productIds.forEach((pid) => {
-      enqueueShopJob(shop, "force-stable-by-skus(STABLE)", async () => {
-        const token = await getToken(shop);
-        await transformProductStableById(shop, token, pid);
-      });
-    });
-
-    return res.json({ ok: true, queued: productIds.length, product_ids: productIds });
-  } catch (err) {
-    console.error("force-stable-by-skus error:", err.response?.data || err.message);
-    return res.status(500).json({ ok: false, error: err.message });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: "DISABLED_ROUTE_SINGLE_SOURCE_WEBHOOKS",
+    route: "force-stable-by-skus"
+  });
 });
 
 /* ==========================
-   ZEUS ONBOARDING OPTIMIZE
+   ZEUS ONBOARDING OPTIMIZE (DISABLED)
 ========================== */
+
 app.post("/optimize", async (req, res) => {
-  try {
-    const shop = normalizeShopDomain(req.body?.shop);
-    const product_id = req.body?.product_id;
-    const mode = req.body?.mode;
-
-    if (!shop || !product_id) {
-      return res.status(400).json({
-        ok: false,
-        error: "Body requerido: { shop, product_id }"
-      });
-    }
-
-    const store = await getStore(shop);
-    const accessToken = store.access_token;
-    const tokens = Number(store.tokens || 0);
-    const status = String(store.status || "active").toLowerCase();
-
-    if (status !== "active") {
-      return res.status(400).json({
-        ok: false,
-        error: `Store inactiva: ${status}`
-      });
-    }
-
-    if (tokens <= 0) {
-      return res.status(400).json({
-        ok: false,
-        error: "No tokens disponibles"
-      });
-    }
-
-    const executionMode = String(mode || "FULL").toUpperCase();
-
-    if (!["FULL", "STABLE", "CLEAN"].includes(executionMode)) {
-      return res.status(400).json({
-        ok: false,
-        error: "Modo inválido. Usa FULL | STABLE | CLEAN"
-      });
-    }
-
-    log("OPTIMIZE REQUEST", {
-      shop,
-      product_id,
-      mode: executionMode,
-      tokens_before: tokens
-    });
-
-    // 🔒 VALIDACIÓN FINAL ANTES DE ENQUEUE (SIN REDECLARAR store)
-    const { rows } = await pool.query(
-      "SELECT tokens, status FROM stores WHERE shop = $1",
-      [shop]
-    );
-
-    const storeDB = rows[0];
-
-    if (!storeDB || storeDB.status !== "active" || Number(storeDB.tokens) <= 0) {
-      return res.status(403).json({
-        ok: false,
-        error: "NO_TOKENS_AVAILABLE_OR_INACTIVE"
-      });
-    }
-
-    const jobId = enqueueShopJob(shop, "optimize(manual)", async () => {
-      if (executionMode === "FULL") {
-        await transformProductById(shop, accessToken, product_id);
-      } else if (executionMode === "STABLE") {
-        await transformProductStableById(shop, accessToken, product_id);
-      } else {
-        await cleanProductById(shop, accessToken, product_id);
-      }
-
-      await consumeTokenIfAvailable(shop, {
-        source: "optimize",
-        productId: product_id
-      });
-
-      log("TOKEN CONSUMED", {
-        shop,
-        product_id,
-        mode: executionMode
-      });
-    });
-
-    return res.json({
-      ok: true,
-      queued: true,
-      jobId,
-      mode: executionMode,
-      tokens_before: tokens
-    });
-
-  } catch (err) {
-    console.error("optimize error:", err.response?.data || err.message);
-    return res.status(500).json({
-      ok: false,
-      error: err.message
-    });
-  }
+  return res.status(410).json({
+    ok: false,
+    error: "DISABLED_ROUTE_SINGLE_SOURCE_WEBHOOKS",
+    route: "optimize"
+  });
 });
 
 /* ==========================
@@ -2303,7 +1894,7 @@ app.get("/health", (req, res) => {
     time: nowIso(),
     shopsInMemory: shopQueues.size,
     bannedWordsCount: getBannedWords().length,
-    version: "zeus-transformer-v1.7.2-single-charge"
+    version: "zeus-transformer-v1.8.0-single-source-webhooks"
   });
 });
 
@@ -2324,6 +1915,7 @@ if (false) {
     console.log("USADROP JOB NOT FOUND (safe skip)");
   }
 }
+
 /* ==========================
    START SERVER
 ========================== */
