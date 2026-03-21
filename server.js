@@ -1854,7 +1854,31 @@ log("WEBHOOK ENQUEUE", {
 });
 
 enqueueShopJob(shop, "products-create(FULL)", async () => {
-log("JOB START", {
+let store;
+
+  try {
+    store = await getStore(shop);
+  } catch (err) {
+    console.log("⛔ JOB BLOCK - STORE INVALID", { shop });
+    return;
+  }
+
+  if (!store) {
+    console.log("⛔ JOB BLOCK - NO STORE", { shop });
+    return;
+  }
+
+  if (String(store.status).toLowerCase() !== "active") {
+    console.log("⛔ JOB BLOCK - INACTIVE", { shop });
+    return;
+  }
+
+  if (Number(store.tokens) <= 0) {
+    console.log("⛔ JOB BLOCK - NO TOKENS", { shop });
+    return;
+  }
+   
+  log("JOB START", {
     shop,
     productId,
     ts: Date.now()
