@@ -17,7 +17,7 @@ const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_C
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || process.env.SHOPIFY_API_CLIENT_SECRET || "";
 const SHOPIFY_SCOPES =
   process.env.SHOPIFY_SCOPES ||
-  "read_products,write_products,read_inventory,write_inventory,read_locations";
+  "read_products,write_products,read_inventory,write_inventory,read_locations,write_own_subscription";
 const HOST =
   (process.env.HOST || process.env.APP_URL || "").replace(/\/+$/, "");
 
