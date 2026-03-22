@@ -1889,37 +1889,6 @@ app.post("/optimize", async (req, res) => {
 });
 
 /* ==========================
-   ZEUS ACTIVATION
-========================== */
-
-app.get("/activation", async (req, res) => {
-  try {
-    const shop = normalizeShopDomain(req.query?.shop);
-
-    if (!shop) {
-      return res.status(400).send("Missing shop");
-    }
-
-    const store = await getStore(shop);
-
-    return res.send(`
-      <html>
-        <body style="font-family: Arial; padding: 40px;">
-          <h2>ZEUS activado 🚀</h2>
-          <p><b>Tienda:</b> ${store.shop}</p>
-          <p><b>Status:</b> ${store.status}</p>
-          <p><b>Tokens:</b> ${store.tokens}</p>
-        </body>
-      </html>
-    `);
-
-  } catch (err) {
-    console.error("activation error:", err.message);
-    return res.status(500).send("Activation error");
-  }
-});
-
-/* ==========================
    STORE STATUS
 ========================== */
 
