@@ -2070,6 +2070,23 @@ app.get("/billing/confirm", async (req, res) => {
   }
 });
 
+app.get("/billing/success", (req, res) => {
+  const shop = req.query.shop || "";
+
+  res.send(`
+    <html>
+      <body style="font-family: Arial; text-align: center; margin-top: 50px;">
+        <h1>✅ ZEUS Activated</h1>
+        <p>Billing simulated successfully</p>
+        <br/>
+        <a href="/activation?shop=${shop}">
+          🔙 Back to ZEUS
+        </a>
+      </body>
+    </html>
+  `);
+});
+
 /* ==========================
    HEALTH
 ========================== */
