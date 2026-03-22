@@ -2179,19 +2179,23 @@ app.get("/billing/success", (req, res) => {
 /* ==========================
    HEALTH
 ========================== */
+const { getStore } = require("./src/services/storeService");
 
-app.get("/", async (req, res) => {
+app.get("/activation", async (req, res) => {
   const shop = req.query.shop;
 
-  console.log("ENTRY ROOT", { shop });
-
   if (!shop) {
-    return res.send("ZEUS running 🚀");
+    return res.status(400).send("Missing shop");
   }
 
-  // 🔥 FORZAR AUTH SIEMPRE
-  return res.redirect(`/auth?shop=${shop}`);
-});
+  const store = await getStore(shop);
+
+  // 🔥 SI NO HAY TOKEN OAuth REAL → FORZAR AUTH
+  if (!store || !store.access_token?.startsWith("shpca_")) {
+    console.log("FORCING AUTH FROM ACTIVATION", { shop });
+    return res.redirect(`/auth?shop=${shop}`);
+  }
+
 
 app.get("/health", (req, res) => {
   res.json({
