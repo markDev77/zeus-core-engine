@@ -2181,6 +2181,36 @@ if (false) {
   }
 }
 
+app.get("/force-webhooks", async (req, res) => {
+  const shop = "eawi7g-hj.myshopify.com";
+  const token = "TU_ACCESS_TOKEN_REAL";
+
+  const topics = [
+    "customers/data_request",
+    "customers/redact",
+    "shop/redact"
+  ];
+
+  for (const topic of topics) {
+    await fetch(`https://${shop}/admin/api/2026-01/webhooks.json`, {
+      method: "POST",
+      headers: {
+        "X-Shopify-Access-Token": token,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        webhook: {
+          topic,
+          address: `https://zeus-core-engine.onrender.com/webhooks/${topic}`,
+          format: "json"
+        }
+      })
+    });
+  }
+
+  res.send("Webhooks registrados");
+});
+
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
