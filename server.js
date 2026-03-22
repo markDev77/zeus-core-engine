@@ -1,5 +1,28 @@
 require("dotenv").config();
 const express = require("express");
+const app = express();
+app.use(express.json({ limit: "10mb" }));
+
+/*
+========================================
+SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
+========================================
+*/
+
+app.post('/webhooks/customers/data_request', (req, res) => {
+  console.log('📩 DATA REQUEST WEBHOOK', req.body);
+  return res.status(200).send('OK');
+});
+
+app.post('/webhooks/customers/redact', (req, res) => {
+  console.log('🧹 CUSTOMER REDACT WEBHOOK', req.body);
+  return res.status(200).send('OK');
+});
+
+app.post('/webhooks/shop/redact', (req, res) => {
+  console.log('🏪 SHOP REDACT WEBHOOK', req.body);
+  return res.status(200).send('OK');
+});
 const axios = require("axios");
 const { Pool } = require("pg");
 const cheerio = require("cheerio");
