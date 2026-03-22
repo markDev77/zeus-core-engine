@@ -2,6 +2,8 @@ require("dotenv").config();
 const express = require("express");
 const app = express();
 
+const { DATABASE_URL } = process.env;
+
 app.use(express.json({ limit: "10mb" }));
 
 /*
