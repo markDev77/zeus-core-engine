@@ -2013,7 +2013,9 @@ app.get("/api/store/status", async (req, res) => {
    ACTIVATION PAGE
 ========================== */
 app.get("/", (req, res) => {
-  const shop = req.query.shop || req.headers['x-shopify-shop-domain'];
+  const shop =
+    req.query.shop ||
+    req.headers['x-shopify-shop-domain'];
 
   if (!shop) {
     return res.send("ZEUS running 🚀");
