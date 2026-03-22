@@ -27,7 +27,7 @@ app.post('/webhooks/shop/redact', (req, res) => {
 
 /*
 ========================================
-SERVER START (ESTO FALTABA)
+SERVER START (OBLIGATORIO)
 ========================================
 */
 
@@ -47,12 +47,6 @@ const crypto = require("crypto");
 function resolveAccessToken(store) {
   return store?.accessToken || store?.access_token || null;
 }
-const app = express();
-app.use(express.json({ limit: "10mb" }));
-
-const PORT = process.env.PORT || 10000;
-const { DATABASE_URL, OPENAI_API_KEY } = process.env;
-
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_CLIENT_ID || "";
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || process.env.SHOPIFY_API_CLIENT_SECRET || "";
 const SHOPIFY_SCOPES =
