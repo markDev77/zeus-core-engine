@@ -19,18 +19,18 @@ SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
 
 function verifyShopifyWebhookHmac(req) {
   try {
-    const hmacHeader = req.get("X-Shopify-Hmac-Sha256") || "";
+    const hmacHeader = req.headers["x-shopify-hmac-sha256"] || "";
     if (!hmacHeader) return false;
 
     const digest = crypto
-      .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
-      .update(req.rawBody || Buffer.from(""))
-      .digest("base64");
+  .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
+  .update(Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(req.rawBody || ""))
+  .digest("base64");
 
-    return crypto.timingSafeEqual(
-      Buffer.from(digest),
-      Buffer.from(hmacHeader)
-    );
+    return (
+  digest.length === hmacHeader.length &&
+  crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(hmacHeader))
+);
   } catch (err) {
     console.error("HMAC verify error:", err.message);
     return false;
