@@ -1414,24 +1414,29 @@ async function transformProductById(shop, accessToken, productId) {
     });
 
     for (const variant of realVariants) {
-      const usd = parseFloat(variant.price);
-      const mxnPrice = calculatePrice(Number.isFinite(usd) ? usd : 0);
+  const usd = parseFloat(variant.price);
+  const mxnPrice = calculatePrice(Number.isFinite(usd) ? usd : 0);
 
-      await shopifyRequest(normalizedShop, {
-        method: "PUT",
-        url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
-        headers: { "X-Shopify-Access-Token": accessToken },
-        data: {
-          variant: {
-            id: variant.id,
-            price: String(mxnPrice),
-            sku: variant.sku,
-            weight: DEFAULT_WEIGHT_VALUE,
-            weight_unit: DEFAULT_WEIGHT_UNIT
-          }
-        }
-      });
+  await shopifyRequest(normalizedShop, {
+    method: "PUT",
+    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
+    headers: { "X-Shopify-Access-Token": accessToken },
+    data: {
+      variant: {
+        id: variant.id,
+        price: String(mxnPrice),
+        sku: variant.sku,
+        weight: DEFAULT_WEIGHT_VALUE,
+        weight_unit: DEFAULT_WEIGHT_UNIT,
+
+        // 🔥 NUEVO (ESTO ES LO QUE FALTABA)
+        inventory_management: "shopify",
+        inventory_policy: "deny",
+        inventory_quantity: FIXED_STOCK
+      }
     }
+  });
+}
 
     log("Producto transformado (FULL)", {
       shop: normalizedShop,
