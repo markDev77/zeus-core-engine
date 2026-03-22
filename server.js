@@ -1427,17 +1427,51 @@ async function transformProductById(shop, accessToken, productId) {
         price: String(mxnPrice),
         sku: variant.sku,
         weight: DEFAULT_WEIGHT_VALUE,
-        weight_unit: DEFAULT_WEIGHT_UNIT,
-
-        // 🔥 NUEVO (ESTO ES LO QUE FALTABA)
-        inventory_management: "shopify",
-        inventory_policy: "deny",
-        inventory_quantity: FIXED_STOCK
+        weight_unit: DEFAULT_WEIGHT_UNIT
       }
     }
   });
 }
 
+// ==========================
+// INVENTARIO FIJO (11)
+// ==========================
+await sleep(1800); // CRÍTICO (espera a que Shopify cree inventory_item_id)
+
+const locationsResp = await shopifyRequest(normalizedShop, {
+  method: "GET",
+  url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/locations.json`,
+  headers: { "X-Shopify-Access-Token": accessToken }
+});
+
+const locationId = locationsResp.data?.locations?.[0]?.id;
+
+if (!locationId) {
+  console.log("❌ NO LOCATION FOUND", { shop: normalizedShop });
+} else {
+  for (const variant of realVariants) {
+    if (!variant.inventory_item_id) {
+      console.log("❌ NO inventory_item_id", { variantId: variant.id });
+      continue;
+    }
+
+    await shopifyRequest(normalizedShop, {
+      method: "POST",
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/inventory_levels/set.json`,
+      headers: { "X-Shopify-Access-Token": accessToken },
+      data: {
+        location_id: locationId,
+        inventory_item_id: variant.inventory_item_id,
+        available: FIXED_STOCK
+      }
+    });
+  }
+
+  console.log("✅ INVENTARIO SET A 11", {
+    shop: normalizedShop,
+    variants: realVariants.length
+  });
+}
     log("Producto transformado (FULL)", {
       shop: normalizedShop,
       productId,
