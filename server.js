@@ -2030,72 +2030,16 @@ app.post("/api/billing/create", async (req, res) => {
       return res.status(400).json({ error: "shop required" });
     }
 
-    // 🔥 usar STORES (no shop_tokens)
-    const result = await pool.query(
-      "SELECT access_token FROM stores WHERE shop = $1 LIMIT 1",
-      [shop]
-    );
+    // 🚀 SIMULACIÓN DE BILLING
+    console.log("SIMULATED BILLING FOR:", shop);
 
-    if (!result.rows.length) {
-      return res.status(404).json({ error: "store not found" });
-    }
-
-    const accessToken = result.rows[0].access_token;
-
-    const mutation = `
-      mutation {
-        appSubscriptionCreate(
-          name: "ZEUS Starter"
-          returnUrl: "${process.env.APP_URL}/billing/confirm?shop=${shop}"
-          test: true
-          lineItems: [
-            {
-              plan: {
-                appRecurringPricingDetails: {
-                  price: { amount: 9.99, currencyCode: USD }
-                  interval: EVERY_30_DAYS
-                }
-              }
-            }
-          ]
-        ) {
-          confirmationUrl
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-    const response = await fetch(`https://${shop}/admin/api/2026-01/graphql.json`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Access-Token": accessToken
-      },
-      body: JSON.stringify({ query: mutation })
+    return res.json({
+      url: `${process.env.APP_URL}/billing/success?shop=${shop}`
     });
 
-    const data = await response.json();
-
-    console.log("BILLING RESPONSE:", JSON.stringify(data, null, 2));
-
-    const url =
-      data?.data?.appSubscriptionCreate?.confirmationUrl;
-
-    if (!url) {
-      return res.status(500).json({
-        error: "no confirmation url",
-        debug: data
-      });
-    }
-
-    return res.json({ url });
-
   } catch (err) {
-    console.error("billing error:", err);
-    res.status(500).json({ error: "billing failed" });
+    console.error(err);
+    res.status(500).json({ error: "billing simulation failed" });
   }
 });
 
