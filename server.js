@@ -68,6 +68,7 @@ const axios = require("axios");
 const { Pool } = require("pg");
 const cheerio = require("cheerio");
 const crypto = require("crypto");
+const fetch = require("node-fetch");
 function resolveAccessToken(store) {
   return store?.accessToken || store?.access_token || null;
 }
