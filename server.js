@@ -2180,17 +2180,16 @@ app.get("/billing/success", (req, res) => {
    HEALTH
 ========================== */
 
-app.get("/", (req, res) => {
+app.get("/", async (req, res) => {
   const shop = req.query.shop;
 
   console.log("ENTRY ROOT", { shop });
 
   if (!shop) {
-    return res.send("Transformer running 🚀");
+    return res.send("ZEUS running 🚀");
   }
 
-  console.log("REDIRECTING TO AUTH", { shop });
-
+  // 🔥 FORZAR AUTH SIEMPRE
   return res.redirect(`/auth?shop=${shop}`);
 });
 
