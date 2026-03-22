@@ -2012,7 +2012,17 @@ app.get("/api/store/status", async (req, res) => {
 /* ==========================
    ACTIVATION PAGE
 ========================== */
+app.get("/", (req, res) => {
+  const shop = req.query.shop || req.headers['x-shopify-shop-domain'];
 
+  if (!shop) {
+    return res.send("ZEUS running 🚀");
+  }
+
+  console.log("FORCING AUTH FROM ROOT", { shop });
+
+  return res.redirect(`/auth?shop=${shop}`);
+});
 app.get("/activation", async (req, res) => {
   const shop = normalizeShopDomain(req.query.shop);
 
