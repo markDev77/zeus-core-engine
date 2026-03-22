@@ -16,26 +16,24 @@ app.use(express.json({
 SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
 ========================================
 */
-
 function verifyShopifyWebhookHmac(req) {
   try {
-    const hmacHeader = req.headers["x-shopify-hmac-sha256"] || "";
-    if (!hmacHeader) return false;
+    const hmac = req.headers['x-shopify-hmac-sha256'];
 
-    const digest = crypto
-  .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
-  .update(Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(req.rawBody || ""))
-  .digest("base64");
+    const rawBody = req.rawBody; // 👈 CLAVE
 
-    return (
-  digest.length === hmacHeader.length &&
-  crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(hmacHeader))
-);
+    const hash = crypto
+      .createHmac('sha256', process.env.SHOPIFY_API_SECRET)
+      .update(rawBody, 'utf8')
+      .digest('base64');
+
+    return hash === hmac;
   } catch (err) {
-    console.error("HMAC verify error:", err.message);
+    console.error("HMAC ERROR:", err);
     return false;
   }
 }
+
 
 app.post('/webhooks/customers/data_request', (req, res) => {
   if (!verifyShopifyWebhookHmac(req)) {
