@@ -2182,8 +2182,21 @@ if (false) {
 }
 
 app.get("/force-webhooks", async (req, res) => {
-  const shop = "eawi7g-hj.myshopify.com";
-  const token = "TU_ACCESS_TOKEN_REAL";
+
+  const shop = req.query.shop;
+
+  if (!shop) {
+    return res.status(400).send("Missing shop param");
+  }
+
+  const { getStore } = require("./src/services/storeService");
+  const store = await getStore(shop);
+
+  if (!store || !store.access_token) {
+    return res.status(400).send("Store not found or token missing");
+  }
+
+  const token = store.access_token;
 
   const topics = [
     "customers/data_request",
