@@ -2177,8 +2177,6 @@ app.get("/billing/success", (req, res) => {
 /* ==========================
    HEALTH
 ========================== */
-const { getStore } = require("./src/services/storeService");
-
 app.get("/activation", async (req, res) => {
   const shop = req.query.shop;
 
