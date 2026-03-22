@@ -4,7 +4,12 @@ const app = express();
 
 const { DATABASE_URL } = process.env;
 
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({
+  limit: "10mb",
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 /*
 ========================================
@@ -12,17 +17,49 @@ SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
 ========================================
 */
 
+function verifyShopifyWebhookHmac(req) {
+  try {
+    const hmacHeader = req.get("X-Shopify-Hmac-Sha256") || "";
+    if (!hmacHeader) return false;
+
+    const digest = crypto
+      .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
+      .update(req.rawBody || Buffer.from(""))
+      .digest("base64");
+
+    return crypto.timingSafeEqual(
+      Buffer.from(digest),
+      Buffer.from(hmacHeader)
+    );
+  } catch (err) {
+    console.error("HMAC verify error:", err.message);
+    return false;
+  }
+}
+
 app.post('/webhooks/customers/data_request', (req, res) => {
+  if (!verifyShopifyWebhookHmac(req)) {
+    return res.status(401).send('Unauthorized');
+  }
+
   console.log('📩 DATA REQUEST WEBHOOK', req.body);
   return res.status(200).send('OK');
 });
 
 app.post('/webhooks/customers/redact', (req, res) => {
+  if (!verifyShopifyWebhookHmac(req)) {
+    return res.status(401).send('Unauthorized');
+  }
+
   console.log('🧹 CUSTOMER REDACT WEBHOOK', req.body);
   return res.status(200).send('OK');
 });
 
 app.post('/webhooks/shop/redact', (req, res) => {
+  if (!verifyShopifyWebhookHmac(req)) {
+    return res.status(401).send('Unauthorized');
+  }
+
   console.log('🏪 SHOP REDACT WEBHOOK', req.body);
   return res.status(200).send('OK');
 });
