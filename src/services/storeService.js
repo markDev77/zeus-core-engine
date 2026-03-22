@@ -46,7 +46,7 @@ async function getStore(shop) {
   );
 
   if (!rows.length) {
-    throw new Error("STORE NOT REGISTERED");
+    return null;
   }
 
   const store = rows[0];
