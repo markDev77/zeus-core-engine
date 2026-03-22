@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
+
 app.use(express.json({ limit: "10mb" }));
 
 /*
@@ -22,6 +23,22 @@ app.post('/webhooks/customers/redact', (req, res) => {
 app.post('/webhooks/shop/redact', (req, res) => {
   console.log('🏪 SHOP REDACT WEBHOOK', req.body);
   return res.status(200).send('OK');
+});
+
+/*
+========================================
+SERVER START (ESTO FALTABA)
+========================================
+*/
+
+const PORT = process.env.PORT || 10000;
+
+app.get("/", (req, res) => {
+  res.send("ZEUS CORE ENGINE RUNNING");
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 ZEUS running on port ${PORT}`);
 });
 const axios = require("axios");
 const { Pool } = require("pg");
