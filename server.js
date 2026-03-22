@@ -56,12 +56,7 @@ app.post('/webhooks/shop/redact', (req, res) => {
   if (!verifyShopifyWebhookHmac(req)) {
     return res.status(401).send('Unauthorized');
   }
-
-  console.log('🏪 SHOP REDACT WEBHOOK');
-  return res.status(200).send('OK');
-});
-
-  console.log('🏪 SHOP REDACT WEBHOOK', req.body);
+ console.log('🏪 SHOP REDACT WEBHOOK');
   return res.status(200).send('OK');
 });
 
