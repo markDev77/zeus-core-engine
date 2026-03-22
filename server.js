@@ -2192,6 +2192,9 @@ app.get("/activation", async (req, res) => {
     return res.redirect(`/auth?shop=${shop}`);
   }
 
+  // ✅ SI TODO OK
+  return res.send("ZEUS is ready 🚀");
+});
 
 app.get("/health", (req, res) => {
   res.json({
