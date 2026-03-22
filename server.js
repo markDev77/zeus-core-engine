@@ -27,21 +27,6 @@ app.post('/webhooks/shop/redact', (req, res) => {
   return res.status(200).send('OK');
 });
 
-/*
-========================================
-SERVER START (OBLIGATORIO)
-========================================
-*/
-
-const PORT = process.env.PORT || 10000;
-
-app.get("/", (req, res) => {
-  res.send("ZEUS CORE ENGINE RUNNING");
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 ZEUS running on port ${PORT}`);
-});
 const axios = require("axios");
 const { Pool } = require("pg");
 const cheerio = require("cheerio");
@@ -2159,11 +2144,21 @@ if (false) {
   }
 }
 
-/* ==========================
-   START SERVER
-========================== */
+/* ========================================
+   SERVER START (ÚNICO Y FINAL)
+======================================== */
+
+const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
-  await initDB();
+  console.log(`🚀 ZEUS running on port ${PORT}`);
+
+  try {
+    if (typeof initDB === "function") {
+      await initDB();
+      console.log("✅ DB connected");
+    }
+  } catch (err) {
+    console.error("❌ DB connection error:", err.message);
+  }
 });
