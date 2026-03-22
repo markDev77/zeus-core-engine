@@ -1920,6 +1920,136 @@ app.get("/activation", async (req, res) => {
 });
 
 /* ==========================
+   STORE STATUS
+========================== */
+
+app.get("/api/store/status", async (req, res) => {
+  try {
+    const shop = normalizeShopDomain(req.query.shop);
+
+    if (!shop) {
+      return res.status(400).json({ error: "shop required" });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT shop, plan, tokens, tokens_used, status
+      FROM stores
+      WHERE shop = $1
+      LIMIT 1
+      `,
+      [shop]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "store not found" });
+    }
+
+    return res.json(result.rows[0]);
+
+  } catch (error) {
+    console.error("store/status error:", error);
+    res.status(500).json({ error: "internal error" });
+  }
+});
+
+/* ==========================
+   ACTIVATION PAGE
+========================== */
+
+app.get("/activation", async (req, res) => {
+  const shop = normalizeShopDomain(req.query.shop);
+
+  return res.send(`
+  <html>
+  <head>
+    <title>ZEUS Activation</title>
+    <style>
+      body {
+        font-family: Arial;
+        background: #0b1020;
+        color: white;
+        padding: 40px;
+      }
+      .box {
+        background: #131a2e;
+        padding: 25px;
+        border-radius: 12px;
+        max-width: 600px;
+      }
+      button {
+        margin-top: 20px;
+        padding: 12px 16px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="box">
+      <h2>ZEUS is ready in your store</h2>
+
+      <p>
+        ZEUS automatically optimizes your products when you create or import them.
+        Each optimization consumes 1 token.
+      </p>
+
+      <p><b>Store:</b> ${shop}</p>
+
+      <p><b>Status:</b> <span id="status">...</span></p>
+      <p><b>Tokens:</b> <span id="tokens">...</span></p>
+      <p><b>Used:</b> <span id="used">...</span></p>
+
+      <hr/>
+
+      <p>
+        👉 Import a product from UsaDrop or create one manually to trigger ZEUS.
+      </p>
+
+      <button onclick="goBilling()">Activate more optimizations</button>
+    </div>
+
+    <script>
+      const shop = "${shop}";
+      const API = "${process.env.APP_URL}";
+
+      async function loadStatus() {
+        try {
+          const res = await fetch(API + "/api/store/status?shop=" + shop);
+          const data = await res.json();
+
+          document.getElementById("status").innerText = data.status;
+          document.getElementById("tokens").innerText = data.tokens;
+          document.getElementById("used").innerText = data.tokens_used;
+
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      async function goBilling() {
+        const res = await fetch(API + "/api/billing/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shop })
+        });
+
+        const data = await res.json();
+
+        if (data.url) {
+          window.top.location.href = data.url;
+        }
+      }
+
+      loadStatus();
+    </script>
+  </body>
+  </html>
+  `);
+});
+
+/* ==========================
    BILLING (AQUÍ)
 ========================== */
 // CREATE SUBSCRIPTION
