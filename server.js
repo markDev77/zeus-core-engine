@@ -1981,7 +1981,7 @@ app.get("/activation", async (req, res) => {
 
     <script>
       const shop = "${shop}";
-      const API = "${process.env.APP_URL}";
+      const API = "https://zeus-core-engine.onrender.com";
 
       async function loadStatus() {
         try {
