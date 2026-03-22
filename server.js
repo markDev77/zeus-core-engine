@@ -1920,6 +1920,109 @@ app.get("/activation", async (req, res) => {
 });
 
 /* ==========================
+   BILLING (AQUÍ)
+========================== */
+// CREATE SUBSCRIPTION
+app.post("/api/billing/create", async (req, res) => {
+  try {
+    const { shop } = req.body;
+
+    if (!shop) {
+      return res.status(400).json({ error: "shop required" });
+    }
+
+    const result = await pool.query(
+      `SELECT access_token FROM shop_tokens WHERE shop = $1 LIMIT 1`,
+      [shop]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "store not found" });
+    }
+
+    const accessToken = result.rows[0].access_token;
+
+    const response = await fetch(`https://${shop}/admin/api/2026-01/graphql.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken
+      },
+      body: JSON.stringify({
+        query: `
+          mutation {
+            appSubscriptionCreate(
+              name: "ZEUS Starter"
+              returnUrl: "${process.env.APP_URL}/billing/confirm?shop=${shop}"
+              test: true
+              lineItems: [
+                {
+                  plan: {
+                    appRecurringPricingDetails: {
+                      price: { amount: 9.99, currencyCode: USD }
+                      interval: EVERY_30_DAYS
+                    }
+                  }
+                }
+              ]
+            ) {
+              confirmationUrl
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `
+      })
+    });
+
+    const data = await response.json();
+
+    const url = data?.data?.appSubscriptionCreate?.confirmationUrl;
+
+    if (!url) {
+      console.log("Billing error:", data);
+      return res.status(500).json({ error: "no confirmation url" });
+    }
+
+    return res.json({ url });
+
+  } catch (error) {
+    console.error("billing/create error:", error);
+    res.status(500).json({ error: "internal error" });
+  }
+});
+
+
+// CONFIRM SUBSCRIPTION
+app.get("/billing/confirm", async (req, res) => {
+  try {
+    const { shop } = req.query;
+
+    if (!shop) {
+      return res.status(400).send("missing shop");
+    }
+
+    await pool.query(
+      `
+      UPDATE stores
+      SET plan = 'starter',
+          tokens = tokens + 50
+      WHERE shop = $1
+      `,
+      [shop]
+    );
+
+    return res.redirect(`${process.env.FRONTEND_URL}/activation?shop=${shop}`);
+
+  } catch (error) {
+    console.error("billing confirm error:", error);
+    res.status(500).send("error");
+  }
+});
+
+/* ==========================
    HEALTH
 ========================== */
 
