@@ -2181,7 +2181,17 @@ app.get("/billing/success", (req, res) => {
 ========================== */
 
 app.get("/", (req, res) => {
-  res.send("Transformer running 🚀");
+  const shop = req.query.shop;
+
+  console.log("ENTRY ROOT", { shop });
+
+  if (!shop) {
+    return res.send("Transformer running 🚀");
+  }
+
+  console.log("REDIRECTING TO AUTH", { shop });
+
+  return res.redirect(`/auth?shop=${shop}`);
 });
 
 app.get("/health", (req, res) => {
