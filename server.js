@@ -18,63 +18,58 @@ SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
 */
 function verifyShopifyWebhookHmac(req) {
   try {
-    const hmac = req.headers['x-shopify-hmac-sha256'];
+    const hmacHeader = req.headers["x-shopify-hmac-sha256"];
+    const rawBody = req.rawBody;
 
-    const rawBody = req.rawBody; // 👈 CLAVE
+    if (!hmacHeader || !rawBody) {
+      return false;
+    }
 
-    const hash = crypto
-      .createHmac('sha256', process.env.SHOPIFY_API_SECRET)
-      .update(rawBody, 'utf8')
-      .digest('base64');
+    const digest = crypto
+      .createHmac("sha256", SHOPIFY_API_SECRET)
+      .update(rawBody)
+      .digest("base64");
 
-    return hash === hmac;
+    const generated = Buffer.from(digest, "utf8");
+    const received = Buffer.from(String(hmacHeader), "utf8");
+
+    if (generated.length !== received.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(generated, received);
   } catch (err) {
-    console.error("HMAC ERROR:", err);
+    console.error("HMAC ERROR:", err.message);
     return false;
   }
 }
 
-app.post('/webhooks/customers/data_request', (req, res) => {
+app.post("/webhooks/customers/data_request", (req, res) => {
   if (!verifyShopifyWebhookHmac(req)) {
-    return res.status(401).send('Unauthorized');
+    return res.status(401).send("Unauthorized");
   }
 
-  console.log('📩 DATA REQUEST WEBHOOK');
-  return res.status(200).send('OK');
+  console.log("📩 DATA REQUEST WEBHOOK", req.body);
+  return res.status(200).send("OK");
 });
 
-app.post('/webhooks/customers/redact', (req, res) => {
+app.post("/webhooks/customers/redact", (req, res) => {
   if (!verifyShopifyWebhookHmac(req)) {
-    return res.status(401).send('Unauthorized');
+    return res.status(401).send("Unauthorized");
   }
 
-  console.log('🧹 CUSTOMER REDACT WEBHOOK');
-  return res.status(200).send('OK');
+  console.log("🧹 CUSTOMER REDACT WEBHOOK", req.body);
+  return res.status(200).send("OK");
 });
 
-app.post('/webhooks/shop/redact', (req, res) => {
+app.post("/webhooks/shop/redact", (req, res) => {
   if (!verifyShopifyWebhookHmac(req)) {
-    return res.status(401).send('Unauthorized');
+    return res.status(401).send("Unauthorized");
   }
- console.log('🏪 SHOP REDACT WEBHOOK');
-  return res.status(200).send('OK');
-});
 
-const axios = require("axios");
-const { Pool } = require("pg");
-const cheerio = require("cheerio");
-const crypto = require("crypto");
-const fetch = require("node-fetch");
-function resolveaccess_token(store) {
-  return store?.access_token || store?.access_token || null;
-}
-const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_CLIENT_ID || "";
-const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || process.env.SHOPIFY_API_CLIENT_SECRET || "";
-const SHOPIFY_SCOPES =
-  process.env.SHOPIFY_SCOPES ||
-  "read_products,write_products,read_inventory,write_inventory,read_locations,write_own_subscription";
-const HOST =
-  (process.env.HOST || process.env.APP_URL || "").replace(/\/+$/, "");
+  console.log("🏪 SHOP REDACT WEBHOOK", req.body);
+  return res.status(200).send("OK");
+});
 
 /* ==========================
    OAUTH HELPERS
@@ -2116,63 +2111,12 @@ if (false) {
 }
 
 async function registerWebhooks(shop, accessToken) {
-  console.log("🔥 REGISTER WEBHOOKS START:", shop);
-
-  const topicMap = {
-    "customers/data_request": "CUSTOMERS_DATA_REQUEST",
-    "customers/redact": "CUSTOMERS_REDACT",
-    "shop/redact": "SHOP_REDACT"
-  };
-
-  const topics = Object.keys(topicMap);
-
-  for (const topic of topics) {
-    try {
-      console.log("➡️ Creating webhook:", topic);
-
-      const response = await fetch(`https://${shop}/admin/api/2023-10/graphql.json`, {
-        method: "POST",
-        headers: {
-          "X-Shopify-Access-Token": accessToken,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          query: `
-            mutation webhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $callbackUrl: URL!) {
-              webhookSubscriptionCreate(
-                topic: $topic,
-                webhookSubscription: {
-                  callbackUrl: $callbackUrl,
-                  format: JSON
-                }
-              ) {
-                userErrors {
-                  field
-                  message
-                }
-                webhookSubscription {
-                  id
-                }
-              }
-            }
-          `,
-          variables: {
-            topic: topicMap[topic],
-            callbackUrl: `https://zeus-core-engine.onrender.com/webhooks/${topic}`
-          }
-        })
-      });
-
-      const data = await response.json();
-
-      console.log("SHOPIFY RESPONSE:", topic, response.status, data);
-
-    } catch (err) {
-      console.error("Webhook error:", topic, err.message);
-    }
-  }
+  console.log("ℹ️ COMPLIANCE WEBHOOKS MUST BE CONFIGURED IN PARTNER DASHBOARD:", {
+    shop
+  });
+  return;
 }
-
+        
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
