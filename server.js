@@ -2115,8 +2115,6 @@ if (false) {
   }
 }
 
-const fetch = require("node-fetch");
-
 async function registerWebhooks(shop, accessToken) {
   const topics = [
     "customers/data_request",
