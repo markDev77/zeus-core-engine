@@ -252,39 +252,9 @@ app.get("/auth/callback", async (req, res) => {
       access_token,
       status: "active"
     });
-// ================================
-// AUTO REGISTER WEBHOOKS (SHOPIFY READY)
-// ================================
-
-const fetch = require("node-fetch");
-
-const topics = [
-  "customers/data_request",
-  "customers/redact",
-  "shop/redact"
-];
-
-for (const topic of topics) {
-  try {
-    await fetch(`https://${shop}/admin/api/2026-01/webhooks.json`, {
-      method: "POST",
-      headers: {
-        "X-Shopify-Access-Token": access_token,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        webhook: {
-          topic,
-          address: `https://zeus-core-engine.onrender.com/webhooks/${topic}`,
-          format: "json"
-        }
-      })
-    });
-  } catch (err) {
-    console.error("Webhook error:", topic, err.message);
-  }
-}
-
+    
+await registerWebhooks(shop, access_token);
+ 
     log("OAUTH SUCCESS", {
       shop,
       token_prefix: String(access_token).slice(0, 8),
@@ -2183,10 +2153,63 @@ app.get("/force-webhooks", async (req, res) => {
         }
       })
     });
-  }
+   body: JSON.stringify({
+        webhook: {
+          topic,
+          address: `https://zeus-core-engine.onrender.com/webhooks/${topic}`,
+          format: "json"
+        }
+      })
+    });
+  });
 
-  res.send("Webhooks registrados");
-});
+        
+const fetch = require("node-fetch");
+
+async function registerWebhooks(shop, accessToken) {
+  const topics = [
+    "customers/data_request",
+    "customers/redact",
+    "shop/redact"
+  ];
+
+  for (const topic of topics) {
+    try {
+      await fetch(`https://${shop}/admin/api/2024-01/webhooks.json`, {
+        method: "POST",
+        headers: {
+          
+
+const fetch = require("node-fetch");
+
+async function registerWebhooks(shop, accessToken) {
+  const topics = [
+    "customers/data_request",
+    "customers/redact",
+    "shop/redact"
+  ];
+
+  for (const topic of topics) {
+    try {
+      await fetch(`https://${shop}/admin/api/2024-01/webhooks.json`, {
+        method: "POST",
+        headers: {
+          "X-Shopify-Access-Token": accessToken,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          webhook: {
+            topic,
+            address: `https://zeus-core-engine.onrender.com/webhooks/${topic}`,
+            format: "json"
+          }
+        })
+      });
+    } catch (err) {
+      console.error("Webhook error:", topic, err.message);
+    }
+  }
+}
 
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
