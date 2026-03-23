@@ -89,9 +89,9 @@ function buildShopifyCallbackUrl() {
 }
 
 function validateRequiredOAuthEnv() {
-  if (!SHOPIFY_API_KEY) throw new Error("SHOPIFY_API_KEY env missing");
-  if (!SHOPIFY_API_SECRET) throw new Error("SHOPIFY_API_SECRET env missing");
-  if (!HOST) throw new Error("HOST env missing");
+  if (!process.env.SHOPIFY_API_KEY) throw new Error("SHOPIFY_API_KEY env missing");
+  if (!process.env.SHOPIFY_API_SECRET) throw new Error("SHOPIFY_API_SECRET env missing");
+  if (!process.env.SHOPIFY_APP_URL) throw new Error("SHOPIFY_APP_URL env missing");
 }
 
 function isValidShopifyShop(shop) {
