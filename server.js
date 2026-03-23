@@ -2116,6 +2116,7 @@ if (false) {
 }
 
 async function registerWebhooks(shop, accessToken) {
+  console.log("🔥 REGISTER WEBHOOKS START:", shop);
   const topics = [
     "customers/data_request",
     "customers/redact",
@@ -2123,25 +2124,30 @@ async function registerWebhooks(shop, accessToken) {
   ];
 
   for (const topic of topics) {
-    try {
-      await fetch(`https://${shop}/admin/api/2024-01/webhooks.json`, {
-        method: "POST",
-        headers: {
-          "X-Shopify-Access-Token": accessToken,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          webhook: {
-            topic,
-            address: `https://zeus-core-engine.onrender.com/webhooks/${topic}`,
-            format: "json"
-          }
-        })
-      });
-    } catch (err) {
-      console.error("Webhook error:", topic, err.message);
-    }
+  try {
+    console.log("➡️ Creating webhook:", topic);
+
+    await fetch(`https://${shop}/admin/api/2024-01/webhooks.json`, {
+      method: "POST",
+      headers: {
+        "X-Shopify-Access-Token": accessToken,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        webhook: {
+          topic,
+          address: `https://zeus-core-engine.onrender.com/webhooks/${topic}`,
+          format: "json"
+        }
+      })
+    });
+
+    console.log("✅ Webhook attempted:", topic);
+
+  } catch (err) {
+    console.error("Webhook error:", topic, err.message);
   }
+ }
 }
 
 /* ========================================
