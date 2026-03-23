@@ -65,8 +65,8 @@ const { Pool } = require("pg");
 const cheerio = require("cheerio");
 const crypto = require("crypto");
 const fetch = require("node-fetch");
-function resolveAccessToken(store) {
-  return store?.accessToken || store?.access_token || null;
+function resolveaccess_token(store) {
+  return store?.access_token || store?.access_token || null;
 }
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_CLIENT_ID || "";
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || process.env.SHOPIFY_API_CLIENT_SECRET || "";
@@ -269,7 +269,7 @@ for (const topic of topics) {
     await fetch(`https://${shop}/admin/api/2026-01/webhooks.json`, {
       method: "POST",
       headers: {
-        "X-Shopify-Access-Token": accessToken,
+        "X-Shopify-Access-Token": access_token,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -397,7 +397,7 @@ function buildTagSetFromProduct(product, extraTags = []) {
   return Array.from(new Set(all));
 }
 
-async function findProductsByTag(shop, accessToken, tag) {
+async function findProductsByTag(shop, access_token, tag) {
   const q = `
     query ($query: String!) {
       products(first: 5, query: $query) {
@@ -405,7 +405,7 @@ async function findProductsByTag(shop, accessToken, tag) {
       }
     }`;
 
-  const data = await shopifyGraphQL(shop, accessToken, q, { query: `tag:${tag}` });
+  const data = await shopifyGraphQL(shop, access_token, q, { query: `tag:${tag}` });
 
   const edges = data?.data?.products?.edges || data?.products?.edges || [];
   return edges
@@ -544,7 +544,7 @@ function buildImageFingerprintKey(realProduct, limit = 3) {
   return uniq.join("|");
 }
 
-async function ensureMainImage(shop, accessToken, productId, realProduct) {
+async function ensureMainImage(shop, access_token, productId, realProduct) {
   if (Array.isArray(realProduct?.images) && realProduct.images.length > 0) return;
 
   const fallbackImage = extractFirstImageFromHtml(realProduct?.body_html);
@@ -556,7 +556,7 @@ async function ensureMainImage(shop, accessToken, productId, realProduct) {
   await shopifyRequest(shop, {
     method: "POST",
     url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}/images.json`,
-    headers: { "X-Shopify-Access-Token": accessToken },
+    headers: { "X-Shopify-Access-Token": access_token },
     data: { image: { src: fallbackImage } }
   });
 
@@ -960,14 +960,14 @@ async function shopifyRequest(shop, config, attempt = 0) {
 
 async function upsertProductMetafield({
   shop,
-  accessToken,
+  access_token,
   productId,
   namespace,
   key,
   value,
   type = "single_line_text_field"
 }) {
-  if (!shop || !accessToken || !productId || !namespace || !key) return null;
+  if (!shop || !access_token || !productId || !namespace || !key) return null;
 
   const normalizedShop = normalizeShopDomain(shop);
   const base = `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}`;
@@ -977,7 +977,7 @@ async function upsertProductMetafield({
     const list = await shopifyRequest(normalizedShop, {
       method: "GET",
       url: listUrl,
-      headers: { "X-Shopify-Access-Token": accessToken }
+      headers: { "X-Shopify-Access-Token": access_token }
     });
 
     const items = list?.data?.metafields || [];
@@ -988,7 +988,7 @@ async function upsertProductMetafield({
       const res = await shopifyRequest(normalizedShop, {
         method: "PUT",
         url: putUrl,
-        headers: { "X-Shopify-Access-Token": accessToken },
+        headers: { "X-Shopify-Access-Token": access_token },
         data: {
           metafield: {
             id: found.id,
@@ -1004,7 +1004,7 @@ async function upsertProductMetafield({
     const res = await shopifyRequest(normalizedShop, {
       method: "POST",
       url: postUrl,
-      headers: { "X-Shopify-Access-Token": accessToken },
+      headers: { "X-Shopify-Access-Token": access_token },
       data: {
         metafield: {
           namespace,
@@ -1233,7 +1233,7 @@ function buildAftershipUrl(carrierSlug, trackingNumber) {
   return `https://www.aftership.com/track/${carrierSlug}/${trackingNumber}`;
 }
 
-async function updateTrackingOnFulfillment(shop, accessToken, fulfillmentId, carrierSlug, trackingNumber, trackingUrl) {
+async function updateTrackingOnFulfillment(shop, access_token, fulfillmentId, carrierSlug, trackingNumber, trackingUrl) {
   const normalizedShop = normalizeShopDomain(shop);
 
   const payload = {
@@ -1250,7 +1250,7 @@ async function updateTrackingOnFulfillment(shop, accessToken, fulfillmentId, car
   await shopifyRequest(normalizedShop, {
     method: "POST",
     url: `https://${normalizedShop}/admin/api/${FULFILLMENT_API_VERSION}/fulfillments/${fulfillmentId}/update_tracking.json`,
-    headers: { "X-Shopify-Access-Token": accessToken },
+    headers: { "X-Shopify-Access-Token": access_token },
     data: payload
   });
 }
@@ -1265,14 +1265,14 @@ function gidToNumericId(gid) {
   return m ? Number(m[1]) : null;
 }
 
-async function shopifyGraphQL(shop, accessToken, query, variables) {
+async function shopifyGraphQL(shop, access_token, query, variables) {
   const normalizedShop = normalizeShopDomain(shop);
 
   const response = await shopifyRequest(normalizedShop, {
     method: "POST",
     url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/graphql.json`,
     headers: {
-      "X-Shopify-Access-Token": accessToken,
+      "X-Shopify-Access-Token": access_token,
       "Content-Type": "application/json"
     },
     data: { query, variables }
@@ -1287,7 +1287,7 @@ function chunk(arr, size) {
   return out;
 }
 
-async function findProductIdsBySkus(shop, accessToken, skus) {
+async function findProductIdsBySkus(shop, access_token, skus) {
   const normalizedShop = normalizeShopDomain(shop);
   const uniq = Array.from(new Set((skus || []).map((s) => String(s || "").trim()).filter(Boolean)));
   if (uniq.length === 0) return [];
@@ -1310,7 +1310,7 @@ async function findProductIdsBySkus(shop, accessToken, skus) {
 
   for (const batch of batches) {
     const q = batch.map((s) => `sku:${s.replace(/"/g, "")}`).join(" OR ");
-    const resp = await shopifyGraphQL(normalizedShop, accessToken, GQL, { q });
+    const resp = await shopifyGraphQL(normalizedShop, access_token, GQL, { q });
 
     const edges = resp?.data?.productVariants?.edges || resp?.productVariants?.edges || [];
     for (const e of edges) {
@@ -1353,7 +1353,7 @@ function isDuplicateExecution(shop, productId) {
    FULL MODE: PRODUCT TRANSFORM
 ========================== */
 
-async function transformProductById(shop, accessToken, productId) {
+async function transformProductById(shop, access_token, productId) {
   const normalizedShop = normalizeShopDomain(shop);
 
   const store = await getStore(shop);
@@ -1379,7 +1379,7 @@ async function transformProductById(shop, accessToken, productId) {
     const freshProduct = await shopifyRequest(normalizedShop, {
       method: "GET",
       url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken }
+      headers: { "X-Shopify-Access-Token": access_token }
     });
 
     const realProduct = freshProduct.data.product;
@@ -1393,7 +1393,7 @@ async function transformProductById(shop, accessToken, productId) {
       await shopifyRequest(normalizedShop, {
         method: "PUT",
         url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-        headers: { "X-Shopify-Access-Token": accessToken },
+        headers: { "X-Shopify-Access-Token": access_token },
         data: {
           product: {
             id: productId,
@@ -1415,7 +1415,7 @@ async function transformProductById(shop, accessToken, productId) {
       await shopifyRequest(normalizedShop, {
         method: "PUT",
         url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-        headers: { "X-Shopify-Access-Token": accessToken },
+        headers: { "X-Shopify-Access-Token": access_token },
         data: {
           product: {
             id: productId,
@@ -1433,20 +1433,20 @@ async function transformProductById(shop, accessToken, productId) {
       return { success: false, reason: "blocked_policy" };
     }
 
-    await ensureMainImage(normalizedShop, accessToken, productId, realProduct);
+    await ensureMainImage(normalizedShop, access_token, productId, realProduct);
 
     const imageKey = buildImageFingerprintKey(realProduct, 3);
     const sigHash = computeProductSignature(imageKey, realVariants.length);
     const sigTag = `${ZEUS_SIGNATURE_TAG_PREFIX}${sigHash}`;
 
-    const dupIds = await findProductsByTag(normalizedShop, accessToken, sigTag);
+    const dupIds = await findProductsByTag(normalizedShop, access_token, sigTag);
     const hasDup = dupIds.some((id) => String(id) !== String(productId));
 
     if (hasDup) {
       await shopifyRequest(normalizedShop, {
         method: "PUT",
         url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-        headers: { "X-Shopify-Access-Token": accessToken },
+        headers: { "X-Shopify-Access-Token": access_token },
         data: {
           product: {
             id: productId,
@@ -1486,7 +1486,7 @@ async function transformProductById(shop, accessToken, productId) {
     await shopifyRequest(normalizedShop, {
       method: "PUT",
       url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken },
+      headers: { "X-Shopify-Access-Token": access_token },
       data: {
         product: {
           id: productId,
@@ -1507,7 +1507,7 @@ async function transformProductById(shop, accessToken, productId) {
   await shopifyRequest(normalizedShop, {
     method: "PUT",
     url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
-    headers: { "X-Shopify-Access-Token": accessToken },
+    headers: { "X-Shopify-Access-Token": access_token },
     data: {
       variant: {
         id: variant.id,
@@ -1528,7 +1528,7 @@ await sleep(1800); // CRÍTICO (espera a que Shopify cree inventory_item_id)
 const locationsResp = await shopifyRequest(normalizedShop, {
   method: "GET",
   url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/locations.json`,
-  headers: { "X-Shopify-Access-Token": accessToken }
+  headers: { "X-Shopify-Access-Token": access_token }
 });
 
 const locationId = locationsResp.data?.locations?.[0]?.id;
@@ -1545,7 +1545,7 @@ if (!locationId) {
     await shopifyRequest(normalizedShop, {
       method: "POST",
       url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/inventory_levels/set.json`,
-      headers: { "X-Shopify-Access-Token": accessToken },
+      headers: { "X-Shopify-Access-Token": access_token },
       data: {
         location_id: locationId,
         inventory_item_id: variant.inventory_item_id,
@@ -1577,13 +1577,13 @@ if (!locationId) {
    STABLE MODE
 ========================== */
 
-async function transformProductStableById(shop, accessToken, productId) {
+async function transformProductStableById(shop, access_token, productId) {
   const normalizedShop = normalizeShopDomain(shop);
 
   const freshProduct = await shopifyRequest(normalizedShop, {
     method: "GET",
     url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-    headers: { "X-Shopify-Access-Token": accessToken }
+    headers: { "X-Shopify-Access-Token": access_token }
   });
 
   const realProduct = freshProduct.data.product;
@@ -1597,7 +1597,7 @@ async function transformProductStableById(shop, accessToken, productId) {
     await shopifyRequest(normalizedShop, {
       method: "PUT",
       url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken },
+      headers: { "X-Shopify-Access-Token": access_token },
       data: {
         product: {
           id: productId,
@@ -1618,7 +1618,7 @@ async function transformProductStableById(shop, accessToken, productId) {
     await shopifyRequest(normalizedShop, {
       method: "PUT",
       url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken },
+      headers: { "X-Shopify-Access-Token": access_token },
       data: {
         product: {
           id: productId,
@@ -1636,7 +1636,7 @@ async function transformProductStableById(shop, accessToken, productId) {
     return;
   }
 
-  await ensureMainImage(normalizedShop, accessToken, productId, realProduct);
+  await ensureMainImage(normalizedShop, access_token, productId, realProduct);
 
   const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
@@ -1654,7 +1654,7 @@ async function transformProductStableById(shop, accessToken, productId) {
   await shopifyRequest(normalizedShop, {
     method: "PUT",
     url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-    headers: { "X-Shopify-Access-Token": accessToken },
+    headers: { "X-Shopify-Access-Token": access_token },
     data: {
       product: {
         id: productId,
@@ -1675,13 +1675,13 @@ async function transformProductStableById(shop, accessToken, productId) {
    CLEAN ONLY
 ========================== */
 
-async function cleanProductById(shop, accessToken, productId) {
+async function cleanProductById(shop, access_token, productId) {
   const normalizedShop = normalizeShopDomain(shop);
 
   const freshProduct = await shopifyRequest(normalizedShop, {
     method: "GET",
     url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-    headers: { "X-Shopify-Access-Token": accessToken }
+    headers: { "X-Shopify-Access-Token": access_token }
   });
 
   const realProduct = freshProduct.data.product;
@@ -1690,7 +1690,7 @@ async function cleanProductById(shop, accessToken, productId) {
     await shopifyRequest(normalizedShop, {
       method: "PUT",
       url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken },
+      headers: { "X-Shopify-Access-Token": access_token },
       data: {
         product: {
           id: productId,
@@ -1708,7 +1708,7 @@ async function cleanProductById(shop, accessToken, productId) {
     return;
   }
 
-  await ensureMainImage(normalizedShop, accessToken, productId, realProduct);
+  await ensureMainImage(normalizedShop, access_token, productId, realProduct);
 
   const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
@@ -1724,7 +1724,7 @@ async function cleanProductById(shop, accessToken, productId) {
   await shopifyRequest(normalizedShop, {
     method: "PUT",
     url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-    headers: { "X-Shopify-Access-Token": accessToken },
+    headers: { "X-Shopify-Access-Token": access_token },
     data: {
       product: {
         id: productId,
@@ -1847,14 +1847,14 @@ app.post("/webhook/products-create", async (req, res) => {
       return;
     }
 
-    const accessToken = await getToken(shop);
+    const access_token = await getToken(shop);
 
     await sleep(1500);
 
     const productResp = await shopifyRequest(shop, {
       method: "GET",
       url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": accessToken }
+      headers: { "X-Shopify-Access-Token": access_token }
     });
 
     const realProduct = productResp?.data?.product || {};
@@ -1865,7 +1865,7 @@ app.post("/webhook/products-create", async (req, res) => {
       return;
     }
 
-    const transformResult = await transformProductById(shop, accessToken, productId);
+    const transformResult = await transformProductById(shop, access_token, productId);
 
     if (!transformResult?.success) {
       log("WEBHOOK TOKEN SKIPPED", {
@@ -1899,13 +1899,13 @@ app.post("/webhook/fulfillment", async (req, res) => {
   if (!trackingNumber) return;
 
   enqueueShopJob(shop, "fulfillment-tracking", async () => {
-    const accessToken = await getToken(shop);
+    const access_token = await getToken(shop);
 
     const carrierSlug = detectAftershipCarrierSlug(trackingNumber, payload?.tracking_company);
     const trackingUrl = buildAftershipUrl(carrierSlug, trackingNumber);
 
     if (payload?.id && String(topic).startsWith("fulfillments/")) {
-      await updateTrackingOnFulfillment(shop, accessToken, payload.id, carrierSlug, trackingNumber, trackingUrl);
+      await updateTrackingOnFulfillment(shop, access_token, payload.id, carrierSlug, trackingNumber, trackingUrl);
       log("Tracking actualizado", { shop, fulfillmentId: payload.id, trackingUrl });
     }
   });
@@ -2108,7 +2108,7 @@ app.get("/activation", async (req, res) => {
   const store = await getStore(shop);
 
   // 🔥 SI NO HAY TOKEN OAuth REAL → FORZAR AUTH
-  if (!store || !store.access_token?.startsWith("shpca_")) {
+ if (!store || !store.access_token) {
     console.log("FORCING AUTH FROM ACTIVATION", { shop });
     return res.redirect(`/auth?shop=${shop}`);
   }
