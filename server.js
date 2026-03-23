@@ -1,8 +1,23 @@
-require("dotenv").config();
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
+const {
+  SHOPIFY_API_KEY,
+  SHOPIFY_API_SECRET,
+  SHOPIFY_SCOPES,
+  OPENAI_API_KEY
+} = process.env;
 const express = require("express");
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const app = express();
+
+console.log("ENV REAL:", {
+  SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY ? "OK" : "MISSING",
+  SHOPIFY_API_SECRET: process.env.SHOPIFY_API_SECRET ? "OK" : "MISSING",
+  SHOPIFY_SCOPES: process.env.SHOPIFY_SCOPES ? "OK" : "MISSING"
+});
+
 
 const { DATABASE_URL } = process.env;
 
