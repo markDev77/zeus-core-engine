@@ -2127,22 +2127,24 @@ async function registerWebhooks(shop, accessToken) {
   try {
     console.log("➡️ Creating webhook:", topic);
 
-    await fetch(`https://${shop}/admin/api/2024-01/webhooks.json`, {
-      method: "POST",
-      headers: {
-        "X-Shopify-Access-Token": accessToken,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        webhook: {
-          topic,
-          address: `https://zeus-core-engine.onrender.com/webhooks/${topic}`,
-          format: "json"
-        }
-      })
-    });
+    const response = await fetch(`https://${shop}/admin/api/2026-01/webhooks.json`, {
+  method: "POST",
+  headers: {
+    "X-Shopify-Access-Token": accessToken,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    webhook: {
+      topic,
+      address: `https://zeus-core-engine.onrender.com/webhooks/${topic}`,
+      format: "json"
+    }
+  })
+});
 
-    console.log("✅ Webhook attempted:", topic);
+const data = await response.json();
+
+console.log("SHOPIFY RESPONSE:", topic, response.status, data);
 
   } catch (err) {
     console.error("Webhook error:", topic, err.message);
