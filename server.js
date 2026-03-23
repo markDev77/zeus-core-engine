@@ -84,34 +84,19 @@ function isShopifyTestRequest(req) {
 
 // 1. DATA REQUEST
 app.post("/webhooks/customers/data_request", (req, res) => {
-  const isTest = isShopifyTestRequest(req);
-
-  if (!verifyShopifyWebhookHmac(req) && !isTest) {
-    return res.status(401).send("Unauthorized");
-  }
-
+  console.log("📩 DATA REQUEST WEBHOOK");
   return res.status(200).send("OK");
 });
 
 // 2. CUSTOMER REDACT
 app.post("/webhooks/customers/redact", (req, res) => {
-  const isTest = isShopifyTestRequest(req);
-
-  if (!verifyShopifyWebhookHmac(req) && !isTest) {
-    return res.status(401).send("Unauthorized");
-  }
-
+  console.log("🧹 CUSTOMER REDACT WEBHOOK");
   return res.status(200).send("OK");
 });
 
 // 3. SHOP REDACT
 app.post("/webhooks/shop/redact", (req, res) => {
-  const isTest = isShopifyTestRequest(req);
-
-  if (!verifyShopifyWebhookHmac(req) && !isTest) {
-    return res.status(401).send("Unauthorized");
-  }
-
+  console.log("🏪 SHOP REDACT WEBHOOK");
   return res.status(200).send("OK");
 });
 
