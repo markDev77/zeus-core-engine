@@ -80,7 +80,7 @@ app.post("/webhooks/customers/data_request", (req, res) => {
 
 /*
 ========================================
-SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
+SHOPIFY REQUIRED WEBHOOKS (FINAL)
 ========================================
 */
 
@@ -94,37 +94,61 @@ function isShopifyTestRequest(req) {
   );
 }
 
+// ==========================
+// POST (REAL WEBHOOKS)
+// ==========================
+
 // 1. DATA REQUEST
 app.post("/webhooks/customers/data_request", (req, res) => {
   const isTest = isShopifyTestRequest(req);
 
-if (!verifyShopifyWebhookHmac(req) && !isTest) {
-  return res.status(401).send("Unauthorized");
-}
+  if (!verifyShopifyWebhookHmac(req) && !isTest) {
+    return res.status(401).send("Unauthorized");
+  }
 
-return res.status(200).send("OK");
+  return res.status(200).send("OK");
 });
 
 // 2. CUSTOMER REDACT
 app.post("/webhooks/customers/redact", (req, res) => {
   const isTest = isShopifyTestRequest(req);
 
-if (!verifyShopifyWebhookHmac(req) && !isTest) {
-  return res.status(401).send("Unauthorized");
-}
+  if (!verifyShopifyWebhookHmac(req) && !isTest) {
+    return res.status(401).send("Unauthorized");
+  }
 
-return res.status(200).send("OK");
+  return res.status(200).send("OK");
 });
 
 // 3. SHOP REDACT
 app.post("/webhooks/shop/redact", (req, res) => {
   const isTest = isShopifyTestRequest(req);
 
-if (!verifyShopifyWebhookHmac(req) && !isTest) {
-  return res.status(401).send("Unauthorized");
-}
+  if (!verifyShopifyWebhookHmac(req) && !isTest) {
+    return res.status(401).send("Unauthorized");
+  }
 
-return res.status(200).send("OK");
+  return res.status(200).send("OK");
+});
+
+
+// ==========================
+// GET (SHOPIFY CHECK / BROWSER)
+// ==========================
+
+// 1. DATA REQUEST
+app.get("/webhooks/customers/data_request", (req, res) => {
+  return res.status(200).send("OK");
+});
+
+// 2. CUSTOMER REDACT
+app.get("/webhooks/customers/redact", (req, res) => {
+  return res.status(200).send("OK");
+});
+
+// 3. SHOP REDACT
+app.get("/webhooks/shop/redact", (req, res) => {
+  return res.status(200).send("OK");
 });
 app.get("/health/webhooks", async (req, res) => {
   try {
