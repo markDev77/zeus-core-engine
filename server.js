@@ -62,22 +62,6 @@ function verifyShopifyWebhookHmac(req) {
   }
 }
 
-app.post("/webhooks/customers/data_request", (req, res) => {
-  const hmacHeader = req.headers["x-shopify-hmac-sha256"];
-
-  const isShopifyTest =
-    !hmacHeader ||
-    hmacHeader === "" ||
-    hmacHeader === "undefined";
-
-  if (!verifyShopifyWebhookHmac(req) && !isShopifyTest) {
-    return res.status(401).send("Unauthorized");
-  }
-
-  console.log("📩 DATA REQUEST WEBHOOK", req.body);
-  return res.status(200).send("OK");
-});
-
 /*
 ========================================
 SHOPIFY REQUIRED WEBHOOKS (FINAL)
