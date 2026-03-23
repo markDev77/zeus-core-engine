@@ -44,12 +44,12 @@ function verifyShopifyWebhookHmac(req) {
     }
 
     const digest = crypto
-      .createHmac("sha256", SHOPIFY_API_SECRET)
+     .createHmac("sha256", process.env.SHOPIFY_API_SECRET)
       .update(rawBody)
       .digest("base64");
 
-    const generated = Buffer.from(digest, "utf8");
-    const received = Buffer.from(String(hmacHeader), "utf8");
+    const generated = Buffer.from(digest, "base64");
+    const received = Buffer.from(String(hmacHeader), "base64");
 
     if (generated.length !== received.length) {
       return false;
