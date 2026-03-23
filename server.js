@@ -2158,7 +2158,7 @@ body: JSON.stringify({
     callbackUrl: `https://zeus-core-engine.onrender.com/webhooks/${topic}`
   }
 })
-      
+);
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
