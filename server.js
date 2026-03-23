@@ -2129,10 +2129,68 @@ if (false) {
 }
 
 async function registerWebhooks(shop, accessToken) {
-  console.log("ℹ️ COMPLIANCE WEBHOOKS MUST BE CONFIGURED IN PARTNER DASHBOARD:", {
-    shop
-  });
-  return;
+  try {
+    const topics = [
+      {
+        topic: "CUSTOMERS_DATA_REQUEST",
+        path: "customers/data_request"
+      },
+      {
+        topic: "CUSTOMERS_REDACT",
+        path: "customers/redact"
+      },
+      {
+        topic: "SHOP_REDACT",
+        path: "shop/redact"
+      }
+    ];
+
+    for (const t of topics) {
+      const response = await axios.post(
+        `https://${shop}/admin/api/2024-01/graphql.json`,
+        {
+          query: `
+            mutation webhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $webhookSubscription: WebhookSubscriptionInput!) {
+              webhookSubscriptionCreate(
+                topic: $topic,
+                webhookSubscription: $webhookSubscription
+              ) {
+                userErrors {
+                  field
+                  message
+                }
+              }
+            }
+          `,
+          variables: {
+            topic: t.topic,
+            webhookSubscription: {
+              callbackUrl: `https://zeus-core-engine.onrender.com/webhooks/${t.path}`,
+              format: "JSON"
+            }
+          }
+        },
+        {
+          headers: {
+            "X-Shopify-Access-Token": accessToken,
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      // 🔥 IMPORTANTE: validar errores de Shopify
+      const errors = response.data?.data?.webhookSubscriptionCreate?.userErrors;
+
+      if (errors && errors.length > 0) {
+        console.error("❌ Shopify webhook error:", errors);
+      } else {
+        console.log("✅ Webhook registered:", t.topic);
+      }
+    }
+
+  } catch (err) {
+    console.error("❌ registerWebhooks error:", err.response?.data || err.message);
+  }
 }
         
 /* ========================================
