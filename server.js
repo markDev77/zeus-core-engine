@@ -2156,9 +2156,9 @@ body: JSON.stringify({
   variables: {
     topic: topicMap[topic],
     callbackUrl: `https://zeus-core-engine.onrender.com/webhooks/${topic}`
-  }
+    }
 })
-);
+});
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
