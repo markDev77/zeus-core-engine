@@ -89,6 +89,23 @@ app.post("/webhooks/shop/redact", (req, res) => {
   return res.status(200).send("OK");
 });
 
+app.get("/health/webhooks", async (req, res) => {
+  try {
+    res.json({
+      ok: true,
+      endpoints: [
+        "/webhooks/customers/data_request",
+        "/webhooks/customers/redact",
+        "/webhooks/shop/redact"
+      ],
+      hmac: "enabled"
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false });
+  }
+});
+
+
 /* ==========================
    OAUTH HELPERS
 ========================== */
