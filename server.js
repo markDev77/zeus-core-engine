@@ -2127,31 +2127,38 @@ async function registerWebhooks(shop, accessToken) {
   try {
     console.log("➡️ Creating webhook:", topic);
 
-    const response = await fetch(`https://${shop}/admin/api/2023-10/webhooks.json`, {
+    const response = await fetch(`https://${shop}/admin/api/2023-10/graphql.json`, {
   method: "POST",
   headers: {
     "X-Shopify-Access-Token": accessToken,
     "Content-Type": "application/json"
   },
-  body: JSON.stringify({
-    webhook: {
-      topic,
-      address: `https://zeus-core-engine.onrender.com/webhooks/${topic}`,
-      format: "json"
+body: JSON.stringify({
+  query: `
+    mutation webhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $callbackUrl: URL!) {
+      webhookSubscriptionCreate(
+        topic: $topic,
+        webhookSubscription: {
+          callbackUrl: $callbackUrl,
+          format: JSON
+        }
+      ) {
+        userErrors {
+          field
+          message
+        }
+        webhookSubscription {
+          id
+        }
+      }
     }
-  })
-});
-
-const data = await response.json();
-
-console.log("SHOPIFY RESPONSE:", topic, response.status, data);
-
-  } catch (err) {
-    console.error("Webhook error:", topic, err.message);
+  `,
+  variables: {
+    topic: topicMap[topic],
+    callbackUrl: `https://zeus-core-engine.onrender.com/webhooks/${topic}`
   }
- }
-}
-
+})
+      
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
