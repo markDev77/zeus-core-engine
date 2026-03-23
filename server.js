@@ -2117,48 +2117,62 @@ if (false) {
 
 async function registerWebhooks(shop, accessToken) {
   console.log("🔥 REGISTER WEBHOOKS START:", shop);
-  const topics = [
-    "customers/data_request",
-    "customers/redact",
-    "shop/redact"
-  ];
+
+  const topicMap = {
+    "customers/data_request": "CUSTOMERS_DATA_REQUEST",
+    "customers/redact": "CUSTOMERS_REDACT",
+    "shop/redact": "SHOP_REDACT"
+  };
+
+  const topics = Object.keys(topicMap);
 
   for (const topic of topics) {
-  try {
-    console.log("➡️ Creating webhook:", topic);
+    try {
+      console.log("➡️ Creating webhook:", topic);
 
-    const response = await fetch(`https://${shop}/admin/api/2023-10/graphql.json`, {
-  method: "POST",
-  headers: {
-    "X-Shopify-Access-Token": accessToken,
-    "Content-Type": "application/json"
-  },
-body: JSON.stringify({
-  query: `
-    mutation webhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $callbackUrl: URL!) {
-      webhookSubscriptionCreate(
-        topic: $topic,
-        webhookSubscription: {
-          callbackUrl: $callbackUrl,
-          format: JSON
-        }
-      ) {
-        userErrors {
-          field
-          message
-        }
-        webhookSubscription {
-          id
-        }
-      }
+      const response = await fetch(`https://${shop}/admin/api/2023-10/graphql.json`, {
+        method: "POST",
+        headers: {
+          "X-Shopify-Access-Token": accessToken,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          query: `
+            mutation webhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $callbackUrl: URL!) {
+              webhookSubscriptionCreate(
+                topic: $topic,
+                webhookSubscription: {
+                  callbackUrl: $callbackUrl,
+                  format: JSON
+                }
+              ) {
+                userErrors {
+                  field
+                  message
+                }
+                webhookSubscription {
+                  id
+                }
+              }
+            }
+          `,
+          variables: {
+            topic: topicMap[topic],
+            callbackUrl: `https://zeus-core-engine.onrender.com/webhooks/${topic}`
+          }
+        })
+      });
+
+      const data = await response.json();
+
+      console.log("SHOPIFY RESPONSE:", topic, response.status, data);
+
+    } catch (err) {
+      console.error("Webhook error:", topic, err.message);
     }
-  `,
-  variables: {
-    topic: topicMap[topic],
-    callbackUrl: `https://zeus-core-engine.onrender.com/webhooks/${topic}`
-    }
-})
-});
+  }
+}
+
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
