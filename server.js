@@ -1,5 +1,7 @@
 require("dotenv").config();
 const express = require("express");
+const { Pool } = require("pg");
+const crypto = require("crypto");
 const app = express();
 
 const { DATABASE_URL } = process.env;
