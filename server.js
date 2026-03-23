@@ -270,14 +270,39 @@ app.get("/auth/callback", async (req, res) => {
   try {
     validateRequiredOAuthEnv();
 
-    const shop = normalizeShopDomain(req.query?.shop);
     const code = String(req.query?.code || "");
-    const state = String(req.query?.state || "");
+    const hmac = String(req.query?.hmac || "");
+    const host = String(req.query?.host || "");
 
-    if (!shop || !code || !state || !req.query?.hmac) {
+    if (!code || !hmac || !host) {
       return res.status(400).json({
         ok: false,
-        error: "Parámetros OAuth incompletos"
+        error: "OAuth missing required params"
+      });
+    }
+
+    // 🔥 EXTRAER SHOP DESDE HOST (SHOPIFY NUEVO)
+    let shop = "";
+
+    try {
+      const decodedHost = Buffer.from(host, "base64").toString("utf8");
+      // ej: admin.shopify.com/store/zeus-dev-01
+      const match = decodedHost.match(/store\/([^\/]+)/);
+
+      if (match) {
+        shop = `${match[1]}.myshopify.com`;
+      }
+    } catch (e) {
+      return res.status(400).json({
+        ok: false,
+        error: "Invalid host param"
+      });
+    }
+
+    if (!shop) {
+      return res.status(400).json({
+        ok: false,
+        error: "Shop not resolved from host"
       });
     }
 
@@ -288,14 +313,6 @@ app.get("/auth/callback", async (req, res) => {
       });
     }
 
-    const parsedState = parseOAuthState(state);
-    if (normalizeShopDomain(parsedState.shop) !== shop) {
-      return res.status(400).json({
-        ok: false,
-        error: "state inválido"
-      });
-    }
-
     if (!verifyShopifyHmac(req.query)) {
       return res.status(400).json({
         ok: false,
@@ -303,6 +320,7 @@ app.get("/auth/callback", async (req, res) => {
       });
     }
 
+    // 🔥 INTERCAMBIO TOKEN
     const tokenResponse = await axios.post(
       `https://${shop}/admin/oauth/access_token`,
       {
@@ -327,17 +345,17 @@ app.get("/auth/callback", async (req, res) => {
       access_token,
       status: "active"
     });
-    
-await registerWebhooks(shop, access_token);
- 
+
+    await registerWebhooks(shop, access_token);
+
     log("OAUTH SUCCESS", {
       shop,
       token_prefix: String(access_token).slice(0, 8),
       scope
     });
 
-    res.redirect(`/activation?shop=${store.shop}`);
-    
+    return res.redirect(`/activation?shop=${shop}`);
+
   } catch (err) {
     console.error("auth/callback error:", err.response?.data || err.message);
 
@@ -347,7 +365,6 @@ await registerWebhooks(shop, access_token);
     });
   }
 });
-
 
 /* ==========================
    CONFIG NEGOCIO
