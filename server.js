@@ -2042,7 +2042,8 @@ await consumeTokenIfAvailable(shop, {
   productId
 });
 });
-    
+});
+  
 /* ==========================
    WEBHOOK: FULFILLMENT TRACKING
 ========================== */
