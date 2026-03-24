@@ -19,6 +19,20 @@ const Stripe = require('stripe');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
+app.use((req, res, next) => {
+  res.removeHeader("X-Frame-Options");
+
+  res.setHeader(
+    "Content-Security-Policy",
+"frame-ancestors https://admin.shopify.com https://*.myshopify.com https://admin.shopify.com/store/*;"
+  );
+
+  next();
+});
+app.get("/", (req, res) => {
+  res.send("ZEUS EMBED READY");
+});
+
 
 console.log("ENV REAL:", {
   SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY ? "OK" : "MISSING",
