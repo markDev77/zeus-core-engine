@@ -69,56 +69,47 @@ app.get("/", (req, res) => {
 console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY?.slice(0, 10));
 
 /* 🔥 CHECKOUT */
-app.post('/stripe/create-checkout', async (req, res) => {
+app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+
+  let event;
+
   try {
-
-    console.log("👉 RAW BODY:", req.body);
-
-    const shop = req.body && req.body.shop;
-
-    if (!shop) {
-      return res.status(400).json({ error: 'Missing shop' });
-    }
-
-    console.log("👉 SHOP:", shop);
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: 'ZEUS Tokens - 300',
-            description: '300 product optimizations'
-          },
-          unit_amount: 4900
-        },
-        quantity: 1
-      }],
-
-      metadata: {
-        shop: shop,
-        tokens: 300
-      },
-
-      success_url: `https://zeusinfra.io/activation?shop=${shop}&success=true`,
-      cancel_url: `https://zeusinfra.io/activation?shop=${shop}&canceled=true`
-    });
-
-    return res.json({ url: session.url });
-
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
   } catch (err) {
-
-    console.error("🔥 STRIPE ERROR:", err);
-
-    if (err.raw) {
-      console.error("🔥 STRIPE RAW:", err.raw);
-    }
-
-    return res.status(500).json({ error: err.message });
+    console.error("❌ Webhook signature failed:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+
+    const shop = session.metadata?.shop;
+    const tokens = parseInt(session.metadata?.tokens || "0");
+
+    console.log("💰 PAYMENT SUCCESS:", { shop, tokens });
+
+    if (shop && tokens > 0) {
+      try {
+        await pool.query(
+          `UPDATE stores 
+           SET tokens = tokens + $1 
+           WHERE shop = $2`,
+          [tokens, shop]
+        );
+
+        console.log("✅ TOKENS ADDED");
+      } catch (dbErr) {
+        console.error("❌ DB ERROR:", dbErr);
+      }
+    }
+  }
+
+  res.json({ received: true });
 });
 
 /* ENV DEBUG */
