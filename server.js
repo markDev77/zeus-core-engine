@@ -14,12 +14,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
-// ==========================
-// STRIPE INIT
-// ==========================
-const Stripe = require('stripe');
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 const app = express();
 app.use((req, res, next) => {
   res.removeHeader("X-Frame-Options");
