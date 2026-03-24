@@ -933,11 +933,15 @@ async function enqueueShopJob(shop, jobName, fn) {
       console.log("⛔ GLOBAL BLOCK - INACTIVE", { shop, status: store.status });
       return;
     }
-
-    if (Number(store.tokens) <= 0) {
-      console.log("⛔ GLOBAL BLOCK - NO TOKENS", { shop, tokens: store.tokens });
-      return;
-    }
+const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
+    if (remaining <= 0) {
+  console.log("⛔ BLOCK - NO TOKENS", {
+    shop,
+    tokens: store.tokens,
+    tokens_balance: store.tokens_balance
+  });
+  return;
+}
 
   } catch (err) {
     console.log("⛔ GLOBAL BLOCK - STORE ERROR", { shop, error: err.message });
@@ -1459,10 +1463,16 @@ async function transformProductById(shop, access_token, productId) {
     return { success: false, hard_block: true };
   }
 
-  if (Number(store.tokens) <= 0) {
-    console.log("⛔ HARD BLOCK - NO TOKENS", { shop });
-    return { success: false, hard_block: true };
-  }
+  const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
+
+if (remaining <= 0) {
+  console.log("⛔ HARD BLOCK WEBHOOK - NO TOKENS", {
+    shop,
+    tokens: store.tokens,
+    tokens_balance: store.tokens_balance
+  });
+  return;
+}
 
   try {
     await sleep(PRODUCT_CREATE_WARMUP_MS);
@@ -1968,10 +1978,16 @@ app.post("/webhook/products-create", async (req, res) => {
     return;
   }
 
-  if (Number(store.tokens) <= 0) {
-    console.log("⛔ HARD BLOCK WEBHOOK - NO TOKENS", { shop, tokens: store.tokens });
-    return;
-  }
+ const remaining = Number(jobStore.tokens_balance ?? jobStore.tokens ?? 0);
+
+if (remaining <= 0) {
+  console.log("⛔ JOB BLOCK - NO TOKENS", {
+    shop,
+    tokens: jobStore.tokens,
+    tokens_balance: jobStore.tokens_balance
+  });
+  return;
+}
 
   enqueueShopJob(shop, "products-create(FULL)", async () => {
     let jobStore;
