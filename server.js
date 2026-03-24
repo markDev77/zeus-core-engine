@@ -161,12 +161,6 @@ function verifyShopifyWebhookHmac(req) {
   }
 }
 
-/*
-========================================
-SHOPIFY REQUIRED WEBHOOKS (FINAL)
-========================================
-*/
-
 function isShopifyTestRequest(req) {
   const hmacHeader = req.headers["x-shopify-hmac-sha256"];
 
