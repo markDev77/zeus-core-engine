@@ -2022,22 +2022,26 @@ app.post("/webhook/products-create", async (req, res) => {
 
     const transformResult = await transformProductById(shop, access_token, productId);
 
-    if (!transformResult?.success) {
-      log("WEBHOOK TOKEN SKIPPED", {
-        shop,
-        productId,
-        reason: transformResult?.reason || "transform_failed"
-      });
-      return;
-    }
-
-    await consumeTokenIfAvailable(shop, {
-      source: "webhook",
-      productId
-    });
-  });
+console.log("🔥 BEFORE TOKEN CONSUME", {
+  shop,
+  productId,
+  transformResult
 });
 
+if (!transformResult?.success) {
+  log("WEBHOOK TOKEN SKIPPED", {
+    shop,
+    productId,
+    reason: transformResult?.reason || "transform_failed"
+  });
+  return;
+}
+
+await consumeTokenIfAvailable(shop, {
+  source: "webhook",
+  productId
+});
+    
 /* ==========================
    WEBHOOK: FULFILLMENT TRACKING
 ========================== */
