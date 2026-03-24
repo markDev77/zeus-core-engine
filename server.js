@@ -2376,19 +2376,14 @@ if (false) {
 async function registerWebhooks(shop, accessToken) {
   try {
     const topics = [
-      {
-        topic: "CUSTOMERS_DATA_REQUEST",
-        path: "customers/data_request"
-      },
-      {
-        topic: "CUSTOMERS_REDACT",
-        path: "customers/redact"
-      },
-      {
-        topic: "SHOP_REDACT",
-        path: "shop/redact"
-      }
-    ];
+  // ✅ COMPLIANCE
+  { topic: "CUSTOMERS_DATA_REQUEST", path: "customers/data_request" },
+  { topic: "CUSTOMERS_REDACT", path: "customers/redact" },
+  { topic: "SHOP_REDACT", path: "shop/redact" },
+
+  // 🔥 ZEUS CORE (SOLO CREATE)
+  { topic: "PRODUCTS_CREATE", path: "webhook/products-create" }
+];
 
     for (const t of topics) {
       const response = await axios.post(
