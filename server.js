@@ -2015,13 +2015,60 @@ app.post("/webhooks/products-create", async (req, res) => {
   console.log("🚀 ABOUT TO ENQUEUE", { shop, productId });
 
   enqueueShopJob(shop, "products-create(FULL)", async () => {
-    console.log("⚙️ JOB EXECUTING", { shop, productId });
+  let jobStore;
 
+  try {
+    jobStore = await getStore(shop);
+  } catch (err) {
+    console.log("⛔ JOB BLOCK - STORE INVALID", { shop });
+    return;
+  }
+
+  if (!jobStore) {
+    console.log("⛔ JOB BLOCK - NO STORE", { shop });
+    return;
+  }
+
+  if (String(jobStore.status).toLowerCase() !== "active") {
+    console.log("⛔ JOB BLOCK - INACTIVE", { shop, status: jobStore.status });
+    return;
+  }
+
+  const remaining = Number(jobStore.tokens_balance ?? jobStore.tokens ?? 0);
+
+  if (remaining <= 0) {
+    console.log("⛔ JOB BLOCK - NO TOKENS", { shop });
+    return;
+  }
+
+  const access_token = await getToken(shop);
+
+  const transformResult = await transformProductById(
+    shop,
+    access_token,
+    productId
+  );
+
+  console.log("🔥 BEFORE TOKEN CONSUME", {
+    shop,
+    productId,
+    transformResult
   });
 
-  return res.status(200).send("OK");
+  if (!transformResult?.success) {
+    console.log("⚠️ TRANSFORM FAILED", { shop, productId });
+    return;
+  }
+
+  await consumeTokenIfAvailable(shop, {
+    source: "webhook",
+    productId
+  });
+
 });
-   
+
+  return res.status(200).send("OK");
+
   
 /* ==========================
    WEBHOOK: FULFILLMENT TRACKING
