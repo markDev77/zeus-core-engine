@@ -1843,6 +1843,46 @@ app.post("/run-zeus", async (req, res) => {
    WEBHOOK: PRODUCTS CREATE (FULL)
 ========================== */
 
+function getEffectiveTokensBalance(store) {
+  const balance = Number(store?.tokens_balance);
+
+  if (Number.isFinite(balance)) {
+    return balance;
+  }
+
+  const legacyTokens = Number(store?.tokens);
+
+  if (Number.isFinite(legacyTokens)) {
+    return legacyTokens;
+  }
+
+  return 0;
+}
+
+async function checkStoreBilling(shop, meta = {}) {
+  const normalizedShop = normalizeShopDomain(shop);
+  const store = await getStore(normalizedShop);
+
+  const remaining = getEffectiveTokensBalance(store);
+  const allowed =
+    String(store.status || "").toLowerCase() === "active" &&
+    remaining > 0;
+
+  log("ZEUS BILLING CHECK", {
+    shop: normalizedShop,
+    allowed,
+    remaining,
+    status: store.status,
+    ...meta
+  });
+
+  return {
+    store,
+    allowed,
+    remaining
+  };
+}
+
 async function consumeTokenIfAvailable(shop, meta = {}) {
   const normalizedShop = normalizeShopDomain(shop);
 
@@ -1850,30 +1890,55 @@ async function consumeTokenIfAvailable(shop, meta = {}) {
     `
     UPDATE stores
     SET
-      tokens = tokens - 1,
-      tokens_used = COALESCE(tokens_used, 0) + 1
+      tokens_used = COALESCE(tokens_used, 0) + 1,
+      tokens_balance = COALESCE(tokens_balance, COALESCE(tokens, 0)) - 1,
+      updated_at = NOW()
     WHERE shop = $1
-      AND tokens > 0
-    RETURNING shop, tokens, tokens_used
+      AND LOWER(COALESCE(status, 'inactive')) = 'active'
+      AND COALESCE(tokens_balance, COALESCE(tokens, 0)) > 0
+    RETURNING
+      shop,
+      tokens,
+      tokens_used,
+      tokens_balance,
+      status
     `,
     [normalizedShop]
   );
 
   if (!result.rows.length) {
-    log("TOKEN NOT CONSUMED", { shop: normalizedShop, ...meta, reason: "no_tokens" });
-    return false;
+    log("ZEUS TOKEN CONSUMED", {
+      shop: normalizedShop,
+      ok: false,
+      remaining: 0,
+      reason: "no_tokens",
+      ...meta
+    });
+
+    return {
+      ok: false,
+      remaining: 0
+    };
   }
 
-  log("TOKEN CONSUMED", {
+  const row = result.rows[0];
+  const remaining = Number(row.tokens_balance || 0);
+
+  log("ZEUS TOKEN CONSUMED", {
     shop: normalizedShop,
-    ...meta,
-    tokens_after: result.rows[0].tokens,
-    tokens_used: result.rows[0].tokens_used
+    ok: true,
+    remaining,
+    tokens_used: Number(row.tokens_used || 0),
+    ...meta
   });
 
-  return true;
+  return {
+    ok: true,
+    remaining,
+    store: row
+  };
 }
-
+  
 app.post("/webhook/products-create", async (req, res) => {
   res.status(200).send("ok");
 
