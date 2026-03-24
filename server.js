@@ -9,6 +9,8 @@ const {
   OPENAI_API_KEY
 } = process.env;
 const express = require("express");
+const Stripe = require('stripe');
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
@@ -31,6 +33,47 @@ app.use((req, res, next) => {
 });
 app.get("/", (req, res) => {
   res.send("ZEUS EMBED READY");
+});
+
+app.post('/stripe/create-checkout', async (req, res) => {
+  try {
+    const { shop } = req.body;
+
+    if (!shop) {
+      return res.status(400).json({ error: 'Missing shop' });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'ZEUS Tokens - 300',
+            description: '300 product optimizations'
+          },
+          unit_amount: 4900
+        },
+        quantity: 1
+      }],
+
+      metadata: {
+        shop: shop,
+        tokens: 300
+      },
+
+      success_url: `https://zeusinfra.io/activation?shop=${shop}&success=true`,
+      cancel_url: `https://zeusinfra.io/activation?shop=${shop}&canceled=true`
+    });
+
+    res.json({ url: session.url });
+
+  } catch (err) {
+    console.error('STRIPE ERROR:', err);
+    res.status(500).json({ error: 'Stripe failed' });
+  }
 });
 
 
