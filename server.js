@@ -2041,6 +2041,7 @@ await consumeTokenIfAvailable(shop, {
   source: "webhook",
   productId
 });
+});
     
 /* ==========================
    WEBHOOK: FULFILLMENT TRACKING
