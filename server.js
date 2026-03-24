@@ -1964,8 +1964,13 @@ async function consumeTokenIfAvailable(shop, meta = {}) {
   };
 }
   
-app.post("/webhook/products-create", async (req, res) => {
-  res.status(200).send("ok");
+app.post("/webhooks/products-create", async (req, res) => {
+  console.log("🔥 WEBHOOK PRODUCTS CREATE HIT", {
+  shop: req.headers["x-shopify-shop-domain"],
+  body: req.body
+});
+
+  res.status(200).send("OK");
 
   const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
   if (!shop) return;
@@ -2002,7 +2007,7 @@ tokens_balance: store.tokens_balance
   });
   return;
 }
-
+console.log("🚀 ABOUT TO ENQUEUE", { shop, productId });
   enqueueShopJob(shop, "products-create(FULL)", async () => {
     let jobStore;
 
