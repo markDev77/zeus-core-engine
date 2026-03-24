@@ -716,56 +716,93 @@ async function upsertStore(data) {
     tokenLength: String(access_token || "").length
   });
 
-  const result = await pool.query(
-    `
-    INSERT INTO stores (
-      shop,
-      access_token,
-      platform,
-      status,
-      region,
-      language,
-      currency,
-      marketplace,
-      plan,
-      billing_status,
-      sku_limit,
-      tokens,
-      installed_at,
-      activated_at
-    )
-    VALUES (
-      $1, $2, 'shopify', 'active', $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
-    )
-    ON CONFLICT (shop)
-    DO UPDATE SET
-      access_token = EXCLUDED.access_token,
-      platform = 'shopify',
-      status = 'active',
-      region = COALESCE(stores.region, EXCLUDED.region),
-      language = COALESCE(stores.language, EXCLUDED.language),
-      currency = COALESCE(stores.currency, EXCLUDED.currency),
-      marketplace = COALESCE(stores.marketplace, EXCLUDED.marketplace),
-      plan = COALESCE(stores.plan, EXCLUDED.plan),
-      billing_status = COALESCE(stores.billing_status, EXCLUDED.billing_status),
-      sku_limit = COALESCE(stores.sku_limit, EXCLUDED.sku_limit),
-      tokens = COALESCE(stores.tokens, EXCLUDED.tokens),
-      activated_at = COALESCE(stores.activated_at, NOW())
-    RETURNING *;
-    `,
-    [
-      normalizedShop,
-      access_token,
-      region,
-      language,
-      currency,
-      marketplace,
-      plan,
-      billing_status,
-      sku_limit,
-      tokens
-    ]
-  );
+console.log("TOKENS DEBUG:", {
+  tokens,
+  plan,
+  billing_status
+});
+  
+const result = await pool.query(
+  `
+  INSERT INTO stores (
+    shop,
+    access_token,
+    platform,
+    status,
+    region,
+    language,
+    currency,
+    marketplace,
+    plan,
+    billing_status,
+    sku_limit,
+    tokens,
+    tokens_used,
+    tokens_balance,
+    installed_at,
+    activated_at
+  )
+  VALUES (
+    $1,                -- shop
+    $2,                -- access_token
+    'shopify',
+    'active',
+    $3,                -- region
+    $4,                -- language
+    $5,                -- currency
+    $6,                -- marketplace
+    $7,                -- plan
+    $8,                -- billing_status
+    $9,                -- sku_limit
+    $10,               -- tokens
+    0,                 -- tokens_used
+    $10,               -- tokens_balance (inicial = tokens)
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (shop)
+  DO UPDATE SET
+    access_token = EXCLUDED.access_token,
+    platform = 'shopify',
+    status = 'active',
+
+    region = COALESCE(stores.region, EXCLUDED.region),
+    language = COALESCE(stores.language, EXCLUDED.language),
+    currency = COALESCE(stores.currency, EXCLUDED.currency),
+    marketplace = COALESCE(stores.marketplace, EXCLUDED.marketplace),
+
+    plan = COALESCE(stores.plan, EXCLUDED.plan),
+    billing_status = COALESCE(stores.billing_status, EXCLUDED.billing_status),
+    sku_limit = COALESCE(stores.sku_limit, EXCLUDED.sku_limit),
+
+    tokens = COALESCE(stores.tokens, EXCLUDED.tokens),
+
+    tokens_used = COALESCE(stores.tokens_used, 0),
+
+    tokens_balance = CASE
+      WHEN stores.tokens_balance IS NULL OR stores.tokens_balance = 0
+        THEN EXCLUDED.tokens
+      ELSE stores.tokens_balance
+    END,
+
+    activated_at = COALESCE(stores.activated_at, NOW()),
+    updated_at = NOW()
+
+  RETURNING *;
+  `,
+  [
+    normalizedShop,
+    access_token,
+    region,
+    language,
+    currency,
+    marketplace,
+    plan,
+    billing_status,
+    sku_limit,
+    tokens   // ← este debe ser 5 para FREE
+  ]
+);
 
   await pool.query(
     `
