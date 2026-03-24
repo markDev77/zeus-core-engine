@@ -1978,13 +1978,13 @@ app.post("/webhook/products-create", async (req, res) => {
     return;
   }
 
- const remaining = Number(jobStore.tokens_balance ?? jobStore.tokens ?? 0);
+ const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
 
 if (remaining <= 0) {
-  console.log("⛔ JOB BLOCK - NO TOKENS", {
+  console.log("⛔ BLOCK - NO TOKENS"", {
     shop,
-    tokens: jobStore.tokens,
-    tokens_balance: jobStore.tokens_balance
+    tokens: store.tokens,
+tokens_balance: store.tokens_balance
   });
   return;
 }
