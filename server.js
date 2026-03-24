@@ -1,26 +1,41 @@
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
+
 const cheerio = require("cheerio");
+
 const {
   SHOPIFY_API_KEY,
   SHOPIFY_API_SECRET,
   SHOPIFY_SCOPES,
   OPENAI_API_KEY
 } = process.env;
+
 const express = require("express");
 const Stripe = require('stripe');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+
 if (!process.env.STRIPE_SECRET_KEY) {
   console.error("❌ STRIPE KEY NOT LOADED");
 } else {
   console.log("✅ STRIPE KEY LOADED");
 }
+
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
+
 const app = express();
-app.use(express.json());
+
+/* 🔥 BODY PARSER CORRECTO (UNA SOLA VEZ) */
+app.use(express.json({
+  limit: "10mb",
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+
+/* 🔥 CORS */
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "*");
@@ -33,31 +48,40 @@ app.use((req, res, next) => {
   next();
 });
 
+/* 🔥 EMBED SHOPIFY */
 app.use((req, res, next) => {
   res.removeHeader("X-Frame-Options");
 
   res.setHeader(
     "Content-Security-Policy",
-"frame-ancestors https://admin.shopify.com https://*.myshopify.com https://admin.shopify.com/store/*;"
+    "frame-ancestors https://admin.shopify.com https://*.myshopify.com https://admin.shopify.com/store/*;"
   );
 
   next();
 });
+
+/* ROOT */
 app.get("/", (req, res) => {
   res.send("ZEUS EMBED READY");
 });
 
+/* DEBUG STRIPE */
 console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY?.slice(0, 10));
+
+/* 🔥 CHECKOUT */
 app.post('/stripe/create-checkout', async (req, res) => {
   try {
-    const { shop } = req.body;
+
+    console.log("👉 RAW BODY:", req.body);
+
+    const shop = req.body && req.body.shop;
 
     if (!shop) {
       return res.status(400).json({ error: 'Missing shop' });
     }
-console.log("👉 BODY:", req.body);
-console.log("👉 SHOP:", shop);
-console.log("👉 STRIPE KEY EXISTS:", !!process.env.STRIPE_SECRET_KEY);
+
+    console.log("👉 SHOP:", shop);
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -83,37 +107,26 @@ console.log("👉 STRIPE KEY EXISTS:", !!process.env.STRIPE_SECRET_KEY);
       cancel_url: `https://zeusinfra.io/activation?shop=${shop}&canceled=true`
     });
 
-    res.json({ url: session.url });
+    return res.json({ url: session.url });
 
-  catch (err) {
-  console.error("🔥 STRIPE FULL ERROR:", err);
+  } catch (err) {
 
-  if (err.raw) {
-    console.error("🔥 STRIPE RAW:", err.raw);
+    console.error("🔥 STRIPE ERROR:", err);
+
+    if (err.raw) {
+      console.error("🔥 STRIPE RAW:", err.raw);
+    }
+
+    return res.status(500).json({ error: err.message });
   }
-
-  res.status(500).json({ error: err.message });
-}
 });
 
-
+/* ENV DEBUG */
 console.log("ENV REAL:", {
   SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY ? "OK" : "MISSING",
   SHOPIFY_API_SECRET: process.env.SHOPIFY_API_SECRET ? "OK" : "MISSING",
   SHOPIFY_SCOPES: process.env.SHOPIFY_SCOPES ? "OK" : "MISSING"
 });
-
-
-const { DATABASE_URL } = process.env;
-
-app.use(express.json({
-  limit: "10mb",
-  verify: (req, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
-
-/*
 ========================================
 SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
 ========================================
