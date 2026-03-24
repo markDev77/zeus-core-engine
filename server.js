@@ -2021,74 +2021,7 @@ app.post("/webhooks/products-create", async (req, res) => {
 
   return res.status(200).send("OK");
 });
-    try {
-      jobStore = await getStore(shop);
-    } catch (err) {
-      console.log("⛔ JOB BLOCK - STORE INVALID", { shop });
-      return;
-    }
-
-    if (!jobStore) {
-      console.log("⛔ JOB BLOCK - NO STORE", { shop });
-      return;
-    }
-
-    if (String(jobStore.status).toLowerCase() !== "active") {
-      console.log("⛔ JOB BLOCK - INACTIVE", { shop, status: jobStore.status });
-      return;
-    }
-
-    if (Number(jobStore.tokens) <= 0) {
-      console.log("⛔ JOB BLOCK - NO TOKENS", { shop, tokens: jobStore.tokens });
-      return;
-    }
-
-    if (isDuplicateExecution(shop, productId)) {
-      log("DUPLICATE EXECUTION BLOCKED", { shop, productId });
-      return;
-    }
-
-    const access_token = await getToken(shop);
-
-    await sleep(1500);
-
-    const productResp = await shopifyRequest(shop, {
-      method: "GET",
-      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": access_token }
-    });
-
-    const realProduct = productResp?.data?.product || {};
-    const realTags = String(realProduct.tags || "");
-
-    if (realTags.includes("ZEUS_ORIGIN")) {
-      log("Skip token (ZEUS origin - verified)", { shop, productId });
-      return;
-    }
-
-    const transformResult = await transformProductById(shop, access_token, productId);
-
-console.log("🔥 BEFORE TOKEN CONSUME", {
-  shop,
-  productId,
-  transformResult
-});
-
-if (!transformResult?.success) {
-  log("WEBHOOK TOKEN SKIPPED", {
-    shop,
-    productId,
-    reason: transformResult?.reason || "transform_failed"
-  });
-  return;
-}
-
-await consumeTokenIfAvailable(shop, {
-  source: "webhook",
-  productId
-});
-});
-});
+   
   
 /* ==========================
    WEBHOOK: FULFILLMENT TRACKING
