@@ -704,7 +704,7 @@ async function ensureMainImage(shop, access_token, productId, realProduct) {
 ========================== */
 
 const pool = new Pool({
-  connectionString: DATABASE_URL,
+  connectionString: process.env.DATABASE_URL
   ssl: { rejectUnauthorized: false }
 });
 
