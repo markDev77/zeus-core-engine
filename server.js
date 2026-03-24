@@ -1966,17 +1966,21 @@ async function consumeTokenIfAvailable(shop, meta = {}) {
   
 app.post("/webhooks/products-create", async (req, res) => {
   console.log("🔥 WEBHOOK PRODUCTS CREATE HIT", {
-  shop: req.headers["x-shopify-shop-domain"],
-  body: req.body
-});
-
-  res.status(200).send("OK");
+    shop: req.headers["x-shopify-shop-domain"],
+    body: req.body
+  });
 
   const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
-  if (!shop) return;
+  if (!shop) {
+    console.log("❌ NO SHOP");
+    return res.status(200).send("OK");
+  }
 
   const productId = Number(req.body?.id);
-  if (!productId) return;
+  if (!productId) {
+    console.log("❌ NO PRODUCT ID");
+    return res.status(200).send("OK");
+  }
 
   let store;
 
@@ -1984,33 +1988,39 @@ app.post("/webhooks/products-create", async (req, res) => {
     store = await getStore(shop);
   } catch (err) {
     console.log("⛔ BLOCKED BEFORE QUEUE - STORE INVALID", { shop });
-    return;
+    return res.status(200).send("OK");
   }
 
   if (!store) {
     console.log("⛔ HARD BLOCK WEBHOOK - NO STORE", { shop });
-    return;
+    return res.status(200).send("OK");
   }
 
   if (String(store.status).toLowerCase() !== "active") {
     console.log("⛔ HARD BLOCK WEBHOOK - INACTIVE", { shop, status: store.status });
-    return;
+    return res.status(200).send("OK");
   }
 
- const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
+  const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
 
-if (remaining <= 0) {
-  console.log("⛔ BLOCK - NO TOKENS", {
-    shop,
-    tokens: store.tokens,
-tokens_balance: store.tokens_balance
-  });
-  return;
-}
-console.log("🚀 ABOUT TO ENQUEUE", { shop, productId });
+  if (remaining <= 0) {
+    console.log("⛔ BLOCK - NO TOKENS", {
+      shop,
+      tokens: store.tokens,
+      tokens_balance: store.tokens_balance
+    });
+    return res.status(200).send("OK");
+  }
+
+  console.log("🚀 ABOUT TO ENQUEUE", { shop, productId });
+
   enqueueShopJob(shop, "products-create(FULL)", async () => {
-    let jobStore;
+    console.log("⚙️ JOB EXECUTING", { shop, productId });
 
+  });
+
+  return res.status(200).send("OK");
+});
     try {
       jobStore = await getStore(shop);
     } catch (err) {
