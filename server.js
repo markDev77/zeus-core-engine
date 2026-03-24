@@ -75,9 +75,39 @@ app.post('/stripe/create-checkout', async (req, res) => {
     console.log("👉 RAW BODY:", req.body);
 
     const shop = req.body && req.body.shop;
+    const plan = req.body && req.body.plan;
 
-    if (!shop) {
-      return res.status(400).json({ error: 'Missing shop' });
+    if (!shop || !plan) {
+      return res.status(400).json({ error: 'Missing shop or plan' });
+    }
+
+    const planMap = {
+      starter: {
+        priceId: 'price_1TC9r43UE97FrwpvWV5mNt0L',
+        tokens: 300
+      },
+      growth: {
+        priceId: 'price_1TC9s23UE97FrwpvLI2TAw6k',
+        tokens: 1000
+      },
+      scale: {
+        priceId: 'price_1TC9sw3UE97Frwpv0tWLrDYk',
+        tokens: 3000
+      },
+      powerful: {
+        priceId: 'price_1TC9tm3UE97FrwpvigO2Cw5s',
+        tokens: 50000
+      },
+      test: {
+        priceId: 'price_1TCBBJ3UE97FrwpvBAj2WTMU',
+        tokens: 10
+      }
+    };
+
+    const selectedPlan = planMap[plan];
+
+    if (!selectedPlan) {
+      return res.status(400).json({ error: 'Invalid plan' });
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -85,13 +115,13 @@ app.post('/stripe/create-checkout', async (req, res) => {
       mode: 'payment',
 
       line_items: [{
-        price: 'price_1TCBBJ3UE97FrwpvBAj2WTMU',
+        price: selectedPlan.priceId,
         quantity: 1
       }],
 
       metadata: {
         shop: shop,
-        tokens: 300 // luego lo hacemos dinámico
+        tokens: selectedPlan.tokens
       },
 
       success_url: `https://zeusinfra.io/activation?shop=${shop}&success=true`,
