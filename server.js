@@ -10,11 +10,17 @@ const {
 } = process.env;
 const express = require("express");
 const Stripe = require('stripe');
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error("❌ STRIPE KEY NOT LOADED");
+} else {
+  console.log("✅ STRIPE KEY LOADED");
+}
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
 const app = express();
+app.use(express.json());
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "*");
@@ -41,6 +47,7 @@ app.get("/", (req, res) => {
   res.send("ZEUS EMBED READY");
 });
 
+console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY?.slice(0, 10));
 app.post('/stripe/create-checkout', async (req, res) => {
   try {
     const { shop } = req.body;
@@ -48,7 +55,9 @@ app.post('/stripe/create-checkout', async (req, res) => {
     if (!shop) {
       return res.status(400).json({ error: 'Missing shop' });
     }
-
+console.log("👉 BODY:", req.body);
+console.log("👉 SHOP:", shop);
+console.log("👉 STRIPE KEY EXISTS:", !!process.env.STRIPE_SECRET_KEY);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -76,10 +85,15 @@ app.post('/stripe/create-checkout', async (req, res) => {
 
     res.json({ url: session.url });
 
-  } catch (err) {
-    console.error('STRIPE ERROR:', err);
-    res.status(500).json({ error: 'Stripe failed' });
+  catch (err) {
+  console.error("🔥 STRIPE FULL ERROR:", err);
+
+  if (err.raw) {
+    console.error("🔥 STRIPE RAW:", err.raw);
   }
+
+  res.status(500).json({ error: err.message });
+}
 });
 
 
