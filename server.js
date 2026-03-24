@@ -136,6 +136,26 @@ app.post('/stripe/create-checkout', async (req, res) => {
   }
 });
 
+
+/* 🔥 NUEVO: WEBHOOK CORRECTO */
+app.post('/stripe/webhook', async (req, res) => {
+
+  let event;
+
+  try {
+    const sig = req.headers['stripe-signature'];
+
+    event = stripe.webhooks.constructEvent(
+      req.rawBody,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+
+  } catch (err) {
+    console.error('❌ Stripe webhook error:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
 
@@ -162,6 +182,7 @@ app.post('/stripe/create-checkout', async (req, res) => {
 
   res.json({ received: true });
 });
+
 
 /* ENV DEBUG */
 console.log("ENV REAL:", {
