@@ -74,8 +74,8 @@ app.post('/stripe/create-checkout', async (req, res) => {
 
     console.log("👉 RAW BODY:", req.body);
 
-    const shop = req.body && req.body.shop;
-    const plan = req.body && req.body.plan;
+    const shop = req.body?.shop;
+    const plan = req.body?.plan;
 
     if (!shop || !plan) {
       return res.status(400).json({ error: 'Missing shop or plan' });
@@ -121,7 +121,7 @@ app.post('/stripe/create-checkout', async (req, res) => {
 
       metadata: {
         shop: shop,
-        tokens: selectedPlan.tokens
+        tokens: String(selectedPlan.tokens)
       },
 
       success_url: `https://zeusinfra.io/activation?shop=${shop}&success=true`,
@@ -135,55 +135,7 @@ app.post('/stripe/create-checkout', async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
-
-
-/* 🔥 NUEVO: WEBHOOK CORRECTO */
-app.post('/stripe/webhook', async (req, res) => {
-
-  let event;
-
-  try {
-    const sig = req.headers['stripe-signature'];
-
-    event = stripe.webhooks.constructEvent(
-      req.rawBody,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-
-  } catch (err) {
-    console.error('❌ Stripe webhook error:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-
-    const shop = session.metadata?.shop;
-    const tokens = parseInt(session.metadata?.tokens || "0");
-
-    console.log("💰 PAYMENT SUCCESS:", { shop, tokens });
-
-    if (shop && tokens > 0) {
-      try {
-        await pool.query(
-          `UPDATE stores 
-           SET tokens = tokens + $1 
-           WHERE shop = $2`,
-          [tokens, shop]
-        );
-
-        console.log("✅ TOKENS ADDED");
-      } catch (dbErr) {
-        console.error("❌ DB ERROR:", dbErr);
-      }
-    }
-  }
-
-  res.json({ received: true });
-});
-
-
+  
 /* ENV DEBUG */
 console.log("ENV REAL:", {
   SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY ? "OK" : "MISSING",
@@ -2350,6 +2302,7 @@ app.get("/", (req, res) => {
 /* ==========================
    BILLING (STRIPE REAL)
 ========================== */
+
 // CREATE CHECKOUT SESSION
 app.post("/stripe/create-checkout", async (req, res) => {
   try {
@@ -2389,8 +2342,8 @@ app.post("/stripe/create-checkout", async (req, res) => {
         }
       ],
       metadata: {
-        shop,
-        tokens: selected.tokens
+        shop: shop,
+        tokens: String(selected.tokens)
       },
       success_url: `${process.env.SHOPIFY_APP_URL}/activation?shop=${shop}&success=true`,
       cancel_url: `${process.env.SHOPIFY_APP_URL}/usadrop-partner`
@@ -2400,20 +2353,21 @@ app.post("/stripe/create-checkout", async (req, res) => {
 
   } catch (err) {
     console.error("STRIPE CREATE ERROR:", err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
 
 // STRIPE WEBHOOK
 app.post("/stripe/webhook", async (req, res) => {
+
   let event;
 
   try {
     const sig = req.headers["stripe-signature"];
 
     event = stripe.webhooks.constructEvent(
-      req.body,
+      req.rawBody, // 🔥 IMPORTANTE (no req.body)
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
@@ -2422,7 +2376,37 @@ app.post("/stripe/webhook", async (req, res) => {
     console.error("❌ STRIPE SIGNATURE ERROR:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
-  
+
+  if (event.type === "checkout.session.completed") {
+
+    const session = event.data.object;
+
+    const shop = session.metadata?.shop;
+    const tokens = parseInt(session.metadata?.tokens || "0");
+
+    console.log("💰 PAYMENT SUCCESS:", { shop, tokens });
+
+    if (shop && tokens > 0) {
+      try {
+        await pool.query(
+          `UPDATE stores 
+           SET tokens = tokens + $1,
+               status = 'active'
+           WHERE shop = $2`,
+          [tokens, shop]
+        );
+
+        console.log("✅ TOKENS UPDATED:", shop);
+
+      } catch (err) {
+        console.error("❌ DB UPDATE ERROR:", err);
+      }
+    }
+  }
+
+  return res.json({ received: true });
+});
+
 /* ==========================
    HEALTH
 ========================== */
