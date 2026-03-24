@@ -2422,36 +2422,7 @@ app.post("/stripe/webhook", async (req, res) => {
     console.error("❌ STRIPE SIGNATURE ERROR:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
-
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-
-    const shop = session.metadata.shop;
-    const tokens = parseInt(session.metadata.tokens || "0");
-
-    console.log("💰 PAYMENT SUCCESS:", { shop, tokens });
-
-    try {
-      await db.query(`
-        UPDATE stores
-        SET tokens = tokens + $1,
-            tokens_balance = tokens_balance + $1,
-            status = 'active',
-            billing_status = 'paid',
-            updated_at = NOW()
-        WHERE shop = $2
-      `, [tokens, shop]);
-
-      console.log("✅ TOKENS UPDATED:", shop);
-
-    } catch (err) {
-      console.error("❌ DB UPDATE ERROR:", err);
-    }
-  }
-
-  res.json({ received: true });
-});
-
+  
 /* ==========================
    HEALTH
 ========================== */
