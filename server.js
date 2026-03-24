@@ -11,6 +11,12 @@ const express = require("express");
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
+// ==========================
+// STRIPE INIT
+// ==========================
+const Stripe = require('stripe');
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 const app = express();
 
 console.log("ENV REAL:", {
@@ -2074,72 +2080,112 @@ app.get("/", (req, res) => {
 });
      
 /* ==========================
-   BILLING (AQUÍ)
+   BILLING (STRIPE REAL)
 ========================== */
-// CREATE SUBSCRIPTION
-app.post("/api/billing/create", async (req, res) => {
-  try {
-    const { shop } = req.body;
 
-    if (!shop) {
-      return res.status(400).json({ error: "shop required" });
+const Stripe = require("stripe");
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// CREATE CHECKOUT SESSION
+app.post("/stripe/create-checkout", async (req, res) => {
+  try {
+    const { shop, plan } = req.body;
+
+    if (!shop || !plan) {
+      return res.status(400).json({ error: "Missing shop or plan" });
     }
 
-    // 🚀 SIMULACIÓN DE BILLING
-    console.log("SIMULATED BILLING FOR:", shop);
+    const planMap = {
+      starter: { price: 4900, tokens: 300 },
+      growth: { price: 14900, tokens: 1000 },
+      scale: { price: 29900, tokens: 3000 },
+      powerful: { price: 69900, tokens: 50000 }
+    };
 
-    return res.json({
-      url: `${process.env.APP_URL}/billing/success?shop=${shop}`
+    const selected = planMap[plan];
+
+    if (!selected) {
+      return res.status(400).json({ error: "Invalid plan" });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `ZEUS ${plan.toUpperCase()} PLAN`,
+              description: `${selected.tokens} tokens`
+            },
+            unit_amount: selected.price
+          },
+          quantity: 1
+        }
+      ],
+      metadata: {
+        shop,
+        tokens: selected.tokens
+      },
+      success_url: `${process.env.SHOPIFY_APP_URL}/activation?shop=${shop}&success=true`,
+      cancel_url: `${process.env.SHOPIFY_APP_URL}/usadrop-partner`
     });
 
+    return res.json({ url: session.url });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "billing simulation failed" });
+    console.error("STRIPE CREATE ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// CONFIRM SUBSCRIPTION
-app.get("/billing/confirm", async (req, res) => {
+
+// STRIPE WEBHOOK
+app.post("/stripe/webhook", async (req, res) => {
+  let event;
+
   try {
-    const { shop } = req.query;
+    const sig = req.headers["stripe-signature"];
 
-    if (!shop) {
-      return res.status(400).send("missing shop");
-    }
-
-    await pool.query(
-      `
-      UPDATE stores
-      SET plan = 'starter',
-          tokens = tokens + 50
-      WHERE shop = $1
-      `,
-      [shop]
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
     );
 
-    return res.redirect(`${process.env.FRONTEND_URL}/activation?shop=${shop}`);
-
-  } catch (error) {
-    console.error("billing confirm error:", error);
-    res.status(500).send("error");
+  } catch (err) {
+    console.error("❌ STRIPE SIGNATURE ERROR:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
-});
 
-app.get("/billing/success", (req, res) => {
-  const shop = req.query.shop || "";
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
 
-  res.send(`
-    <html>
-      <body style="font-family: Arial; text-align: center; margin-top: 50px;">
-        <h1>✅ ZEUS Activated</h1>
-        <p>Billing simulated successfully</p>
-        <br/>
-        <a href="/activation?shop=${shop}">
-          🔙 Back to ZEUS
-        </a>
-      </body>
-    </html>
-  `);
+    const shop = session.metadata.shop;
+    const tokens = parseInt(session.metadata.tokens || "0");
+
+    console.log("💰 PAYMENT SUCCESS:", { shop, tokens });
+
+    try {
+      await db.query(`
+        UPDATE stores
+        SET tokens = tokens + $1,
+            tokens_balance = tokens_balance + $1,
+            status = 'active',
+            billing_status = 'paid',
+            updated_at = NOW()
+        WHERE shop = $2
+      `, [tokens, shop]);
+
+      console.log("✅ TOKENS UPDATED:", shop);
+
+    } catch (err) {
+      console.error("❌ DB UPDATE ERROR:", err);
+    }
+  }
+
+  res.json({ received: true });
 });
 
 /* ==========================
