@@ -128,11 +128,7 @@ console.log("ENV REAL:", {
   SHOPIFY_SCOPES: process.env.SHOPIFY_SCOPES ? "OK" : "MISSING"
 });
 
-*/
-========================================
-SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
-========================================
-*/
+
 function verifyShopifyWebhookHmac(req) {
   try {
     const hmacHeader = req.headers["x-shopify-hmac-sha256"];
