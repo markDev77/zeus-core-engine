@@ -69,21 +69,42 @@ app.get("/", (req, res) => {
 console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY?.slice(0, 10));
 
 /* 🔥 CHECKOUT */
-app.post('/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-
-  let event;
-
+app.post('/stripe/create-checkout', async (req, res) => {
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+
+    console.log("👉 RAW BODY:", req.body);
+
+    const shop = req.body && req.body.shop;
+
+    if (!shop) {
+      return res.status(400).json({ error: 'Missing shop' });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+
+      line_items: [{
+        price: 'price_1TCBBJ3UE97FrwpvBAj2WTMU',
+        quantity: 1
+      }],
+
+      metadata: {
+        shop: shop,
+        tokens: 300 // luego lo hacemos dinámico
+      },
+
+      success_url: `https://zeusinfra.io/activation?shop=${shop}&success=true`,
+      cancel_url: `https://zeusinfra.io/activation?shop=${shop}&canceled=true`
+    });
+
+    return res.json({ url: session.url });
+
   } catch (err) {
-    console.error("❌ Webhook signature failed:", err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    console.error("🔥 STRIPE ERROR:", err);
+    return res.status(500).json({ error: err.message });
   }
+});
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
