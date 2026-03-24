@@ -16,6 +16,21 @@ const crypto = require("crypto");
 const axios = require("axios");
 const app = express();
 app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  next();
+});
+
+  next();
+});
+
+app.use((req, res, next) => {
   res.removeHeader("X-Frame-Options");
 
   res.setHeader(
