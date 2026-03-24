@@ -127,6 +127,8 @@ console.log("ENV REAL:", {
   SHOPIFY_API_SECRET: process.env.SHOPIFY_API_SECRET ? "OK" : "MISSING",
   SHOPIFY_SCOPES: process.env.SHOPIFY_SCOPES ? "OK" : "MISSING"
 });
+
+*/
 ========================================
 SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
 ========================================
