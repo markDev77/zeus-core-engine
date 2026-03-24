@@ -2382,7 +2382,7 @@ async function registerWebhooks(shop, accessToken) {
   { topic: "SHOP_REDACT", path: "shop/redact" },
 
   // 🔥 ZEUS CORE (SOLO CREATE)
-  { topic: "PRODUCTS_CREATE", path: "webhook/products-create" }
+  { topic: "PRODUCTS_CREATE", path: "webhooks/products-create" }
 ];
 
     for (const t of topics) {
