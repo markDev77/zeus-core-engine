@@ -2082,10 +2082,6 @@ app.get("/", (req, res) => {
 /* ==========================
    BILLING (STRIPE REAL)
 ========================== */
-
-const Stripe = require("stripe");
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 // CREATE CHECKOUT SESSION
 app.post("/stripe/create-checkout", async (req, res) => {
   try {
