@@ -27,9 +27,6 @@ app.use((req, res, next) => {
   next();
 });
 
-  next();
-});
-
 app.use((req, res, next) => {
   res.removeHeader("X-Frame-Options");
 
