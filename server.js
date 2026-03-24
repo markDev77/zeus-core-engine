@@ -1981,7 +1981,7 @@ app.post("/webhook/products-create", async (req, res) => {
  const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
 
 if (remaining <= 0) {
-  console.log("⛔ BLOCK - NO TOKENS"", {
+  console.log("⛔ BLOCK - NO TOKENS", {
     shop,
     tokens: store.tokens,
 tokens_balance: store.tokens_balance
