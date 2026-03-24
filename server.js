@@ -1,6 +1,7 @@
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
+const cheerio = require("cheerio");
 const {
   SHOPIFY_API_KEY,
   SHOPIFY_API_SECRET,
