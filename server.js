@@ -2351,64 +2351,59 @@ app.get("/activation", async (req, res) => {
       return res.status(404).send("Store not found");
     }
 
-    const balance = store.tokens - (store.tokens_used || 0);
+    const plan = store.plan || "free";
+    const tokens = store.tokens || 0;
+    const used = store.tokens_used || 0;
+    const balance = tokens - used;
 
     const shopAdminUrl = `https://${store.shop}/admin/products`;
 
-    res.send(`
-      <html>
-        <head>
-          <title>ZEUS</title>
-          <style>
-            body {
-              font-family: Arial;
-              background: #0f172a;
-              color: white;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              height: 100vh;
-              margin: 0;
-            }
-            .card {
-              background: #111827;
-              padding: 30px;
-              border-radius: 12px;
-              width: 420px;
-              text-align: center;
-            }
-            .btn {
-              margin-top: 15px;
-              padding: 12px;
-              background: #6366f1;
-              color: white;
-              border: none;
-              border-radius: 8px;
-              cursor: pointer;
-              width: 100%;
-              font-weight: bold;
-            }
-            .secondary {
-              background: #374151;
-            }
-            .note {
-              margin-top: 10px;
-              font-size: 13px;
-              color: #9ca3af;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-           <h1>ZEUS Connected 🚀</h1>
+    console.log("ACTIVATION LOAD:", {
+      shop: store.shop,
+      plan,
+      tokens,
+      used,
+      balance
+    });
 
-<p>Store: ${shop}</p>
+    return res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ZEUS</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: #111827;
+      padding: 30px;
+      border-radius: 12px;
+      width: 420px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+<h1>ZEUS Connected 🚀</h1>
+
+<p>Store: ${store.shop}</p>
 <p>Plan: ${plan}</p>
-<p>Available tokens: ${tokens}</p>
+<p>Available tokens: ${balance}</p>
 
 <p>Ready to import or optimize your products</p>
 
-<a href="https://${shop}/admin/products" style="
+<a href="${shopAdminUrl}" style="
   display:inline-block;
   margin-top:20px;
   padding:14px 28px;
@@ -2423,7 +2418,7 @@ app.get("/activation", async (req, res) => {
 
 <br/>
 
-<a href="https://zeusinfra.io/activation?shop=${shop}" style="
+<a href="https://zeusinfra.io/activation?shop=${store.shop}" style="
   display:inline-block;
   margin-top:15px;
   padding:14px 28px;
@@ -2435,11 +2430,13 @@ app.get("/activation", async (req, res) => {
 ">
   Buy more tokens
 </a>
-          </div>
-        </body>
-      </html>
-    `);
 
+</div>
+
+</body>
+</html>
+`);
+    
   } catch (err) {
     console.error("ACTIVATION ERROR:", err);
     res.status(500).send("Internal error");
