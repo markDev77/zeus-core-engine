@@ -41,9 +41,6 @@ app.use((req, res, next) => {
 
   next();
 });
-
-  next();
-});
 console.log("ENV REAL:", {
   SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY ? "OK" : "MISSING",
   SHOPIFY_API_SECRET: process.env.SHOPIFY_API_SECRET ? "OK" : "MISSING",
