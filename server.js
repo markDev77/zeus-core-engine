@@ -2281,108 +2281,132 @@ app.get("/", (req, res) => {
 });
      
 /* ==========================
-   BILLING (STRIPE REAL)
+   BILLING (STRIPE CHECKOUT)
 ========================== */
-// CREATE CHECKOUT SESSION
+
+const STRIPE_TOKEN_PLANS = {
+  starter: {
+    priceId: "price_1TC9r43UE97FrwpvWV5mNt0L",
+    tokens: 300,
+    plan: "starter"
+  },
+  growth: {
+    priceId: "price_1TC9s23UE97FrwpvLI2TAw6k",
+    tokens: 1000,
+    plan: "growth"
+  },
+  scale: {
+    priceId: "price_1TC9sw3UE97Frwpv0tWLrDYk",
+    tokens: 3000,
+    plan: "scale"
+  },
+  powerful: {
+    priceId: "price_1TC9tm3UE97FrwpvigO2Cw5s",
+    tokens: 50000,
+    plan: "powerful"
+  },
+  test: {
+    priceId: "price_1TCBBJ3UE97FrwpvBAj2WTMU",
+    tokens: 10,
+    plan: "test"
+  }
+};
+
 app.post("/stripe/create-checkout", async (req, res) => {
   try {
-    const { shop, plan } = req.body;
+    const rawShop = req.body?.shop;
+    const rawPlan = String(req.body?.plan || "").trim().toLowerCase();
 
-    if (!shop || !plan) {
-      return res.status(400).json({ error: "Missing shop or plan" });
+    const shop = normalizeShopDomain(rawShop);
+
+    if (!shop) {
+      return res.status(400).json({
+        ok: false,
+        error: "shop required"
+      });
     }
 
-    const planMap = {
-      starter: { price: 4900, tokens: 300 },
-      growth: { price: 14900, tokens: 1000 },
-      scale: { price: 29900, tokens: 3000 },
-      powerful: { price: 69900, tokens: 50000 }
-    };
-
-    const selected = planMap[plan];
-
-    if (!selected) {
-      return res.status(400).json({ error: "Invalid plan" });
+    if (!isValidShopifyShop(shop)) {
+      return res.status(400).json({
+        ok: false,
+        error: "invalid shop"
+      });
     }
+
+    if (!rawPlan) {
+      return res.status(400).json({
+        ok: false,
+        error: "plan required"
+      });
+    }
+
+    const selectedPlan = STRIPE_TOKEN_PLANS[rawPlan];
+
+    if (!selectedPlan) {
+      return res.status(400).json({
+        ok: false,
+        error: "invalid plan"
+      });
+    }
+
+    const storeResult = await pool.query(
+      `
+      SELECT shop, status, billing_status
+      FROM stores
+      WHERE shop = $1
+      LIMIT 1
+      `,
+      [shop]
+    );
+
+    if (!storeResult.rows.length) {
+      return res.status(404).json({
+        ok: false,
+        error: "store not found"
+      });
+    }
+
+    const store = storeResult.rows[0];
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
       mode: "payment",
+      payment_method_types: ["card"],
       line_items: [
         {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `ZEUS ${plan.toUpperCase()} PLAN`,
-              description: `${selected.tokens} tokens`
-            },
-            unit_amount: selected.price
-          },
+          price: selectedPlan.priceId,
           quantity: 1
         }
       ],
       metadata: {
         shop,
-        tokens: selected.tokens
+        plan: selectedPlan.plan,
+        tokens: String(selectedPlan.tokens)
       },
-      success_url: `${process.env.SHOPIFY_APP_URL}/activation?shop=${shop}&success=true`,
-      cancel_url: `${process.env.SHOPIFY_APP_URL}/usadrop-partner`
+      success_url: `${process.env.SHOPIFY_APP_URL}/activation?shop=${encodeURIComponent(shop)}&checkout=success`,
+      cancel_url: `${process.env.SHOPIFY_APP_URL}/activation?shop=${encodeURIComponent(shop)}&checkout=cancel`,
+      allow_promotion_codes: false
     });
 
-    return res.json({ url: session.url });
+    log("STRIPE CHECKOUT CREATED", {
+      shop,
+      plan: selectedPlan.plan,
+      tokens: selectedPlan.tokens,
+      sessionId: session.id
+    });
+
+    return res.json({
+      ok: true,
+      url: session.url
+    });
 
   } catch (err) {
-    console.error("STRIPE CREATE ERROR:", err);
-    res.status(500).json({ error: err.message });
+    console.error("STRIPE CREATE CHECKOUT ERROR:", err?.message || err);
+
+    return res.status(500).json({
+      ok: false,
+      error: "stripe_checkout_error"
+    });
   }
-});
-
-
-// STRIPE WEBHOOK
-app.post("/stripe/webhook", async (req, res) => {
-  let event;
-
-  try {
-    const sig = req.headers["stripe-signature"];
-
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-
-  } catch (err) {
-    console.error("❌ STRIPE SIGNATURE ERROR:", err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-
-    const shop = session.metadata.shop;
-    const tokens = parseInt(session.metadata.tokens || "0");
-
-    console.log("💰 PAYMENT SUCCESS:", { shop, tokens });
-
-    try {
-      await db.query(`
-        UPDATE stores
-        SET tokens = tokens + $1,
-            tokens_balance = tokens_balance + $1,
-            status = 'active',
-            billing_status = 'paid',
-            updated_at = NOW()
-        WHERE shop = $2
-      `, [tokens, shop]);
-
-      console.log("✅ TOKENS UPDATED:", shop);
-
-    } catch (err) {
-      console.error("❌ DB UPDATE ERROR:", err);
-    }
-  }
-
-  res.json({ received: true });
 });
 
 /* ==========================
