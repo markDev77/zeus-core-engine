@@ -2333,32 +2333,87 @@ app.post("/stripe/webhook", async (req, res) => {
    HEALTH
 ========================== */
 app.get("/activation", async (req, res) => {
-  const shop = req.query.shop;
+  try {
+    const shop = req.query.shop;
 
-  if (!shop) {
-    return res.status(400).send("Missing shop");
+    if (!shop) {
+      return res.status(400).send("Missing shop");
+    }
+
+    const result = await pool.query(
+      "SELECT shop, plan, tokens, tokens_used FROM stores WHERE shop = $1",
+      [shop]
+    );
+
+    const store = result.rows[0];
+
+    if (!store) {
+      return res.status(404).send("Store not found");
+    }
+
+    const balance = store.tokens - (store.tokens_used || 0);
+
+    res.send(`
+      <html>
+        <head>
+          <title>ZEUS</title>
+          <style>
+            body {
+              font-family: Arial;
+              background: #0f172a;
+              color: white;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+            }
+            .card {
+              background: #111827;
+              padding: 30px;
+              border-radius: 12px;
+              width: 400px;
+              text-align: center;
+            }
+            .btn {
+              margin-top: 15px;
+              padding: 12px;
+              background: #6366f1;
+              color: white;
+              border: none;
+              border-radius: 8px;
+              cursor: pointer;
+              width: 100%;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <h2>ZEUS conectado 🚀</h2>
+
+            <p><strong>Tienda:</strong><br>${store.shop}</p>
+
+            <p><strong>Plan:</strong> ${store.plan}</p>
+
+            <p><strong>Tokens disponibles:</strong> ${balance}</p>
+
+            <button class="btn" onclick="alert('Aquí empieza ZEUS (optimización)')">
+              Usar ZEUS
+            </button>
+
+            <button class="btn" onclick="window.location.href='/stripe/create-checkout?shop=${store.shop}'">
+              Comprar más tokens
+            </button>
+
+          </div>
+        </body>
+      </html>
+    `);
+
+  } catch (err) {
+    console.error("ACTIVATION ERROR:", err);
+    res.status(500).send("Internal error");
   }
-
-  const store = await getStore(shop);
-
-  // 🔥 SI NO HAY TOKEN OAuth REAL → FORZAR AUTH
- if (!store || !store.access_token) {
-    console.log("FORCING AUTH FROM ACTIVATION", { shop });
-    return res.redirect(`/auth?shop=${shop}`);
-  }
-
-  // ✅ SI TODO OK
-  return res.send("ZEUS is ready 🚀");
-});
-
-app.get("/health", (req, res) => {
-  res.json({
-    ok: true,
-    time: nowIso(),
-    shopsInMemory: shopQueues.size,
-    bannedWordsCount: getBannedWords().length,
-    version: "zeus-transformer-v1.8.0-single-source-webhooks"
-  });
 });
 
 /* ==========================
