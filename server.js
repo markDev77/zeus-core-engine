@@ -224,44 +224,32 @@ function verifyShopifyHmac(query) {
 
 app.get("/auth", async (req, res) => {
   try {
-    validateRequiredOAuthEnv();
+    const shopInput = req.query.shop;
 
-    const shop = normalizeShopDomain(req.query?.shop);
-
-    if (!shop) {
-      return res.status(400).json({
-        ok: false,
-        error: "shop requerido"
-      });
+    if (!shopInput) {
+      return res.status(400).json({ ok: false, error: "shop requerido" });
     }
 
-    if (!isValidShopifyShop(shop)) {
-      return res.status(400).json({
-        ok: false,
-        error: "shop inválido"
-      });
+    let shop = shopInput.toLowerCase().trim();
+    if (!shop.includes(".myshopify.com")) {
+      shop = shop + ".myshopify.com";
     }
 
-    const state = buildOAuthState(shop);
-    const handle = shop.replace(/\.myshopify\.com$/i, "");
+    const redirectUri = `${process.env.SHOPIFY_APP_URL}/auth/callback`;
+
     const installUrl =
-      `https://admin.shopify.com/store/${encodeURIComponent(handle)}/oauth/install_custom_app` +
-      `?client_id=${encodeURIComponent(SHOPIFY_API_KEY)}` +
-      `&state=${encodeURIComponent(state)}`;
+      `https://${shop}/admin/oauth/authorize` +
+      `?client_id=${process.env.SHOPIFY_API_KEY}` +
+      `&scope=${encodeURIComponent(process.env.SHOPIFY_SCOPES)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
-    log("OAUTH START", {
-      mode: "custom_app",
-      shop,
-      handle
-    });
+    console.log("OAUTH START:", { shop });
 
     return res.redirect(installUrl);
-  } catch (err) {
-    console.error("auth error:", err.response?.data || err.message);
-    return res.status(500).json({
-      ok: false,
-      error: err.message
-    });
+
+  } catch (error) {
+    console.error("AUTH ERROR:", error);
+    return res.status(500).json({ ok: false, error: "internal_error" });
   }
 });
 
