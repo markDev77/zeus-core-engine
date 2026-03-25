@@ -423,49 +423,61 @@ async function runImportPipeline(input) {
   }
 
   /*
-  ==========================================
-  SYNC ENGINE
-  ==========================================
-  */
+==========================================
+SYNC ENGINE
+==========================================
+*/
 
-  let syncCompleted = false;
-  let usageSnapshot = null;
-  let chargeable = false;
+let syncCompleted = false;
+let usageSnapshot = null;
+let chargeable = false;
 
-  try {
-    console.log("ZEUS SYNC ENGINE START", productId);
+try {
+  console.log("ZEUS SYNC ENGINE START", productId);
 
-    await syncProduct({
-      platform,
-      store,
-      product
-    });
-    
-    chargeable = true;
-    
-    syncCompleted = true;
+  await syncProduct({
+    platform,
+    store,
+    product
+  });
 
-    console.log("ZEUS SYNC ENGINE COMPLETE", productId);
-  } catch (error) {
-    console.error(
-      "ZEUS PIPELINE SYNC ERROR:",
-      error.message
-    );
+  chargeable = true;
+  syncCompleted = true;
 
-    return {
-      status: "error",
-      reason: "sync_failed",
-      message: error.message,
-      shopDomain,
-      productId,
-      product,
-      baseCategory,
-      regionalCategory,
-      confidence,
-      signatureRegistry
-    };
-  }
+  console.log("ZEUS SYNC ENGINE COMPLETE", productId);
 
+  // ✅ RETURN DE ÉXITO (CLAVE)
+  return {
+    status: "ok",
+    success: syncCompleted,
+    chargeable,
+    usageSnapshot,
+    shopDomain,
+    productId
+  };
+
+} catch (error) {
+  console.error(
+    "ZEUS PIPELINE SYNC ERROR:",
+    error.message
+  );
+
+  return {
+    status: "error",
+    reason: "sync_failed",
+    message: error.message,
+    shopDomain,
+    productId,
+    product,
+    baseCategory,
+    regionalCategory,
+    confidence,
+    signatureRegistry,
+    syncCompleted,
+    chargeable,
+    usageSnapshot
+  };
+}
   /*
   ==========================================
   CONSUME QUOTA ONLY AFTER SUCCESSFUL SYNC
