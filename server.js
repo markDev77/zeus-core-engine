@@ -9,30 +9,16 @@ const {
   OPENAI_API_KEY
 } = process.env;
 const express = require("express");
-const Stripe = require('stripe');
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error("❌ STRIPE KEY NOT LOADED");
-} else {
-  console.log("✅ STRIPE KEY LOADED");
-}
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
+// ==========================
+// STRIPE INIT
+// ==========================
+const Stripe = require('stripe');
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 const app = express();
-app.use(express.json());
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  next();
-});
-
 app.use((req, res, next) => {
   res.removeHeader("X-Frame-Options");
 
@@ -47,45 +33,6 @@ app.get("/", (req, res) => {
   res.send("ZEUS EMBED READY");
 });
 
-console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY?.slice(0, 10));
-app.post("/stripe/create-checkout", async (req, res) => {
-  try {
-    const { shop, priceId } = req.body;
-
-    if (!shop || !priceId) {
-      return res.status(400).json({
-        error: "shop y priceId requeridos"
-      });
-    }
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1
-        }
-      ],
-      metadata: {
-        shop: shop,
-        tokens: 300
-      },
-      success_url: `https://zeusinfra.io/activation?shop=${shop}&success=true`,
-      cancel_url: `https://zeusinfra.io/activation?shop=${shop}&canceled=true`
-    });
-
-    return res.json({ url: session.url });
-
-  } catch (err) {
-    console.error("🔥 STRIPE FULL ERROR:", err);
-
-    if (err.raw) {
-      console.error("🔥 STRIPE RAW:", err.raw);
-    }
-
-    return res.status(500).json({ error: err.message });
-  }
-});
 
 console.log("ENV REAL:", {
   SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY ? "OK" : "MISSING",
@@ -2017,23 +1964,14 @@ async function consumeTokenIfAvailable(shop, meta = {}) {
   };
 }
   
-app.post("/webhooks/products-create", async (req, res) => {
-  console.log("🔥 WEBHOOK PRODUCTS CREATE HIT", {
-    shop: req.headers["x-shopify-shop-domain"],
-    body: req.body
-  });
+app.post("/webhook/products-create", async (req, res) => {
+  res.status(200).send("ok");
 
   const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
-  if (!shop) {
-    console.log("❌ NO SHOP");
-    return res.status(200).send("OK");
-  }
+  if (!shop) return;
 
   const productId = Number(req.body?.id);
-  if (!productId) {
-    console.log("❌ NO PRODUCT ID");
-    return res.status(200).send("OK");
-  }
+  if (!productId) return;
 
   let store;
 
@@ -2041,88 +1979,101 @@ app.post("/webhooks/products-create", async (req, res) => {
     store = await getStore(shop);
   } catch (err) {
     console.log("⛔ BLOCKED BEFORE QUEUE - STORE INVALID", { shop });
-    return res.status(200).send("OK");
+    return;
   }
 
   if (!store) {
     console.log("⛔ HARD BLOCK WEBHOOK - NO STORE", { shop });
-    return res.status(200).send("OK");
+    return;
   }
 
   if (String(store.status).toLowerCase() !== "active") {
     console.log("⛔ HARD BLOCK WEBHOOK - INACTIVE", { shop, status: store.status });
-    return res.status(200).send("OK");
+    return;
   }
 
-  const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
+ const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
 
-  if (remaining <= 0) {
-    console.log("⛔ BLOCK - NO TOKENS", {
-      shop,
-      tokens: store.tokens,
-      tokens_balance: store.tokens_balance
-    });
-    return res.status(200).send("OK");
-  }
-
-  console.log("🚀 ABOUT TO ENQUEUE", { shop, productId });
+if (remaining <= 0) {
+  console.log("⛔ BLOCK - NO TOKENS", {
+    shop,
+    tokens: store.tokens,
+tokens_balance: store.tokens_balance
+  });
+  return;
+}
 
   enqueueShopJob(shop, "products-create(FULL)", async () => {
-  let jobStore;
+    let jobStore;
 
-  try {
-    jobStore = await getStore(shop);
-  } catch (err) {
-    console.log("⛔ JOB BLOCK - STORE INVALID", { shop });
-    return;
-  }
+    try {
+      jobStore = await getStore(shop);
+    } catch (err) {
+      console.log("⛔ JOB BLOCK - STORE INVALID", { shop });
+      return;
+    }
 
-  if (!jobStore) {
-    console.log("⛔ JOB BLOCK - NO STORE", { shop });
-    return;
-  }
+    if (!jobStore) {
+      console.log("⛔ JOB BLOCK - NO STORE", { shop });
+      return;
+    }
 
-  if (String(jobStore.status).toLowerCase() !== "active") {
-    console.log("⛔ JOB BLOCK - INACTIVE", { shop, status: jobStore.status });
-    return;
-  }
+    if (String(jobStore.status).toLowerCase() !== "active") {
+      console.log("⛔ JOB BLOCK - INACTIVE", { shop, status: jobStore.status });
+      return;
+    }
 
-  const remaining = Number(jobStore.tokens_balance ?? jobStore.tokens ?? 0);
+    if (Number(jobStore.tokens) <= 0) {
+      console.log("⛔ JOB BLOCK - NO TOKENS", { shop, tokens: jobStore.tokens });
+      return;
+    }
 
-  if (remaining <= 0) {
-    console.log("⛔ JOB BLOCK - NO TOKENS", { shop });
-    return;
-  }
+    if (isDuplicateExecution(shop, productId)) {
+      log("DUPLICATE EXECUTION BLOCKED", { shop, productId });
+      return;
+    }
 
-  const access_token = await getToken(shop);
+    const access_token = await getToken(shop);
 
-  const transformResult = await transformProductById(
-    shop,
-    access_token,
-    productId
-  );
+    await sleep(1500);
 
-  console.log("🔥 BEFORE TOKEN CONSUME", {
-    shop,
-    productId,
-    transformResult
-  });
+    const productResp = await shopifyRequest(shop, {
+      method: "GET",
+      url: `https://${shop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+      headers: { "X-Shopify-Access-Token": access_token }
+    });
 
-  if (!transformResult?.success) {
-    console.log("⚠️ TRANSFORM FAILED", { shop, productId });
-    return;
-  }
+    const realProduct = productResp?.data?.product || {};
+    const realTags = String(realProduct.tags || "");
 
-  await consumeTokenIfAvailable(shop, {
-    source: "webhook",
-    productId
-  });
+    if (realTags.includes("ZEUS_ORIGIN")) {
+      log("Skip token (ZEUS origin - verified)", { shop, productId });
+      return;
+    }
 
+    const transformResult = await transformProductById(shop, access_token, productId);
+
+console.log("🔥 BEFORE TOKEN CONSUME", {
+  shop,
+  productId,
+  transformResult
 });
 
-  return res.status(200).send("OK");
-
+if (!transformResult?.success) {
+  log("WEBHOOK TOKEN SKIPPED", {
+    shop,
+    productId,
+    reason: transformResult?.reason || "transform_failed"
   });
+  return;
+}
+
+await consumeTokenIfAvailable(shop, {
+  source: "webhook",
+  productId
+});
+});
+});
   
 /* ==========================
    WEBHOOK: FULFILLMENT TRACKING
@@ -2425,14 +2376,19 @@ if (false) {
 async function registerWebhooks(shop, accessToken) {
   try {
     const topics = [
-  // ✅ COMPLIANCE
-  { topic: "CUSTOMERS_DATA_REQUEST", path: "customers/data_request" },
-  { topic: "CUSTOMERS_REDACT", path: "customers/redact" },
-  { topic: "SHOP_REDACT", path: "shop/redact" },
-
-  // 🔥 ZEUS CORE (SOLO CREATE)
-  { topic: "PRODUCTS_CREATE", path: "webhooks/products-create" }
-];
+      {
+        topic: "CUSTOMERS_DATA_REQUEST",
+        path: "customers/data_request"
+      },
+      {
+        topic: "CUSTOMERS_REDACT",
+        path: "customers/redact"
+      },
+      {
+        topic: "SHOP_REDACT",
+        path: "shop/redact"
+      }
+    ];
 
     for (const t of topics) {
       const response = await axios.post(
