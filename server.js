@@ -311,47 +311,29 @@ function verifyShopifyHmac(query) {
 ========================== */
 app.get("/auth", async (req, res) => {
   try {
-    validateRequiredOAuthEnv();
+    const shop = String(req.query.shop || "").trim();
 
-    const shop = normalizeShopDomain(req.query?.shop);
-
-    if (!shop) {
-      return res.status(400).json({
-        ok: false,
-        error: "shop requerido"
-      });
+    if (!shop || !shop.includes(".myshopify.com")) {
+      return res.status(400).send("Invalid shop");
     }
 
-    if (!isValidShopifyShop(shop)) {
-      return res.status(400).json({
-        ok: false,
-        error: "shop inválido"
-      });
-    }
-
-    const state = buildOAuthState(shop);
     const redirectUri = "https://zeus-core-engine.onrender.com/auth/callback";
 
     const installUrl =
       `https://${shop}/admin/oauth/authorize` +
-      `?client_id=${encodeURIComponent(SHOPIFY_API_KEY)}` +
-      `&scope=${encodeURIComponent(SHOPIFY_SCOPES)}` +
+      `?client_id=${process.env.SHOPIFY_API_KEY}` +
+      `&scope=${encodeURIComponent(process.env.SHOPIFY_SCOPES)}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&state=${encodeURIComponent(state)}`;
+      `&state=zeus_install` +
+      `&grant_options[]=per-user`;
 
-    log("OAUTH START", {
-      shop,
-      redirectUri,
-      scopes: SHOPIFY_SCOPES
-    });
+    console.log("🔥 INSTALL URL:", installUrl);
 
     return res.redirect(installUrl);
+
   } catch (err) {
-    console.error("auth error:", err.response?.data || err.message);
-    return res.status(500).json({
-      ok: false,
-      error: err.message
-    });
+    console.error("AUTH ERROR:", err.message);
+    return res.status(500).send(err.message);
   }
 });
 
