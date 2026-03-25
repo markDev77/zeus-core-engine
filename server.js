@@ -2414,9 +2414,7 @@ app.get("/activation", async (req, res) => {
               onclick="window.open('${shopAdminUrl}', '_blank')">
               Ir a mi tienda
             </button>
-
-            <button class="btn secondary"
-              onclick="window.location.href='https://zeusinfra.io/dashboard?shop=${store.shop}'">
+           <button onclick="window.location.href='https://zeus-core-engine.onrender.com/activation?shop=' + shop">
               Comprar más tokens
             </button>
 
