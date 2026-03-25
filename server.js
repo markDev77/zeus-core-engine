@@ -334,20 +334,51 @@ return res.redirect(installUrl);
   }
 });
 
-app.get("/auth/callback", async (req, res) => {
+app.get("/auth", async (req, res) => {
   try {
     validateRequiredOAuthEnv();
 
-    const code = String(req.query?.code || "");
-    const hmac = String(req.query?.hmac || "");
-    const host = String(req.query?.host || "");
+    const shop = normalizeShopDomain(req.query?.shop);
 
-    if (!code || !hmac || !host) {
+    if (!shop) {
       return res.status(400).json({
         ok: false,
-        error: "OAuth missing required params"
+        error: "shop requerido"
       });
     }
+
+    if (!isValidShopifyShop(shop)) {
+      return res.status(400).json({
+        ok: false,
+        error: "shop inválido"
+      });
+    }
+
+    const state = buildOAuthState(shop);
+    const redirectUri = buildShopifyCallbackUrl();
+
+    const installUrl =
+      `https://${shop}/admin/oauth/authorize` +
+      `?client_id=${encodeURIComponent(SHOPIFY_API_KEY)}` +
+      `&scope=${encodeURIComponent(SHOPIFY_SCOPES)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=${encodeURIComponent(state)}`;
+
+    log("OAUTH START", {
+      shop,
+      redirectUri,
+      scopes: SHOPIFY_SCOPES
+    });
+
+    return res.redirect(installUrl);
+  } catch (err) {
+    console.error("auth error:", err.response?.data || err.message);
+    return res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
+});
 
     // 🔥 EXTRAER SHOP DESDE HOST (SHOPIFY NUEVO)
     let shop = "";
