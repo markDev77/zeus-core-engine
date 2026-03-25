@@ -317,19 +317,17 @@ app.get("/auth", async (req, res) => {
       return res.status(400).send("Invalid shop");
     }
 
-    const redirectUri = "https://zeus-core-engine.onrender.com/auth/callback";
+    const redirectUri = "...";
 
-    const installUrl =
-      `https://${shop}/admin/oauth/authorize` +
-      `?client_id=${process.env.SHOPIFY_API_KEY}` +
-      `&scope=${encodeURIComponent(process.env.SHOPIFY_SCOPES)}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&state=zeus_install` +
-      `&grant_options[]=per-user`;
+const installUrl = `https://${shop}/admin/oauth/authorize` +
+  `?client_id=...` +
+  `&scope=...` +
+  `&redirect_uri=...` +
+  `&state=zeus_install`;
 
-    console.log("🔥 INSTALL URL:", installUrl);
+console.log("🔥 INSTALL URL:", installUrl);
 
-    return res.redirect(installUrl);
+return res.redirect(installUrl);
 
   } catch (err) {
     console.error("AUTH ERROR:", err.message);
