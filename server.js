@@ -2400,24 +2400,41 @@ app.get("/activation", async (req, res) => {
         </head>
         <body>
           <div class="card">
-            <h2>ZEUS conectado 🚀</h2>
+           <h1>ZEUS Connected 🚀</h1>
 
-            <p><strong>Tienda:</strong><br>${store.shop}</p>
-            <p><strong>Plan:</strong> ${store.plan}</p>
-            <p><strong>Tokens disponibles:</strong> ${balance}</p>
+<p>Store: ${shop}</p>
+<p>Plan: ${plan}</p>
+<p>Available tokens: ${tokens}</p>
 
-            <div class="note">
-              Listo para importar u optimizar tus productos
-            </div>
+<p>Ready to import or optimize your products</p>
 
-            <button class="btn"
-              onclick="window.open('${shopAdminUrl}', '_blank')">
-              Ir a mi tienda
-            </button>
-           <button onclick="window.location.href='https://zeus-core-engine.onrender.com/activation?shop=' + shop">
-              Comprar más tokens
-            </button>
+<a href="https://${shop}/admin/products" style="
+  display:inline-block;
+  margin-top:20px;
+  padding:14px 28px;
+  background:#5a67d8;
+  color:white;
+  text-decoration:none;
+  border-radius:8px;
+  font-weight:bold;
+">
+  Go to my store
+</a>
 
+<br/>
+
+<a href="https://zeusinfra.io/activation?shop=${shop}" style="
+  display:inline-block;
+  margin-top:15px;
+  padding:14px 28px;
+  background:#5a67d8;
+  color:white;
+  text-decoration:none;
+  border-radius:8px;
+  font-weight:bold;
+">
+  Buy more tokens
+</a>
           </div>
         </body>
       </html>
