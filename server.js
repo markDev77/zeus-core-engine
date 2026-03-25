@@ -2522,7 +2522,207 @@ app.get("/activation", async (req, res) => {
     res.status(500).send("Internal error");
   }
 });
-        
+
+/* ==========================
+   BILLING (STRIPE CHECKOUT)
+========================== */
+
+const STRIPE_TOKEN_PLANS = {
+  starter: {
+    priceId: "price_1TC9r43UE97FrwpvWV5mNt0L",
+    tokens: 300,
+    plan: "starter"
+  },
+  growth: {
+    priceId: "price_1TC9s23UE97FrwpvLI2TAw6k",
+    tokens: 1000,
+    plan: "growth"
+  },
+  scale: {
+    priceId: "price_1TC9sw3UE97Frwpv0tWLrDYk",
+    tokens: 3000,
+    plan: "scale"
+  },
+  powerful: {
+    priceId: "price_1TC9tm3UE97FrwpvigO2Cw5s",
+    tokens: 50000,
+    plan: "powerful"
+  },
+  test: {
+    priceId: "price_1TCBBJ3UE97FrwpvBAj2WTMU",
+    tokens: 10,
+    plan: "test"
+  }
+};
+
+app.post("/stripe/create-checkout", async (req, res) => {
+  try {
+    const rawShop = req.body?.shop;
+    const rawPlan = String(req.body?.plan || "").trim().toLowerCase();
+
+    const shop = normalizeShopDomain(rawShop);
+
+    if (!shop) {
+      return res.status(400).json({ ok: false, error: "shop required" });
+    }
+
+    if (!isValidShopifyShop(shop)) {
+      return res.status(400).json({ ok: false, error: "invalid shop" });
+    }
+
+    if (!rawPlan) {
+      return res.status(400).json({ ok: false, error: "plan required" });
+    }
+
+    const selectedPlan = STRIPE_TOKEN_PLANS[rawPlan];
+
+    if (!selectedPlan) {
+      return res.status(400).json({ ok: false, error: "invalid plan" });
+    }
+
+    const storeResult = await pool.query(
+      `SELECT shop FROM stores WHERE shop = $1 LIMIT 1`,
+      [shop]
+    );
+
+    if (!storeResult.rows.length) {
+      return res.status(404).json({ ok: false, error: "store not found" });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price: selectedPlan.priceId,
+          quantity: 1
+        }
+      ],
+      metadata: {
+        shop,
+        plan: selectedPlan.plan,
+        tokens: String(selectedPlan.tokens)
+      },
+      success_url: `${process.env.SHOPIFY_APP_URL}/activation?shop=${encodeURIComponent(shop)}&checkout=success`,
+      cancel_url: `${process.env.SHOPIFY_APP_URL}/activation?shop=${encodeURIComponent(shop)}&checkout=cancel`
+    });
+
+    log("STRIPE CHECKOUT CREATED", {
+      shop,
+      plan: selectedPlan.plan,
+      tokens: selectedPlan.tokens,
+      sessionId: session.id
+    });
+
+    return res.json({ ok: true, url: session.url });
+
+  } catch (err) {
+    console.error("STRIPE CREATE CHECKOUT ERROR:", err?.message || err);
+    return res.status(500).json({ ok: false, error: "stripe_checkout_error" });
+  }
+});
+
+
+/* ==========================
+   STRIPE WEBHOOK (SECURE)
+========================== */
+
+app.post("/stripe/webhook", async (req, res) => {
+  let event;
+
+  try {
+    const sig = req.headers["stripe-signature"];
+
+    event = stripe.webhooks.constructEvent(
+      req.rawBody,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+
+  } catch (err) {
+    console.error("❌ Stripe signature failed:", err.message);
+    return res.status(400).send("Invalid signature");
+  }
+
+  try {
+    if (event.type === "checkout.session.completed") {
+
+      const session = event.data.object;
+
+      const shop = normalizeShopDomain(session.metadata?.shop);
+      const tokens = parseInt(session.metadata?.tokens || "0", 10);
+      const sessionId = session.id;
+
+      if (!shop || !tokens) {
+        return res.status(400).send("Invalid metadata");
+      }
+
+      const existing = await pool.query(
+        `SELECT id FROM stripe_events WHERE session_id = $1 LIMIT 1`,
+        [sessionId]
+      );
+
+      if (existing.rows.length > 0) {
+        return res.status(200).send("Already processed");
+      }
+
+      await pool.query("BEGIN");
+
+      await pool.query(
+        `
+        UPDATE stores
+        SET
+          tokens = COALESCE(tokens, 0) + $1,
+          tokens_balance = COALESCE(tokens_balance, 0) + $1,
+          billing_status = 'paid'
+        WHERE shop = $2
+        `,
+        [tokens, shop]
+      );
+
+      await pool.query(
+        `
+        INSERT INTO stripe_events (session_id, shop, tokens, created_at)
+        VALUES ($1, $2, $3, NOW())
+        `,
+        [sessionId, shop, tokens]
+      );
+
+      await pool.query("COMMIT");
+
+      console.log("💰 TOKENS ADDED", { shop, tokens });
+
+    }
+
+    return res.status(200).send("OK");
+
+  } catch (err) {
+    await pool.query("ROLLBACK");
+    console.error("❌ Stripe webhook error:", err.message);
+    return res.status(500).send("Webhook failed");
+  }
+});
+
+
+/* ========================================
+   SERVER START (ÚNICO Y FINAL)
+======================================== */
+
+const PORT = process.env.PORT || 10000;
+
+app.listen(PORT, async () => {
+  console.log(`🚀 ZEUS running on port ${PORT}`);
+
+  try {
+    if (typeof initDB === "function") {
+      await initDB();
+      console.log("✅ DB connected");
+    }
+  } catch (err) {
+    console.error("❌ DB init error:", err.message);
+  }
+});
+
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
