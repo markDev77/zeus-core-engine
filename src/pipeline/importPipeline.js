@@ -428,6 +428,25 @@ SYNC ENGINE
 ==========================================
 */
 
+// 🔥 HARD BLOCK TOKENS (ANTES DE SYNC ENGINE)
+const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
+
+if (remaining <= 0) {
+  console.log("⛔ HARD BLOCK PIPELINE - NO TOKENS", {
+    shop: shopDomain,
+    tokens_balance: store.tokens_balance,
+    tokens: store.tokens
+  });
+
+  return {
+    status: "blocked",
+    reason: "no_tokens",
+    shopDomain,
+    productId
+  };
+}
+
+
 let syncCompleted = false;
 let usageSnapshot = null;
 let chargeable = false;
