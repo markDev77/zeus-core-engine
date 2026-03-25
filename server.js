@@ -358,7 +358,7 @@ app.get("/auth/callback", async (req, res) => {
       status: "active"
     });
 
-    await registerWebhooks(shop, access_token);
+  // registerWebhooks eliminado temporalmente (no crítico para onboarding)
 
     log("OAUTH SUCCESS", {
       shop,
