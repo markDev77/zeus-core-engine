@@ -2292,9 +2292,9 @@ app.get("/activation", async (req, res) => {
     }
 
     const result = await pool.query(
-      "SELECT shop, plan, tokens, tokens_used FROM stores WHERE shop = $1",
-      [shop]
-    );
+  "SELECT shop, plan, tokens, tokens_used, tokens_balance FROM stores WHERE shop = $1",
+  [shop]
+);
 
     const store = result.rows[0];
 
@@ -2305,7 +2305,7 @@ app.get("/activation", async (req, res) => {
     const plan = store.plan || "free";
     const tokens = store.tokens || 0;
     const used = store.tokens_used || 0;
-    const balance = tokens - used;
+    const balance = store.tokens_balance;
 
     const shopAdminUrl = `https://${store.shop}/admin/products`;
 
