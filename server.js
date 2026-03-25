@@ -29,11 +29,6 @@ app.use((req, res, next) => {
 
   next();
 });
-app.get("/", (req, res) => {
-  res.send("ZEUS EMBED READY");
-});
-
-
 console.log("ENV REAL:", {
   SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY ? "OK" : "MISSING",
   SHOPIFY_API_SECRET: process.env.SHOPIFY_API_SECRET ? "OK" : "MISSING",
@@ -226,6 +221,7 @@ function verifyShopifyHmac(query) {
 /* ==========================
    SHOPIFY OAUTH
 ========================== */
+
 app.get("/auth", async (req, res) => {
   try {
     validateRequiredOAuthEnv();
@@ -247,19 +243,16 @@ app.get("/auth", async (req, res) => {
     }
 
     const state = buildOAuthState(shop);
-    const redirectUri = buildShopifyCallbackUrl();
-
+    const handle = shop.replace(/\.myshopify\.com$/i, "");
     const installUrl =
-      `https://${shop}/admin/oauth/authorize` +
+      `https://admin.shopify.com/store/${encodeURIComponent(handle)}/oauth/install_custom_app` +
       `?client_id=${encodeURIComponent(SHOPIFY_API_KEY)}` +
-      `&scope=${encodeURIComponent(SHOPIFY_SCOPES)}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&state=${encodeURIComponent(state)}`;
 
     log("OAUTH START", {
+      mode: "custom_app",
       shop,
-      redirectUri,
-      scopes: SHOPIFY_SCOPES
+      handle
     });
 
     return res.redirect(installUrl);
@@ -272,7 +265,44 @@ app.get("/auth", async (req, res) => {
   }
 });
 
+function resolveShopFromOAuthQuery(query) {
+  const directShop = normalizeShopDomain(query?.shop);
+
+  if (directShop && isValidShopifyShop(directShop)) {
+    return directShop;
+  }
+
+  const stateData = parseOAuthState(query?.state);
+  const stateShop = normalizeShopDomain(stateData?.shop);
+
+  if (stateShop && isValidShopifyShop(stateShop)) {
+    return stateShop;
+  }
+
+  const host = String(query?.host || "");
+
+  if (host) {
+    try {
+      const decodedHost = Buffer.from(host, "base64").toString("utf8");
+      const match = decodedHost.match(/store\/([^\/]+)/i);
+
+      if (match && match[1]) {
+        const hostShop = normalizeShopDomain(`${match[1]}.myshopify.com`);
+
+        if (hostShop && isValidShopifyShop(hostShop)) {
+          return hostShop;
+        }
+      }
+    } catch (e) {
+      console.error("resolveShopFromOAuthQuery host decode error:", e.message);
+    }
+  }
+
+  return "";
+}
+
 app.get("/auth/callback", async (req, res) => {
+
   try {
     validateRequiredOAuthEnv();
 
@@ -287,28 +317,12 @@ app.get("/auth/callback", async (req, res) => {
       });
     }
 
-    // 🔥 EXTRAER SHOP DESDE HOST (SHOPIFY NUEVO)
-    let shop = "";
-
-    try {
-      const decodedHost = Buffer.from(host, "base64").toString("utf8");
-      // ej: admin.shopify.com/store/zeus-dev-01
-      const match = decodedHost.match(/store\/([^\/]+)/);
-
-      if (match) {
-        shop = `${match[1]}.myshopify.com`;
-      }
-    } catch (e) {
-      return res.status(400).json({
-        ok: false,
-        error: "Invalid host param"
-      });
-    }
+    const shop = resolveShopFromOAuthQuery(req.query);
 
     if (!shop) {
       return res.status(400).json({
         ok: false,
-        error: "Shop not resolved from host"
+        error: "Shop not resolved from callback"
       });
     }
 
@@ -1220,7 +1234,7 @@ async function translateHtmlPreservingTags(html) {
       if (raw && raw.trim()) textNodes.push(node);
     }
     if (node.children) node.children.forEach(walk);
-  }
+}
 
   walk($.root()[0]);
 
@@ -1838,7 +1852,7 @@ async function cleanProductById(shop, access_token, productId) {
 
   await shopifyRequest(normalizedShop, {
     method: "PUT",
-    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
     headers: { "X-Shopify-Access-Token": access_token },
     data: {
       product: {
