@@ -592,6 +592,12 @@ function buildImageFingerprintKey(realProduct, limit = 3) {
   const fps = [];
 
   const imgs = Array.isArray(realProduct?.images) ? realProduct.images : [];
+
+  // 🔥 FIX DUPLICADOS
+  if (!imgs.length) {
+    return `no-image-${realProduct.id}`;
+  }
+
   for (const img of imgs) {
     const src = img?.src || img?.url || img?.originalSrc;
     const fp = normalizeImageFingerprint(src);
