@@ -21,12 +21,26 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 app.use((req, res, next) => {
+  // 🔒 Shopify embed (lo que ya tienes)
   res.removeHeader("X-Frame-Options");
 
   res.setHeader(
     "Content-Security-Policy",
-"frame-ancestors https://admin.shopify.com https://*.myshopify.com https://admin.shopify.com/store/*;"
+    "frame-ancestors https://admin.shopify.com https://*.myshopify.com https://admin.shopify.com/store/*;"
   );
+
+  // 🌐 CORS (FIX dashboard)
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+
+  // 🔥 importante para preflight
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
 
   next();
 });
