@@ -430,6 +430,7 @@ async function runImportPipeline(input) {
 
   let syncCompleted = false;
   let usageSnapshot = null;
+  let chargeable = false;
 
   try {
     console.log("ZEUS SYNC ENGINE START", productId);
@@ -439,7 +440,9 @@ async function runImportPipeline(input) {
       store,
       product
     });
-
+    
+    chargeable = true;
+    
     syncCompleted = true;
 
     console.log("ZEUS SYNC ENGINE COMPLETE", productId);
