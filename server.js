@@ -48,54 +48,44 @@ app.get("/", (req, res) => {
 });
 
 console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY?.slice(0, 10));
-app.post('/stripe/create-checkout', async (req, res) => {
+app.post("/stripe/create-checkout", async (req, res) => {
   try {
-    const { shop } = req.body;
+    const { shop, priceId } = req.body;
 
-    if (!shop) {
-      return res.status(400).json({ error: 'Missing shop' });
+    if (!shop || !priceId) {
+      return res.status(400).json({
+        error: "shop y priceId requeridos"
+      });
     }
-console.log("👉 BODY:", req.body);
-console.log("👉 SHOP:", shop);
-console.log("👉 STRIPE KEY EXISTS:", !!process.env.STRIPE_SECRET_KEY);
+
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: 'ZEUS Tokens - 300',
-            description: '300 product optimizations'
-          },
-          unit_amount: 4900
-        },
-        quantity: 1
-      }],
-
+      mode: "payment",
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1
+        }
+      ],
       metadata: {
         shop: shop,
         tokens: 300
       },
-
       success_url: `https://zeusinfra.io/activation?shop=${shop}&success=true`,
       cancel_url: `https://zeusinfra.io/activation?shop=${shop}&canceled=true`
     });
 
-    res.json({ url: session.url });
+    return res.json({ url: session.url });
 
-  catch (err) {
-  console.error("🔥 STRIPE FULL ERROR:", err);
+  } catch (err) {
+    console.error("🔥 STRIPE FULL ERROR:", err);
 
-  if (err.raw) {
-    console.error("🔥 STRIPE RAW:", err.raw);
+    if (err.raw) {
+      console.error("🔥 STRIPE RAW:", err.raw);
+    }
+
+    return res.status(500).json({ error: err.message });
   }
-
-  res.status(500).json({ error: err.message });
-}
 });
-
 
 console.log("ENV REAL:", {
   SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY ? "OK" : "MISSING",
