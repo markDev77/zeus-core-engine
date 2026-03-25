@@ -309,6 +309,7 @@ function verifyShopifyHmac(query) {
 /* ==========================
    SHOPIFY OAUTH
 ========================== */
+
 app.get("/auth", async (req, res) => {
   try {
     validateRequiredOAuthEnv();
@@ -330,7 +331,8 @@ app.get("/auth", async (req, res) => {
     }
 
     const state = buildOAuthState(shop);
-    const redirectUri = buildShopifyCallbackUrl();
+
+    const redirectUri = "https://zeus-core-engine.onrender.com/auth/callback";
 
     const installUrl =
       `https://${shop}/admin/oauth/authorize` +
@@ -355,34 +357,100 @@ app.get("/auth", async (req, res) => {
   }
 });
 
-    // 🔥 EXTRAER SHOP DESDE HOST (SHOPIFY NUEVO)
+
+app.get("/auth/callback", async (req, res) => {
+  try {
+    validateRequiredOAuthEnv();
+
+    const code = String(req.query?.code || "");
+    const hmac = String(req.query?.hmac || "");
+    const host = String(req.query?.host || "");
+
+    if (!code || !hmac || !host) {
+      return res.status(400).json({
+        ok: false,
+        error: "OAuth missing required params"
+      });
+    }
+
+    // 🔥 EXTRAER SHOP DESDE HOST (CORRECTAMENTE UBICADO)
     let shop = "";
 
-// prioridad 1: query
-if (req.query.shop) {
-  shop = normalizeShopDomain(req.query.shop);
-}
-
-// prioridad 2: host
-if (!shop && host) {
-  try {
-    const decodedHost = Buffer.from(host, "base64").toString("utf8");
-    const match = decodedHost.match(/store\/([^\/]+)/);
-
-    if (match) {
-      shop = `${match[1]}.myshopify.com`;
+    if (req.query.shop) {
+      shop = normalizeShopDomain(req.query.shop);
     }
-  } catch (e) {
-    console.log("host decode failed");
-  }
-}
 
-if (!shop) {
-  return res.status(400).json({
-    ok: false,
-    error: "Shop not resolved"
-  });
-}
+    if (!shop && host) {
+      try {
+        const decodedHost = Buffer.from(host, "base64").toString("utf8");
+        const match = decodedHost.match(/store\/([^\/]+)/);
+
+        if (match) {
+          shop = `${match[1]}.myshopify.com`;
+        }
+      } catch (e) {
+        console.log("host decode failed");
+      }
+    }
+
+    if (!shop) {
+      return res.status(400).json({
+        ok: false,
+        error: "Shop not resolved"
+      });
+    }
+
+    if (!isValidShopifyShop(shop)) {
+      return res.status(400).json({
+        ok: false,
+        error: "shop inválido"
+      });
+    }
+
+    if (!verifyShopifyHmac(req.query)) {
+      return res.status(400).json({
+        ok: false,
+        error: "HMAC inválido"
+      });
+    }
+
+    const tokenResponse = await axios.post(
+      `https://${shop}/admin/oauth/access_token`,
+      {
+        client_id: SHOPIFY_API_KEY,
+        client_secret: SHOPIFY_API_SECRET,
+        code
+      },
+      {
+        headers: { "Content-Type": "application/json" }
+      }
+    );
+
+    const access_token = tokenResponse?.data?.access_token;
+
+    if (!access_token) {
+      throw new Error("OAuth exchange sin access_token");
+    }
+
+    await upsertStore({
+      shop,
+      access_token,
+      status: "active"
+    });
+
+    await registerWebhooks(shop, access_token);
+
+    return res.redirect(`/activation?shop=${shop}`);
+
+  } catch (err) {
+    console.error("auth/callback error:", err.response?.data || err.message);
+
+    return res.status(500).json({
+      ok: false,
+      error: err.response?.data || err.message
+    });
+  }
+});
 
     // 🔥 INTERCAMBIO TOKEN
     const tokenResponse = await axios.post(
