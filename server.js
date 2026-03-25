@@ -330,7 +330,7 @@ app.get("/auth", async (req, res) => {
     }
 
     const state = buildOAuthState(shop);
-    const redirectUri = buildShopifyCallbackUrl();
+    const redirectUri = "https://zeus-core-engine.onrender.com/auth/callback";
 
     const installUrl =
       `https://${shop}/admin/oauth/authorize` +
