@@ -1959,15 +1959,31 @@ async function consumeTokenIfAvailable(shop, meta = {}) {
   }
 
   const row = result.rows[0];
-  const remaining = Number(row.tokens_balance || 0);
 
-  log("ZEUS TOKEN CONSUMED", {
+const remaining = Number(
+  row.tokens_balance ?? ((row.tokens || 0) - (row.tokens_used || 0))
+);
+
+// ⚠️ LOW TOKENS ALERT
+if (remaining <= 5 && !Boolean(row.low_token_notified)) {
+  console.log("⚠️ LOW TOKENS ALERT", {
     shop: normalizedShop,
-    ok: true,
-    remaining,
-    tokens_used: Number(row.tokens_used || 0),
-    ...meta
+    remaining
   });
+
+  await pool.query(
+    `UPDATE stores SET low_token_notified = true WHERE shop = $1`,
+    [normalizedShop]
+  );
+}
+
+log("ZEUS TOKEN CONSUMED", {
+  shop: normalizedShop,
+  ok: true,
+  remaining,
+  tokens_used: Number(row.tokens_used || 0),
+  ...meta
+});
 
   return {
     ok: true,
