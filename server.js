@@ -1,41 +1,26 @@
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
-
 const cheerio = require("cheerio");
-
 const {
   SHOPIFY_API_KEY,
   SHOPIFY_API_SECRET,
   SHOPIFY_SCOPES,
   OPENAI_API_KEY
 } = process.env;
-
 const express = require("express");
 const Stripe = require('stripe');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-
 if (!process.env.STRIPE_SECRET_KEY) {
   console.error("❌ STRIPE KEY NOT LOADED");
 } else {
   console.log("✅ STRIPE KEY LOADED");
 }
-
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
-
 const app = express();
-
-/* 🔥 BODY PARSER CORRECTO (UNA SOLA VEZ) */
-app.use(express.json({
-  limit: "10mb",
-  verify: (req, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
-
-/* 🔥 CORS */
+app.use(express.json());
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "*");
@@ -48,95 +33,70 @@ app.use((req, res, next) => {
   next();
 });
 
-/* 🔥 EMBED SHOPIFY */
 app.use((req, res, next) => {
   res.removeHeader("X-Frame-Options");
 
   res.setHeader(
     "Content-Security-Policy",
-    "frame-ancestors https://admin.shopify.com https://*.myshopify.com https://admin.shopify.com/store/*;"
+"frame-ancestors https://admin.shopify.com https://*.myshopify.com https://admin.shopify.com/store/*;"
   );
 
   next();
 });
-
-/* ROOT */
 app.get("/", (req, res) => {
   res.send("ZEUS EMBED READY");
 });
 
-/* DEBUG STRIPE */
 console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY?.slice(0, 10));
-
-/* 🔥 CHECKOUT */
 app.post('/stripe/create-checkout', async (req, res) => {
   try {
+    const { shop } = req.body;
 
-    console.log("👉 RAW BODY:", req.body);
-
-    const shop = req.body?.shop;
-    const plan = req.body?.plan;
-
-    if (!shop || !plan) {
-      return res.status(400).json({ error: 'Missing shop or plan' });
+    if (!shop) {
+      return res.status(400).json({ error: 'Missing shop' });
     }
-
-    const planMap = {
-      starter: {
-        priceId: 'price_1TC9r43UE97FrwpvWV5mNt0L',
-        tokens: 300
-      },
-      growth: {
-        priceId: 'price_1TC9s23UE97FrwpvLI2TAw6k',
-        tokens: 1000
-      },
-      scale: {
-        priceId: 'price_1TC9sw3UE97Frwpv0tWLrDYk',
-        tokens: 3000
-      },
-      powerful: {
-        priceId: 'price_1TC9tm3UE97FrwpvigO2Cw5s',
-        tokens: 50000
-      },
-      test: {
-        priceId: 'price_1TCBBJ3UE97FrwpvBAj2WTMU',
-        tokens: 10
-      }
-    };
-
-    const selectedPlan = planMap[plan];
-
-    if (!selectedPlan) {
-      return res.status(400).json({ error: 'Invalid plan' });
-    }
-
+console.log("👉 BODY:", req.body);
+console.log("👉 SHOP:", shop);
+console.log("👉 STRIPE KEY EXISTS:", !!process.env.STRIPE_SECRET_KEY);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
 
       line_items: [{
-        price: selectedPlan.priceId,
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'ZEUS Tokens - 300',
+            description: '300 product optimizations'
+          },
+          unit_amount: 4900
+        },
         quantity: 1
       }],
 
       metadata: {
         shop: shop,
-        tokens: String(selectedPlan.tokens)
+        tokens: 300
       },
 
       success_url: `https://zeusinfra.io/activation?shop=${shop}&success=true`,
       cancel_url: `https://zeusinfra.io/activation?shop=${shop}&canceled=true`
     });
 
-    return res.json({ url: session.url });
+    res.json({ url: session.url });
 
-  } catch (err) {
-    console.error("🔥 STRIPE ERROR:", err);
-    return res.status(500).json({ error: err.message });
+  catch (err) {
+  console.error("🔥 STRIPE FULL ERROR:", err);
+
+  if (err.raw) {
+    console.error("🔥 STRIPE RAW:", err.raw);
   }
+
+  res.status(500).json({ error: err.message });
+}
 });
-  
-/* ENV DEBUG */
+
+
 console.log("ENV REAL:", {
   SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY ? "OK" : "MISSING",
   SHOPIFY_API_SECRET: process.env.SHOPIFY_API_SECRET ? "OK" : "MISSING",
@@ -144,6 +104,20 @@ console.log("ENV REAL:", {
 });
 
 
+const { DATABASE_URL } = process.env;
+
+app.use(express.json({
+  limit: "10mb",
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+
+/*
+========================================
+SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
+========================================
+*/
 function verifyShopifyWebhookHmac(req) {
   try {
     const hmacHeader = req.headers["x-shopify-hmac-sha256"];
@@ -171,6 +145,12 @@ function verifyShopifyWebhookHmac(req) {
     return false;
   }
 }
+
+/*
+========================================
+SHOPIFY REQUIRED WEBHOOKS (FINAL)
+========================================
+*/
 
 function isShopifyTestRequest(req) {
   const hmacHeader = req.headers["x-shopify-hmac-sha256"];
@@ -309,7 +289,6 @@ function verifyShopifyHmac(query) {
 /* ==========================
    SHOPIFY OAUTH
 ========================== */
-
 app.get("/auth", async (req, res) => {
   try {
     validateRequiredOAuthEnv();
@@ -331,8 +310,7 @@ app.get("/auth", async (req, res) => {
     }
 
     const state = buildOAuthState(shop);
-
-    const redirectUri = "https://zeus-core-engine.onrender.com/auth/callback";
+    const redirectUri = buildShopifyCallbackUrl();
 
     const installUrl =
       `https://${shop}/admin/oauth/authorize` +
@@ -357,7 +335,6 @@ app.get("/auth", async (req, res) => {
   }
 });
 
-
 app.get("/auth/callback", async (req, res) => {
   try {
     validateRequiredOAuthEnv();
@@ -373,30 +350,28 @@ app.get("/auth/callback", async (req, res) => {
       });
     }
 
-    // 🔥 EXTRAER SHOP DESDE HOST (CORRECTAMENTE UBICADO)
+    // 🔥 EXTRAER SHOP DESDE HOST (SHOPIFY NUEVO)
     let shop = "";
 
-    if (req.query.shop) {
-      shop = normalizeShopDomain(req.query.shop);
-    }
+    try {
+      const decodedHost = Buffer.from(host, "base64").toString("utf8");
+      // ej: admin.shopify.com/store/zeus-dev-01
+      const match = decodedHost.match(/store\/([^\/]+)/);
 
-    if (!shop && host) {
-      try {
-        const decodedHost = Buffer.from(host, "base64").toString("utf8");
-        const match = decodedHost.match(/store\/([^\/]+)/);
-
-        if (match) {
-          shop = `${match[1]}.myshopify.com`;
-        }
-      } catch (e) {
-        console.log("host decode failed");
+      if (match) {
+        shop = `${match[1]}.myshopify.com`;
       }
+    } catch (e) {
+      return res.status(400).json({
+        ok: false,
+        error: "Invalid host param"
+      });
     }
 
     if (!shop) {
       return res.status(400).json({
         ok: false,
-        error: "Shop not resolved"
+        error: "Shop not resolved from host"
       });
     }
 
@@ -413,44 +388,6 @@ app.get("/auth/callback", async (req, res) => {
         error: "HMAC inválido"
       });
     }
-
-    const tokenResponse = await axios.post(
-      `https://${shop}/admin/oauth/access_token`,
-      {
-        client_id: SHOPIFY_API_KEY,
-        client_secret: SHOPIFY_API_SECRET,
-        code
-      },
-      {
-        headers: { "Content-Type": "application/json" }
-      }
-    );
-
-    const access_token = tokenResponse?.data?.access_token;
-
-    if (!access_token) {
-      throw new Error("OAuth exchange sin access_token");
-    }
-
-    await upsertStore({
-      shop,
-      access_token,
-      status: "active"
-    });
-
-    await registerWebhooks(shop, access_token);
-
-    return res.redirect(`/activation?shop=${shop}`);
-
-  } catch (err) {
-    console.error("auth/callback error:", err.response?.data || err.message);
-
-    return res.status(500).json({
-      ok: false,
-      error: err.response?.data || err.message
-    });
-  }
-});
 
     // 🔥 INTERCAMBIO TOKEN
     const tokenResponse = await axios.post(
@@ -762,10 +699,8 @@ async function ensureMainImage(shop, access_token, productId, realProduct) {
 ========================== */
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  connectionString: DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
 async function initDB() {
@@ -2345,7 +2280,6 @@ app.get("/", (req, res) => {
 /* ==========================
    BILLING (STRIPE REAL)
 ========================== */
-
 // CREATE CHECKOUT SESSION
 app.post("/stripe/create-checkout", async (req, res) => {
   try {
@@ -2385,8 +2319,8 @@ app.post("/stripe/create-checkout", async (req, res) => {
         }
       ],
       metadata: {
-        shop: shop,
-        tokens: String(selected.tokens)
+        shop,
+        tokens: selected.tokens
       },
       success_url: `${process.env.SHOPIFY_APP_URL}/activation?shop=${shop}&success=true`,
       cancel_url: `${process.env.SHOPIFY_APP_URL}/usadrop-partner`
@@ -2396,21 +2330,20 @@ app.post("/stripe/create-checkout", async (req, res) => {
 
   } catch (err) {
     console.error("STRIPE CREATE ERROR:", err);
-    return res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
 
 // STRIPE WEBHOOK
 app.post("/stripe/webhook", async (req, res) => {
-
   let event;
 
   try {
     const sig = req.headers["stripe-signature"];
 
     event = stripe.webhooks.constructEvent(
-      req.rawBody, // 🔥 IMPORTANTE (no req.body)
+      req.body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
@@ -2421,23 +2354,23 @@ app.post("/stripe/webhook", async (req, res) => {
   }
 
   if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
 
-  const session = event.data.object;
+    const shop = session.metadata.shop;
+    const tokens = parseInt(session.metadata.tokens || "0");
 
-  const shop = session.metadata?.shop;
-  const tokens = parseInt(session.metadata?.tokens || "0");
+    console.log("💰 PAYMENT SUCCESS:", { shop, tokens });
 
-  console.log("💰 PAYMENT SUCCESS:", { shop, tokens });
-
-  if (shop && tokens > 0) {
     try {
-      await pool.query(
-        `UPDATE stores 
-         SET tokens = tokens + $1,
-             status = 'active'
-         WHERE shop = $2`,
-        [tokens, shop]
-      );
+      await db.query(`
+        UPDATE stores
+        SET tokens = tokens + $1,
+            tokens_balance = tokens_balance + $1,
+            status = 'active',
+            billing_status = 'paid',
+            updated_at = NOW()
+        WHERE shop = $2
+      `, [tokens, shop]);
 
       console.log("✅ TOKENS UPDATED:", shop);
 
@@ -2445,8 +2378,8 @@ app.post("/stripe/webhook", async (req, res) => {
       console.error("❌ DB UPDATE ERROR:", err);
     }
   }
-}
-  return res.json({ received: true });
+
+  res.json({ received: true });
 });
 
 /* ==========================
