@@ -311,31 +311,6 @@ function verifyShopifyHmac(query) {
 ========================== */
 app.get("/auth", async (req, res) => {
   try {
-    const shop = String(req.query.shop || "").trim();
-
-    if (!shop || !shop.includes(".myshopify.com")) {
-      return res.status(400).send("Invalid shop");
-    }
-
-    const state = buildOAuthState(shop);
-
-const installUrl =
-  `https://${shop}/admin/oauth/authorize` +
-  `?client_id=${process.env.SHOPIFY_API_KEY}` +
-  `&scope=${encodeURIComponent(process.env.SHOPIFY_SCOPES)}` +
-  `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-  `&state=${encodeURIComponent(state)}`;
-    
-return res.redirect(installUrl);
-
-  } catch (err) {
-    console.error("AUTH ERROR:", err.message);
-    return res.status(500).send(err.message);
-  }
-});
-
-app.get("/auth", async (req, res) => {
-  try {
     validateRequiredOAuthEnv();
 
     const shop = normalizeShopDomain(req.query?.shop);
