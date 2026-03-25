@@ -2379,15 +2379,6 @@ app.post("/stripe/webhook", async (req, res) => {
 
   if (event.type === "checkout.session.completed") {
 
-    const session = event.data.object;
-
-    const shop = session.metadata?.shop;
-    const tokens = parseInt(session.metadata?.tokens || "0");
-
-    console.log("💰 PAYMENT SUCCESS:", { shop, tokens });
-
-    if (event.type === "checkout.session.completed") {
-
   const session = event.data.object;
 
   const shop = session.metadata?.shop;
@@ -2412,7 +2403,6 @@ app.post("/stripe/webhook", async (req, res) => {
     }
   }
 }
-
   return res.json({ received: true });
 });
 
