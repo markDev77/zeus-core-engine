@@ -2386,22 +2386,23 @@ app.post("/stripe/webhook", async (req, res) => {
 
     console.log("💰 PAYMENT SUCCESS:", { shop, tokens });
 
-    if (shop && tokens > 0) {
-      try {
-        await pool.query(
-          `UPDATE stores 
-           SET tokens = tokens + $1,
-               status = 'active'
-           WHERE shop = $2`,
-          [tokens, shop]
-        );
+    if (!store.plan) {
+  try {
+    await pool.query(
+      `UPDATE stores
+       SET tokens = 5,
+           plan = 'free',
+           status = 'active'
+       WHERE shop = $1`,
+      [shop]
+    );
 
-        console.log("✅ TOKENS UPDATED:", shop);
+    console.log("🎁 FREE PLAN ASSIGNED:", shop);
 
-      } catch (err) {
-        console.error("❌ DB UPDATE ERROR:", err);
-      }
-    }
+  } catch (err) {
+    console.error("❌ FREE PLAN ERROR:", err);
+     }
+   }
   }
 
   return res.json({ received: true });
