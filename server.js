@@ -237,13 +237,17 @@ app.get("/auth", async (req, res) => {
 
     const redirectUri = `${process.env.SHOPIFY_APP_URL}/auth/callback`;
 
+    // 🔴 CLAVE
+    const state = `${Date.now()}_${shop}`;
+
     const installUrl =
       `https://${shop}/admin/oauth/authorize` +
       `?client_id=${process.env.SHOPIFY_API_KEY}` +
       `&scope=${encodeURIComponent(process.env.SHOPIFY_SCOPES)}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=${encodeURIComponent(state)}`;
 
-    console.log("OAUTH START:", { shop });
+    console.log("OAUTH START:", { shop, state });
 
     return res.redirect(installUrl);
 
