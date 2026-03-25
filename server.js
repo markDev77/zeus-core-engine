@@ -2353,6 +2353,8 @@ app.get("/activation", async (req, res) => {
 
     const balance = store.tokens - (store.tokens_used || 0);
 
+    const shopAdminUrl = `https://${store.shop}/admin/products`;
+
     res.send(`
       <html>
         <head>
@@ -2372,7 +2374,7 @@ app.get("/activation", async (req, res) => {
               background: #111827;
               padding: 30px;
               border-radius: 12px;
-              width: 400px;
+              width: 420px;
               text-align: center;
             }
             .btn {
@@ -2384,6 +2386,15 @@ app.get("/activation", async (req, res) => {
               border-radius: 8px;
               cursor: pointer;
               width: 100%;
+              font-weight: bold;
+            }
+            .secondary {
+              background: #374151;
+            }
+            .note {
+              margin-top: 10px;
+              font-size: 13px;
+              color: #9ca3af;
             }
           </style>
         </head>
@@ -2392,16 +2403,20 @@ app.get("/activation", async (req, res) => {
             <h2>ZEUS conectado 🚀</h2>
 
             <p><strong>Tienda:</strong><br>${store.shop}</p>
-
             <p><strong>Plan:</strong> ${store.plan}</p>
-
             <p><strong>Tokens disponibles:</strong> ${balance}</p>
 
-            <button class="btn" onclick="alert('Aquí empieza ZEUS (optimización)')">
-              Usar ZEUS
+            <div class="note">
+              Listo para importar u optimizar tus productos
+            </div>
+
+            <button class="btn"
+              onclick="window.open('${shopAdminUrl}', '_blank')">
+              Ir a mi tienda
             </button>
 
-            <button class="btn" onclick="window.location.href='/stripe/create-checkout?shop=${store.shop}'">
+            <button class="btn secondary"
+              onclick="window.location.href='https://zeusinfra.io/activation?shop=${store.shop}'">
               Comprar más tokens
             </button>
 
@@ -2415,89 +2430,6 @@ app.get("/activation", async (req, res) => {
     res.status(500).send("Internal error");
   }
 });
-
-/* ==========================
-   TEST USADROP (DISABLED SAFE)
-========================== */
-
-if (false) {
-  try {
-    const { runUsadropSync } = require("./src/jobs/usadropSyncJob");
-
-    setTimeout(async () => {
-      console.log("🚀 TEST USADROP SYNC ====");
-      await runUsadropSync();
-    }, 5000);
-
-  } catch (err) {
-    console.log("USADROP JOB NOT FOUND (safe skip)");
-  }
-}
-
-async function registerWebhooks(shop, accessToken) {
-  try {
-    const topics = [
-      {
-        topic: "CUSTOMERS_DATA_REQUEST",
-        path: "customers/data_request"
-      },
-      {
-        topic: "CUSTOMERS_REDACT",
-        path: "customers/redact"
-      },
-      {
-        topic: "SHOP_REDACT",
-        path: "shop/redact"
-      }
-    ];
-
-    for (const t of topics) {
-      const response = await axios.post(
-        `https://${shop}/admin/api/2024-01/graphql.json`,
-        {
-          query: `
-            mutation webhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $webhookSubscription: WebhookSubscriptionInput!) {
-              webhookSubscriptionCreate(
-                topic: $topic,
-                webhookSubscription: $webhookSubscription
-              ) {
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }
-          `,
-          variables: {
-            topic: t.topic,
-            webhookSubscription: {
-              callbackUrl: `https://zeus-core-engine.onrender.com/webhooks/${t.path}`,
-              format: "JSON"
-            }
-          }
-        },
-        {
-          headers: {
-            "X-Shopify-Access-Token": accessToken,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-
-      // 🔥 IMPORTANTE: validar errores de Shopify
-      const errors = response.data?.data?.webhookSubscriptionCreate?.userErrors;
-
-      if (errors && errors.length > 0) {
-        console.error("❌ Shopify webhook error:", errors);
-      } else {
-        console.log("✅ Webhook registered:", t.topic);
-      }
-    }
-
-  } catch (err) {
-    console.error("❌ registerWebhooks error:", err.response?.data || err.message);
-  }
-}
         
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
