@@ -9,6 +9,7 @@ const {
   OPENAI_API_KEY
 } = process.env;
 const express = require("express");
+console.log("🔥 ZEUS DB URL:", process.env.DATABASE_URL);
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
