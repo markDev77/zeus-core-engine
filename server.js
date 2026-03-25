@@ -2072,11 +2072,15 @@ console.log("🔥 BEFORE TOKEN CONSUME", {
   transformResult
 });
 
-if (!transformResult?.success) {
+const shouldCharge =
+  transformResult?.success === true ||
+  transformResult?.chargeable === true;
+
+if (!shouldCharge) {
   log("WEBHOOK TOKEN SKIPPED", {
     shop,
     productId,
-    reason: transformResult?.reason || "transform_failed"
+    reason: transformResult?.reason || "no_charge_condition"
   });
   return;
 }
