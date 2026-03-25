@@ -1971,6 +1971,7 @@ async function consumeTokenIfAvailable(shop, meta = {}) {
 }
   
 app.post("/webhook/products-create", async (req, res) => {
+  console.log("🔥 PRODUCT WEBHOOK BODY:", JSON.stringify(req.body, null, 2));
   res.status(200).send("ok");
 
   const shop = normalizeShopDomain(req.headers["x-shopify-shop-domain"]);
