@@ -2011,8 +2011,9 @@ if (remaining <= 0) {
   console.log("⛔ BLOCK - NO TOKENS", {
     shop,
     tokens: store.tokens,
-tokens_balance: store.tokens_balance
+    tokens_balance: store.tokens_balance
   });
+
   return;
 }
 
