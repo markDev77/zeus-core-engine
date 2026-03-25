@@ -355,41 +355,31 @@ app.get("/auth/callback", async (req, res) => {
     // 🔥 EXTRAER SHOP DESDE HOST (SHOPIFY NUEVO)
     let shop = "";
 
-    try {
-      const decodedHost = Buffer.from(host, "base64").toString("utf8");
-      // ej: admin.shopify.com/store/zeus-dev-01
-      const match = decodedHost.match(/store\/([^\/]+)/);
+// prioridad 1: query
+if (req.query.shop) {
+  shop = normalizeShopDomain(req.query.shop);
+}
 
-      if (match) {
-        shop = `${match[1]}.myshopify.com`;
-      }
-    } catch (e) {
-      return res.status(400).json({
-        ok: false,
-        error: "Invalid host param"
-      });
-    }
+// prioridad 2: host
+if (!shop && host) {
+  try {
+    const decodedHost = Buffer.from(host, "base64").toString("utf8");
+    const match = decodedHost.match(/store\/([^\/]+)/);
 
-    if (!shop) {
-      return res.status(400).json({
-        ok: false,
-        error: "Shop not resolved from host"
-      });
+    if (match) {
+      shop = `${match[1]}.myshopify.com`;
     }
+  } catch (e) {
+    console.log("host decode failed");
+  }
+}
 
-    if (!isValidShopifyShop(shop)) {
-      return res.status(400).json({
-        ok: false,
-        error: "shop inválido"
-      });
-    }
-
-    if (!verifyShopifyHmac(req.query)) {
-      return res.status(400).json({
-        ok: false,
-        error: "HMAC inválido"
-      });
-    }
+if (!shop) {
+  return res.status(400).json({
+    ok: false,
+    error: "Shop not resolved"
+  });
+}
 
     // 🔥 INTERCAMBIO TOKEN
     const tokenResponse = await axios.post(
