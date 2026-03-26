@@ -1626,16 +1626,33 @@ const policy = resolvePolicy({
 
 const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
-   const translatedTitleRaw = await translateText(realProduct.title, { language });
+// 🔥 TRANSLATION
+const translatedTitleRaw = await translateText(realProduct.title, { language });
 let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html, { language });
 
+// 🔥 SANITIZE
 let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
 translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
-// 🔥 1. DETECTAR CATEGORÍA (ANTES DE IA)
+// 🔥 TITLE ENGINE (AQUÍ VA TODO EL BLOQUE COMPLETO)
+let optimizedTitle = generateTitle(translatedTitle);
+
+// contexto negocio
+optimizedTitle = improveTitleWithContext(optimizedTitle);
+
+// SEO (opcional pero activo)
+optimizedTitle = injectKeywordInTitle(optimizedTitle);
+
+// asegurar título final
+translatedTitle = ensureNonEmptyTitle(
+  optimizedTitle || translatedTitle,
+  translatedTitleRaw
+);
+
+// 🔥 CATEGORY
 const detectedCat = detectCategory(translatedTitle);
 
-// 🔥 2. AI BLOCK (UNA SOLA VEZ)
+// 🔥 AI BLOCK
 let aiBlock = null;
 
 if (policy.description_mode === "hybrid") {
@@ -1645,108 +1662,42 @@ if (policy.description_mode === "hybrid") {
     language
   });
 }
-    
-// 🔥 TITLE ENGINE
-let optimizedTitle = generateTitle(translatedTitle);
 
-// 🔥 CONTEXTO REAL (ANTES DE SEO)
-optimizedTitle = improveTitleWithContext(optimizedTitle);
-
-// 🔥 SEO
-optimizedTitle = injectKeywordInTitle(optimizedTitle);
-
-translatedTitle = ensureNonEmptyTitle(
-  optimizedTitle || translatedTitle,
-  translatedTitleRaw
-);
-
-// 🔥 1. DETECTAR CATEGORÍA PRIMERO
-const detectedCat = detectCategory(translatedTitle);
-
-// 🔥 2. AI BLOCK
-let aiBlock = null;
-
-if (policy.description_mode === "hybrid") {
-  aiBlock = await generateAIContent({
-    title: translatedTitle,
-    category: detectedCat
-  });
-}
-
-// 🔥 3. DESCRIPTION ENGINE
+// 🔥 DESCRIPTION
 translatedHtml = buildFinalDescription({
   title: translatedTitle,
   originalHtml: translatedHtml,
   aiBlock
 });
 
-// 🔥 4. TAGS
+// 🔥 TAGS
 const tags = buildTagSetFromProduct(realProduct, [
   detectedCat,
-  sigTag,
   "ZEUS_ORIGIN"
-]).join(", ");
+]).join(",");
 
-console.log("ZEUS TITLE DEBUG:", {
-  original: realProduct.title,
-  translated: translatedTitleRaw,
-  final: translatedTitle
-});
-  await shopifyRequest(normalizedShop, {
-      method: "PUT",
-      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": access_token },
-      data: {
-        product: {
-          id: productId,
-          title: translatedTitle,
-          body_html: translatedHtml,
-          vendor: "friDker Internacional",
-          product_type: detectedCat,
-          tags,
-          status: "active"
-        }
-      }
-    });
-
-   for (const variant of realVariants) {
-
-  const usd = parseFloat(variant.price);
-  const safeUsd = Number.isFinite(usd) ? usd : 0;
-
-  const finalPrice = policy.pricing
-    ? calculateZeusPriceUSD(safeUsd)
-    : safeUsd;
-
-  console.log("ZEUS PRICING:", {
-    variantId: variant.id,
-    raw: variant.price,
-    usd,
-    final: finalPrice
-  });
-
-  await shopifyRequest(normalizedShop, {
-    method: "PUT",
-    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
-    headers: { "X-Shopify-Access-Token": access_token },
-    data: {
-      variant: {
-        id: variant.id,
-        price: String(finalPrice),
-        sku: variant.sku,
-        weight: DEFAULT_WEIGHT_VALUE,
-        weight_unit: DEFAULT_WEIGHT_UNIT
-      }
+// 🔥 UPDATE SHOPIFY
+await shopifyRequest(normalizedShop, {
+  method: "PUT",
+  url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+  headers: { "X-Shopify-Access-Token": access_token },
+  data: {
+    product: {
+      id: productId,
+      title: translatedTitle,
+      body_html: translatedHtml,
+      vendor: "friDker Internacional",
+      product_type: detectedCat,
+      tags,
+      status: "active"
     }
-  });
-
-}
-
+  }
+});
 
 // ==========================
 // INVENTARIO FIJO (11)
 // ==========================
-await sleep(1800); // CRÍTICO (espera a que Shopify cree inventory_item_id)
+await sleep(1800);
 
 const locationsResp = await shopifyRequest(normalizedShop, {
   method: "GET",
@@ -1759,43 +1710,44 @@ const locationId = locationsResp.data?.locations?.[0]?.id;
 if (!locationId) {
   console.log("❌ NO LOCATION FOUND", { shop: normalizedShop });
 } else {
+
   for (const variant of realVariants) {
+
     if (!variant.inventory_item_id) {
       console.log("❌ NO inventory_item_id", { variantId: variant.id });
       continue;
     }
 
-    await shopifyRequest(normalizedShop, {
-      method: "POST",
-      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/inventory_levels/set.json`,
-      headers: { "X-Shopify-Access-Token": access_token },
-      data: {
-        location_id: locationId,
-        inventory_item_id: variant.inventory_item_id,
-        available: FIXED_STOCK
-      }
-    });
-  }
+    try {
+      await shopifyRequest(normalizedShop, {
+        method: "POST",
+        url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/inventory_levels/set.json`,
+        headers: { "X-Shopify-Access-Token": access_token },
+        data: {
+          location_id: locationId,
+          inventory_item_id: variant.inventory_item_id,
+          available: FIXED_STOCK
+        }
+      });
+    } catch (e) {
+      console.log("❌ INVENTORY ERROR", {
+        variantId: variant.id,
+        error: e.response?.data || e.message
+      });
+    }
 
-  console.log("✅ INVENTARIO SET A 11", {
-    shop: normalizedShop,
-    variants: realVariants.length
-  });
-}
-    log("Producto transformado (FULL)", {
-      shop: normalizedShop,
-      productId,
-      variants: realVariants.length
-    });
+  } // 👈 ESTE CIERRA EL FOR
 
-    return { success: true };
-
-  } catch (err) {
-    console.error("transformProductById error:", err.response?.data || err.message);
-    return { success: false, reason: "error" };
-  }
 }
 
+// 🔥 LOG FINAL REAL (ÚNICO)
+log("Producto transformado (FULL)", {
+  shop: normalizedShop,
+  productId,
+  variants: realVariants.length
+});
+
+return { success: true };
 /* ==========================
    STABLE MODE
 ========================== */
@@ -1867,29 +1819,22 @@ async function transformProductStableById(shop, access_token, productId) {
   let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html);
 
   const titleBefore = translatedTitleRaw;
-  let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
-  translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
-  translatedTitle = ensureNonEmptyTitle(translatedTitle, titleBefore);
-  const detectedCat = detectCategory(translatedTitle);
-  const tags = buildTagSetFromProduct(realProduct, [detectedCat]).join(", ");
+let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
+translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
-  await shopifyRequest(normalizedShop, {
-    method: "PUT",
-    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-    headers: { "X-Shopify-Access-Token": access_token },
-    data: {
-      product: {
-        id: productId,
-        title: translatedTitle,
-        body_html: translatedHtml,
-        vendor: "friDker Internacional",
-        product_type: detectedCat,
-        tags,
-        status: "active"
-      }
-    }
+translatedTitle = ensureNonEmptyTitle(translatedTitle, titleBefore);
+
+// 🔥 2. AI BLOCK (ÚNICA VEZ)
+let aiBlock = null;
+
+if (policy.description_mode === "hybrid") {
+  aiBlock = await generateAIContent({
+    title: translatedTitle,
+    category: detectedCat,
+    language
   });
+}
 
   log("Producto transformado (STABLE)", { shop: normalizedShop, productId });
 }
