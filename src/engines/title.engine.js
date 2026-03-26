@@ -1,137 +1,170 @@
 // /src/engines/title.engine.js
 
-function normalizeSpaces(text) {
-  return String(text || "").replace(/\s+/g, " ").trim();
+function normalize(text) {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function sentenceCase(text) {
-  const clean = normalizeSpaces(text).toLowerCase();
-  if (!clean) return "";
-  return clean.charAt(0).toUpperCase() + clean.slice(1);
-}
-
-function replacePhrases(text) {
-  let t = String(text || "");
-
-  const phraseMap = [
-    [/men'?s genuine leather business loafers shoes/gi, "mocasines de vestir para hombre"],
-    [/genuine leather business loafers shoes/gi, "mocasines de vestir"],
-    [/business loafers/gi, "mocasines de vestir"],
-    [/loafers shoes/gi, "mocasines"],
-    [/baffle splash guard/gi, "deflector a prueba de salpicaduras"],
-    [/splash guard baffle/gi, "deflector a prueba de salpicaduras"],
-    [/splash guard/gi, "deflector a prueba de salpicaduras"],
-    [/baffle/gi, "deflector"],
-    [/splashproof/gi, "a prueba de salpicaduras"],
-    [/splash proof/gi, "a prueba de salpicaduras"]
-  ];
-
-  for (const [pattern, replacement] of phraseMap) {
-    t = t.replace(pattern, replacement);
-  }
-
-  return t;
-}
-
-function replaceWords(text) {
-  let t = String(text || "");
-
-  const wordMap = {
-    portable: "portátil",
-    mini: "mini",
-    electric: "eléctrico",
-    fan: "ventilador",
-    usb: "usb",
-    juicer: "licuadora",
-    shoes: "zapatos",
-    shoe: "zapato",
-    men: "hombre",
-    mens: "hombre",
-    leather: "cuero",
-    genuine: "genuino",
-    business: "de vestir",
-    loafers: "mocasines",
-    loafer: "mocasín",
-    splash: "salpicaduras",
-    proof: "a prueba de",
-    kitchen: "cocina"
-  };
-
-  Object.keys(wordMap).forEach((key) => {
-    t = t.replace(new RegExp(`\\b${key}\\b`, "gi"), wordMap[key]);
-  });
-
-  return t;
-}
-
+// ==========================
+// CLEAN BASE
+// ==========================
 function cleanNoise(text) {
   return String(text || "")
-    .replace(/\b(new|hot|sale|free shipping|dropshipping|2024|2025|2026)\b/gi, "")
+    .replace(/\b(new|hot|sale|free shipping|dropshipping|\d{4})\b/gi, "")
     .replace(/[|]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function regionalizeTitle(text) {
-  let t = String(text || "");
-
-  t = t.replace(/\bzapatos de vestir de cuero genuino para hombre\b/gi, "mocasines de vestir para hombre");
-  t = t.replace(/\bdeflector a prueba de salpicaduras\b/gi, "Deflector a prueba de salpicaduras");
-
-  return t;
+// ==========================
+// TOKENIZATION
+// ==========================
+function tokenize(text) {
+  return normalize(text)
+    .toLowerCase()
+    .split(" ")
+    .filter(Boolean);
 }
 
-function trimTitle(text, max = 60) {
-  let t = normalizeSpaces(text);
-  if (t.length <= max) return t;
+// ==========================
+// DETECT PRODUCT CORE
+// ==========================
+function detectProduct(tokens) {
+  const map = [
+    { keys: ["fan"], label: "ventilador" },
+    { keys: ["shoe", "shoes", "loafer"], label: "mocasines" },
+    { keys: ["bag"], label: "bolsa" },
+    { keys: ["organizer"], label: "organizador" },
+    { keys: ["lamp", "led"], label: "lámpara" },
+    { keys: ["massage"], label: "masajeador" }
+  ];
 
-  const parts = t.split(" ");
-  let out = "";
-
-  for (const part of parts) {
-    const test = out ? `${out} ${part}` : part;
-    if (test.length > max) break;
-    out = test;
+  for (const m of map) {
+    if (m.keys.some(k => tokens.includes(k))) {
+      return m.label;
+    }
   }
 
-  return out || t.slice(0, max).trim();
+  return null;
 }
 
-function generateTitle(rawTitle) {
-  if (!rawTitle) return null;
+// ==========================
+// DETECT ATTRIBUTES
+// ==========================
+function detectAttributes(tokens) {
+  const attributes = [];
 
-  let title = String(rawTitle);
+  if (tokens.includes("portable")) attributes.push("portátil");
+  if (tokens.includes("mini")) attributes.push("compacto");
+  if (tokens.includes("electric")) attributes.push("eléctrico");
+  if (tokens.includes("usb")) attributes.push("USB");
 
-  title = replacePhrases(title);
-  title = replaceWords(title);
-  title = cleanNoise(title);
-  title = regionalizeTitle(title);
-  title = sentenceCase(title);
-  title = trimTitle(title, 60);
-
-  return normalizeSpaces(title);
+  return attributes;
 }
 
-function improveTitleWithContext(title) {
-  let t = title.toLowerCase();
+// ==========================
+// DETECT INTENT / USE
+// ==========================
+function detectUse(tokens) {
+  if (tokens.includes("kitchen")) return "para cocina";
+  if (tokens.includes("office")) return "para oficina";
+  if (tokens.includes("home")) return "para hogar";
+  if (tokens.includes("hair")) return "para cabello";
 
-  // 🔥 reglas por contexto real (NO IA todavía)
-  if (t.includes("a4") && (t.includes("bolsa") || t.includes("almacenamiento"))) {
-    return "Bolsa organizadora A4 transparente para documentos";
+  return "";
+}
+
+// ==========================
+// BUILD TITLE
+// ==========================
+function buildTitle({ product, attributes, use }) {
+  if (!product) return null;
+
+  let title = product;
+
+  if (attributes.length) {
+    title += " " + attributes.join(" ");
   }
 
-  if (t.includes("salpic") || t.includes("protector")) {
-    return "Protector contra salpicaduras para cocina";
-  }
-
-  if (t.includes("pinza") || t.includes("cabello")) {
-    return "Mini plancha portátil inalámbrica para cabello";
+  if (use) {
+    title += " " + use;
   }
 
   return title;
 }
 
-// 🔥 EXPORTS (REEMPLAZA COMPLETAMENTE TU module.exports ACTUAL)
+// ==========================
+// FORMAT
+// ==========================
+function sentenceCase(text) {
+  const t = normalize(text).toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+// ==========================
+// TRIM SMART
+// ==========================
+function trimSmart(text, max = 60) {
+  if (text.length <= max) return text;
+
+  const words = text.split(" ");
+  let out = "";
+
+  for (const w of words) {
+    const test = out ? `${out} ${w}` : w;
+    if (test.length > max) break;
+    out = test;
+  }
+
+  return out || text.slice(0, max);
+}
+
+// ==========================
+// MAIN
+// ==========================
+function generateTitle(rawTitle) {
+  if (!rawTitle) return null;
+
+  let clean = cleanNoise(rawTitle);
+  const tokens = tokenize(clean);
+
+  const product = detectProduct(tokens);
+  const attributes = detectAttributes(tokens);
+  const use = detectUse(tokens);
+
+  let title = buildTitle({ product, attributes, use });
+
+  // fallback
+  if (!title) {
+    title = clean;
+  }
+
+  title = sentenceCase(title);
+  title = trimSmart(title, 60);
+
+  return normalize(title);
+}
+
+// ==========================
+// CONTEXT IMPROVER (SOFT)
+// ==========================
+function improveTitleWithContext(title) {
+  if (!title) return title;
+
+  let t = title.toLowerCase();
+
+  if (t.includes("organizador") && t.includes("a4")) {
+    return "Organizador A4 transparente para documentos";
+  }
+
+  if (t.includes("salpicadura")) {
+    return "Protector contra salpicaduras para cocina";
+  }
+
+  return title;
+}
+
 module.exports = {
   generateTitle,
   improveTitleWithContext
