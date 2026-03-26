@@ -2228,12 +2228,12 @@ app.get("/api/store/status", async (req, res) => {
     const result = await pool.query(
       `
       SELECT 
-        shop, 
-        plan, 
-        tokens, 
-        tokens_used, 
-        tokens_balance,
-        status
+        shop,
+        plan,
+        status,
+        tokens,
+        tokens_used,
+        (tokens - tokens_used) AS tokens_balance
       FROM stores
       WHERE shop = $1
       LIMIT 1
@@ -2245,24 +2245,26 @@ app.get("/api/store/status", async (req, res) => {
       return res.status(404).json({ error: "store not found" });
     }
 
-    const store = result.rows[0];
+    const row = result.rows[0];
 
     return res.json({
-      shop: store.shop,
-      plan: store.plan,
-      status: store.status,
-      tokens: Number(store.tokens || 0),
-      tokens_used: Number(store.tokens_used || 0),
-      tokens_balance: Number(
-        store.tokens_balance ?? (store.tokens - store.tokens_used)
-      )
+      shop: row.shop,
+      plan: row.plan,
+      status: row.status,
+      tokens: row.tokens,
+      tokens_used: row.tokens_used,
+      tokens_balance: row.tokens_balance
     });
 
-  } catch (error) {
-    console.error("store/status error:", error);
-    res.status(500).json({ error: "internal error" });
+  } catch (err) {
+    console.error("STORE STATUS ERROR:", err.message);
+
+    return res.status(500).json({
+      error: "internal_error"
+    });
   }
 });
+
 /* ==========================
    ACTIVATION PAGE
 ========================== */
