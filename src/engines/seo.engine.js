@@ -38,15 +38,53 @@ function getPrimaryKeyword(title) {
 
 function injectKeywordInTitle(title) {
   const keyword = getPrimaryKeyword(title);
-
   if (!keyword) return title;
 
-  // evitar duplicados
-  if (title.toLowerCase().includes(keyword)) return title;
+  let t = title.toLowerCase();
 
-  const result = `${keyword} ${title}`;
+  const keywordMain = keyword.split(" ")[0];
 
-  return result.slice(0, 60);
+  // 🔥 evitar duplicación real
+  if (t.includes(keywordMain)) {
+  return sentenceCase(trimSmart(cleanTitle(t), 60));
+}
+
+  // 🔥 construir limpio
+  let result = `${keyword} ${t}`;
+
+  result = cleanTitle(result);
+  result = trimSmart(result, 60);
+
+  return sentenceCase(result);
+}
+
+function cleanTitle(text) {
+  return text
+    .replace(/\b(juguetes)\s+\1\b/gi, "juguetes")
+    .replace(/\b(montessori)\s+\1\b/gi, "montessori")
+    .replace(/\b(protector)\s+\1\b/gi, "protector")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function trimSmart(text, max) {
+  if (text.length <= max) return text;
+
+  const words = text.split(" ");
+  let out = "";
+
+  for (const w of words) {
+    const test = out ? `${out} ${w}` : w;
+    if (test.length > max) break;
+    out = test;
+  }
+
+  return out;
+}
+
+function sentenceCase(text) {
+  const t = text.toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 function buildSEOIntro(title) {
