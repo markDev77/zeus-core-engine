@@ -1936,46 +1936,45 @@ async function consumeTokenIfAvailable(shop, meta = {}) {
   const normalizedShop = normalizeShopDomain(shop);
 
   const result = await pool.query(
-    `
-    UPDATE stores
-    SET
-      tokens_used = COALESCE(tokens_used, 0) + 1,
-      tokens_balance = COALESCE(tokens_balance, COALESCE(tokens, 0)) - 1,
-      updated_at = NOW()
-    WHERE shop = $1
-      AND LOWER(COALESCE(status, 'inactive')) = 'active'
-      AND COALESCE(tokens_balance, COALESCE(tokens, 0)) > 0
-    RETURNING
-      shop,
-      tokens,
-      tokens_used,
-      tokens_balance,
-      status
-    `,
-    [normalizedShop]
-  );
-
-  if (!result.rows.length) {
-    log("ZEUS TOKEN CONSUMED", {
-      shop: normalizedShop,
-      ok: false,
-      remaining: 0,
-      reason: "no_tokens",
-      ...meta
-    });
-
-    return {
-      ok: false,
-      remaining: 0
-    };
-  }
-
-  const row = result.rows[0];
-
-const remaining = Number(
-  row.tokens_balance ?? ((row.tokens || 0) - (row.tokens_used || 0))
+  `
+  UPDATE stores
+  SET
+    tokens_used = COALESCE(tokens_used, 0) + 1,
+    updated_at = NOW()
+  WHERE shop = $1
+    AND LOWER(COALESCE(status, 'inactive')) = 'active'
+    AND (COALESCE(tokens, 0) - COALESCE(tokens_used, 0)) > 0
+  RETURNING
+    shop,
+    tokens,
+    tokens_used,
+    status
+  `,
+  [normalizedShop]
 );
 
+if (!result.rows.length) {
+  log("ZEUS TOKEN CONSUMED", {
+    shop: normalizedShop,
+    ok: false,
+    remaining: 0,
+    reason: "no_tokens",
+    ...meta
+  });
+
+  return {
+    ok: false,
+    remaining: 0
+  };
+}
+
+const row = result.rows[0];
+
+// 🔥 cálculo único correcto (SIEMPRE dinámico)
+const remaining =
+  (Number(row.tokens) || 0) - (Number(row.tokens_used) || 0);
+
+  
 // ⚠️ LOW TOKENS ALERT
 if (remaining <= 5 && !Boolean(row.low_token_notified)) {
   console.log("⚠️ LOW TOKENS ALERT", {
@@ -2033,18 +2032,19 @@ app.post("/webhook/products-create", async (req, res) => {
     return;
   }
 
- const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
+  // 🔥 FIX REAL — balance dinámico SIEMPRE
+  const balance = (Number(store.tokens) || 0) - (Number(store.tokens_used) || 0);
 
-if (remaining <= 0) {
-  console.log("⛔ BLOCK - NO TOKENS", {
-    shop,
-    tokens: store.tokens,
-    tokens_balance: store.tokens_balance
-  });
+  if (balance <= 0) {
+    console.log("⛔ BLOCK - NO TOKENS", {
+      shop,
+      tokens: store.tokens,
+      used: store.tokens_used,
+      balance
+    });
 
-  return;
-}
-
+    return;
+  }
   enqueueShopJob(shop, "products-create(FULL)", async () => {
     let jobStore;
 
