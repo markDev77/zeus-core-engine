@@ -14,25 +14,17 @@ function getMarkupByRange(usd) {
   if (usd <= 89) return 7;
   if (usd <= 100) return 7;
 
-  return 8; // fallback
+  return 8;
 }
 
-function roundPrice(price) {
-  return Math.ceil(price / 10) * 10 - 1;
-}
-
-function calculateZeusPrice(usd, fxRate = 20) {
+function calculateZeusPriceUSD(usd) {
   if (!usd || usd <= 0) return 0;
 
   const markup = getMarkupByRange(usd);
 
-  const adjustedUsd = usd + markup;
-
-  const mxn = adjustedUsd * fxRate;
-
-  return roundPrice(mxn);
+  return usd + markup;
 }
 
 module.exports = {
-  calculateZeusPrice
+  calculateZeusPriceUSD
 };
