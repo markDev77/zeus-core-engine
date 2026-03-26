@@ -1664,9 +1664,19 @@ console.log("ZEUS TITLE DEBUG:", {
       }
     });
 
-    for (const variant of realVariants) {
+   for (const variant of realVariants) {
+
   const usd = parseFloat(variant.price);
-  const mxnPrice = calculatePrice(Number.isFinite(usd) ? usd : 0);
+  const safeUsd = Number.isFinite(usd) ? usd : 0;
+
+  const mxnPrice = calculateZeusPrice(safeUsd);
+
+     console.log("ZEUS PRICING:", {
+    variantId: variant.id,
+    raw: variant.price,
+    usd,
+    final: mxnPrice
+  });
 
   await shopifyRequest(normalizedShop, {
     method: "PUT",
@@ -1682,7 +1692,9 @@ console.log("ZEUS TITLE DEBUG:", {
       }
     }
   });
+
 }
+
 
 // ==========================
 // INVENTARIO FIJO (11)
