@@ -15,6 +15,7 @@ const crypto = require("crypto");
 const axios = require("axios");
 const { generateTitle } = require("./src/engines/title.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
+const { resolvePolicy } = require("./src/policies/policy.engine");
 // ==========================
 // STRIPE INIT
 // ==========================
@@ -1608,10 +1609,15 @@ if (remaining <= 0) {
         sigTag
       });
 
-      return { success: false, reason: "duplicate" };
-    }
+return { success: false, reason: "duplicate" };
+}
 
-    const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
+// 🔥 POLICY LAYER
+const policy = resolvePolicy({
+  source: "usadrop"
+});
+
+const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
    const translatedTitleRaw = await translateText(realProduct.title);
 let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html);
