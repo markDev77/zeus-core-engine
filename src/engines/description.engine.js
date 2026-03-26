@@ -119,13 +119,14 @@ function buildZeusDescription({ title, originalHtml }) {
 
 const { buildSEOIntro } = require("./seo.engine");
 
-function buildFinalDescription({ title, originalHtml }) {
+function buildFinalDescription({ title, originalHtml, aiBlock }) {
 
   const zeusBlock = buildZeusDescription({ title, originalHtml });
   const seoIntro = buildSEOIntro(title);
 
   return `
     ${seoIntro}
+    ${aiBlock || ""}
     ${zeusBlock}
     ${originalHtml || ""}
   `;
