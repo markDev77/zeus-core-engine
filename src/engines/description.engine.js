@@ -117,10 +117,15 @@ function buildZeusDescription({ title, originalHtml }) {
   return buildGenericBlock();
 }
 
+const { buildSEOIntro } = require("./seo.engine");
+
 function buildFinalDescription({ title, originalHtml }) {
+
   const zeusBlock = buildZeusDescription({ title, originalHtml });
+  const seoIntro = buildSEOIntro(title);
 
   return `
+    ${seoIntro}
     ${zeusBlock}
     ${originalHtml || ""}
   `;
