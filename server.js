@@ -971,12 +971,15 @@ async function enqueueShopJob(shop, jobName, fn) {
       console.log("⛔ GLOBAL BLOCK - INACTIVE", { shop, status: store.status });
       return;
     }
-const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
-    if (remaining <= 0) {
+const remaining =
+  (Number(store.tokens) || 0) - (Number(store.tokens_used) || 0);
+
+if (remaining <= 0) {
   console.log("⛔ BLOCK - NO TOKENS", {
     shop,
     tokens: store.tokens,
-    tokens_balance: store.tokens_balance
+    used: store.tokens_used,
+    remaining
   });
   return;
 }
@@ -1501,13 +1504,15 @@ async function transformProductById(shop, access_token, productId) {
     return { success: false, hard_block: true };
   }
 
-  const remaining = Number(store.tokens_balance ?? store.tokens ?? 0);
+  const remaining =
+  (Number(store.tokens) || 0) - (Number(store.tokens_used) || 0);
 
 if (remaining <= 0) {
   console.log("⛔ HARD BLOCK WEBHOOK - NO TOKENS", {
     shop,
     tokens: store.tokens,
-    tokens_balance: store.tokens_balance
+    used: store.tokens_used,
+    remaining
   });
   return;
 }
