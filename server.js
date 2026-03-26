@@ -1748,6 +1748,10 @@ log("Producto transformado (FULL)", {
 });
 
 return { success: true };
+
+} catch (err) {
+  console.error("transformProductById error:", err.response?.data || err.message);
+  return { success: false, reason: "error" };
 }
 }
     
