@@ -112,6 +112,27 @@ function generateTitle(rawTitle) {
   return normalizeSpaces(title);
 }
 
+function improveTitleWithContext(title) {
+  let t = title.toLowerCase();
+
+  // 🔥 reglas por contexto real (NO IA todavía)
+  if (t.includes("a4") && (t.includes("bolsa") || t.includes("almacenamiento"))) {
+    return "Bolsa organizadora A4 transparente para documentos";
+  }
+
+  if (t.includes("salpic") || t.includes("protector")) {
+    return "Protector contra salpicaduras para cocina";
+  }
+
+  if (t.includes("pinza") || t.includes("cabello")) {
+    return "Mini plancha portátil inalámbrica para cabello";
+  }
+
+  return title;
+}
+
+// 🔥 EXPORTS (REEMPLAZA COMPLETAMENTE TU module.exports ACTUAL)
 module.exports = {
-  generateTitle
+  generateTitle,
+  improveTitleWithContext
 };
