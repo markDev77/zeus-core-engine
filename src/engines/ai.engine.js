@@ -1,26 +1,59 @@
+// /src/engines/ai.engine.js
+
 const axios = require("axios");
 
-async function generateAIContent({ title, category }) {
-  try {
-    const prompt = `
-Optimiza este producto para ecommerce en México.
+// ==========================
+// LANGUAGE HELPERS (INLINE SAFE)
+// ==========================
+function normalizeLanguage(lang) {
+  if (!lang) return "en";
 
-Producto:
+  return String(lang)
+    .toLowerCase()
+    .split("-")[0]
+    .split("_")[0];
+}
+
+function getLanguageInstruction(language) {
+  const lang = normalizeLanguage(language);
+
+  const map = {
+    es: "Responde en español.",
+    en: "Respond in English.",
+    pt: "Responda em português."
+  };
+
+  return map[lang] || map.en;
+}
+
+// ==========================
+// DESCRIPTION (CORE IA)
+// ==========================
+async function generateAIContent({ title, category, language }) {
+  try {
+    const langInstruction = getLanguageInstruction(language);
+
+    const prompt = `
+${langInstruction}
+
+Optimize this product for ecommerce.
+
+Product:
 ${title}
 
-Categoría:
+Category:
 ${category}
 
-Reglas:
-- Español México
-- No repetir título
-- Enfocado a conversión
-- Incluir contexto de uso real (ej: cocina, hogar, oficina, belleza, etc)
-- 120 a 180 palabras
-- No genérico
-- No inventar características técnicas
+Rules:
+- Do NOT repeat the title
+- Focus on conversion
+- Include real-life usage context (kitchen, home, office, beauty, etc.)
+- 120 to 180 words
+- Avoid generic descriptions
+- Do NOT invent technical specifications
+- Write naturally and clearly
 
-Entrega SOLO texto limpio en HTML con <p> y <ul>
+Return ONLY clean HTML using <p> and <ul>
 `;
 
     const response = await axios.post(
@@ -40,11 +73,76 @@ Entrega SOLO texto limpio en HTML con <p> y <ul>
     return response.data.choices[0].message.content;
 
   } catch (err) {
-    console.log("AI ERROR:", err.message);
+    console.log("AI DESCRIPTION ERROR:", err.message);
     return null;
   }
 }
 
+// ==========================
+// TITLE (IA ENHANCEMENT CONTROLADO)
+// ==========================
+async function improveTitleWithAI({ title, language }) {
+  try {
+    const langInstruction = getLanguageInstruction(language);
+
+    const prompt = `
+${langInstruction}
+
+Improve this ecommerce product title.
+
+Rules:
+- Maximum 60 characters
+- High conversion focus
+- Clear, natural, and readable
+- Do NOT add fake features
+- Do NOT exaggerate
+- Keep original meaning
+- Avoid spammy or keyword stuffing
+- Make it attractive but realistic
+
+Original title:
+${title}
+
+Return ONLY the improved title.
+`;
+
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o-mini",
+        temperature: 0.5,
+        messages: [{ role: "user", content: prompt }]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        }
+      }
+    );
+
+    const aiTitle = response.data.choices[0].message.content.trim();
+
+    // 🔒 SAFETY FILTER
+    if (!aiTitle || aiTitle.length < 8) {
+      return title;
+    }
+
+    if (aiTitle.length > 70) {
+      return title;
+    }
+
+    return aiTitle;
+
+  } catch (err) {
+    console.log("AI TITLE ERROR:", err.message);
+    return title; // fallback crítico
+  }
+}
+
+// ==========================
+// EXPORTS
+// ==========================
 module.exports = {
-  generateAIContent
+  generateAIContent,
+  improveTitleWithAI
 };
