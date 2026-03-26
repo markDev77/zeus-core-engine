@@ -1748,6 +1748,9 @@ log("Producto transformado (FULL)", {
 });
 
 return { success: true };
+}
+}
+    
 /* ==========================
    STABLE MODE
 ========================== */
