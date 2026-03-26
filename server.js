@@ -18,6 +18,7 @@ const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engin
 const { buildFinalDescription } = require("./src/engines/description.engine");
 const { resolvePolicy } = require("./src/policies/policy.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
+const { generateAIContent } = require("./src/engines/ai.engine");
 // ==========================
 // STRIPE INIT
 // ==========================
@@ -1636,26 +1637,38 @@ translatedTitle = ensureNonEmptyTitle(
   translatedTitleRaw
 );
 
-// 🔥 DESCRIPTION ENGINE
+// 🔥 1. DETECTAR CATEGORÍA PRIMERO
+const detectedCat = detectCategory(translatedTitle);
+
+// 🔥 2. AI BLOCK
+let aiBlock = null;
+
+if (policy.description_mode === "hybrid") {
+  aiBlock = await generateAIContent({
+    title: translatedTitle,
+    category: detectedCat
+  });
+}
+
+// 🔥 3. DESCRIPTION ENGINE
 translatedHtml = buildFinalDescription({
   title: translatedTitle,
-  originalHtml: translatedHtml
+  originalHtml: translatedHtml,
+  aiBlock
 });
 
-    const detectedCat = detectCategory(translatedTitle);
+// 🔥 4. TAGS
+const tags = buildTagSetFromProduct(realProduct, [
+  detectedCat,
+  sigTag,
+  "ZEUS_ORIGIN"
+]).join(", ");
 
-    const tags = buildTagSetFromProduct(realProduct, [
-      detectedCat,
-      sigTag,
-      "ZEUS_ORIGIN"
-    ]).join(", ");
-    
 console.log("ZEUS TITLE DEBUG:", {
   original: realProduct.title,
   translated: translatedTitleRaw,
   final: translatedTitle
 });
-
   await shopifyRequest(normalizedShop, {
       method: "PUT",
       url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
