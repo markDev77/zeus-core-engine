@@ -13,6 +13,8 @@ console.log("🔥 ZEUS DB URL:", process.env.DATABASE_URL);
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
+const { generateTitle } = require("./src/engines/title.engine");
+const { buildFinalDescription } = require("./src/engines/description.engine");
 // ==========================
 // STRIPE INIT
 // ==========================
