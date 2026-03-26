@@ -1617,7 +1617,12 @@ if (remaining <= 0) {
     let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
     translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
-    translatedTitle = ensureNonEmptyTitle(translatedTitle, translatedTitleRaw);
+   let optimizedTitle = generateTitle(translatedTitle);
+
+translatedTitle = ensureNonEmptyTitle(
+  optimizedTitle || translatedTitle,
+  translatedTitleRaw
+);
 
     const detectedCat = detectCategory(translatedTitle);
 
@@ -1626,8 +1631,14 @@ if (remaining <= 0) {
       sigTag,
       "ZEUS_ORIGIN"
     ]).join(", ");
+    
+console.log("ZEUS TITLE DEBUG:", {
+  original: realProduct.title,
+  translated: translatedTitleRaw,
+  final: translatedTitle
+});
 
-    await shopifyRequest(normalizedShop, {
+  await shopifyRequest(normalizedShop, {
       method: "PUT",
       url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
       headers: { "X-Shopify-Access-Token": access_token },
