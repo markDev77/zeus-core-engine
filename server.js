@@ -1694,7 +1694,7 @@ console.log("ZEUS TITLE DEBUG:", {
     data: {
       variant: {
         id: variant.id,
-        price: String(mxnPrice),
+        price: String(finalPrice),
         sku: variant.sku,
         weight: DEFAULT_WEIGHT_VALUE,
         weight_unit: DEFAULT_WEIGHT_UNIT
