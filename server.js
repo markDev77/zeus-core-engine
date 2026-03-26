@@ -13,7 +13,7 @@ console.log("🔥 ZEUS DB URL:", process.env.DATABASE_URL);
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
-const { generateTitle } = require("./src/engines/title.engine");
+const { generateTitle, improveTitleWithContext } = require("./src/engines/title.engine");
 const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
 const { resolvePolicy } = require("./src/policies/policy.engine");
@@ -1630,6 +1630,11 @@ translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
 // 🔥 TITLE ENGINE
 let optimizedTitle = generateTitle(translatedTitle);
+
+// 🔥 CONTEXTO REAL (ANTES DE SEO)
+optimizedTitle = improveTitleWithContext(optimizedTitle);
+
+// 🔥 SEO
 optimizedTitle = injectKeywordInTitle(optimizedTitle);
 
 translatedTitle = ensureNonEmptyTitle(
