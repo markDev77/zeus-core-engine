@@ -1611,18 +1611,25 @@ if (remaining <= 0) {
 
     const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
-    const translatedTitleRaw = await translateText(realProduct.title);
-    let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html);
+   const translatedTitleRaw = await translateText(realProduct.title);
+let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html);
 
-    let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
-    translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
+let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
+translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
-   let optimizedTitle = generateTitle(translatedTitle);
+// 🔥 TITLE ENGINE
+let optimizedTitle = generateTitle(translatedTitle);
 
 translatedTitle = ensureNonEmptyTitle(
   optimizedTitle || translatedTitle,
   translatedTitleRaw
 );
+
+// 🔥 DESCRIPTION ENGINE
+translatedHtml = buildFinalDescription({
+  title: translatedTitle,
+  originalHtml: translatedHtml
+});
 
     const detectedCat = detectCategory(translatedTitle);
 
