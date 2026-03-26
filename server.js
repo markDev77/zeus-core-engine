@@ -9,6 +9,8 @@ const {
   OPENAI_API_KEY
 } = process.env;
 const express = require("express");
+const { generateAIContent, improveTitleWithAI } = require("./src/engines/ai.engine");
+console.log("🤖 AI TITLE READY");
 console.log("🔥 ZEUS DB URL:", process.env.DATABASE_URL);
 const { Pool } = require("pg");
 const crypto = require("crypto");
@@ -18,7 +20,6 @@ const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engin
 const { buildFinalDescription } = require("./src/engines/description.engine");
 const { resolvePolicy } = require("./src/policies/policy.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
-const { generateAIContent } = require("./src/engines/ai.engine");
 // ==========================
 // STRIPE INIT
 // ==========================
@@ -1650,6 +1651,41 @@ translatedTitle = ensureNonEmptyTitle(
   optimizedTitle || translatedTitle,
   translatedTitleRaw
 );
+
+// ==========================
+// 🔥 AI TITLE (NUEVO BLOQUE)
+// ==========================
+
+const AI_TITLE_RATIO = 0.2;
+
+if (Math.random() < AI_TITLE_RATIO) {
+  console.log("🤖 AI TITLE TRIGGERED", {
+    shop: normalizedShop,
+    originalTitle: translatedTitle
+  });
+
+  const aiTitle = await improveTitleWithAI({
+    title: translatedTitle,
+    language
+  });
+
+  if (aiTitle && aiTitle.length > 10) {
+    console.log("✅ AI TITLE APPLIED", {
+      before: translatedTitle,
+      after: aiTitle
+    });
+
+    translatedTitle = aiTitle;
+
+  } else {
+    console.log("⚠️ AI TITLE SKIPPED (invalid output)", {
+      aiTitle
+    });
+  }
+
+} else {
+  console.log("⏭️ AI TITLE SKIPPED (ratio)");
+}
 
 // 🔥 CATEGORY
 const detectedCat = detectCategory(translatedTitle);
