@@ -872,7 +872,11 @@ async function getToken(shop) {
 
   try {
     const store = await getStore(normalizedShop);
-
+    const language = (store.language || "es")
+  .toLowerCase()
+  .split("-")[0]
+  .split("_")[0];
+    
     const token = store.access_token;
 
     console.log("ZEUS GETTOKEN DEBUG:", {
@@ -1622,12 +1626,26 @@ const policy = resolvePolicy({
 
 const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
-   const translatedTitleRaw = await translateText(realProduct.title);
-let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html);
+   const translatedTitleRaw = await translateText(realProduct.title, { language });
+let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html, { language });
 
 let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
 translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
+// 🔥 1. DETECTAR CATEGORÍA (ANTES DE IA)
+const detectedCat = detectCategory(translatedTitle);
+
+// 🔥 2. AI BLOCK (UNA SOLA VEZ)
+let aiBlock = null;
+
+if (policy.description_mode === "hybrid") {
+  aiBlock = await generateAIContent({
+    title: translatedTitle,
+    category: detectedCat,
+    language
+  });
+}
+    
 // 🔥 TITLE ENGINE
 let optimizedTitle = generateTitle(translatedTitle);
 
