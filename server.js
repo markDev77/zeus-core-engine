@@ -1667,7 +1667,7 @@ console.log("ZEUS TITLE DEBUG:", {
    for (const variant of realVariants) {
 
   const usd = parseFloat(variant.price);
-  const safeUsd = Number.isFinite(usd) ? usd : 0;
+  const safeUsd = Number.isFinite(usd) && usd > 0 ? usd : 5;
 
   const mxnPrice = calculateZeusPrice(safeUsd);
 
