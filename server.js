@@ -16,6 +16,7 @@ const axios = require("axios");
 const { generateTitle } = require("./src/engines/title.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
 const { resolvePolicy } = require("./src/policies/policy.engine");
+const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
 // ==========================
 // STRIPE INIT
 // ==========================
@@ -1673,15 +1674,17 @@ console.log("ZEUS TITLE DEBUG:", {
    for (const variant of realVariants) {
 
   const usd = parseFloat(variant.price);
-  const safeUsd = Number.isFinite(usd) && usd > 0 ? usd : 5;
+  const safeUsd = Number.isFinite(usd) ? usd : 0;
 
-  const mxnPrice = calculateZeusPrice(safeUsd);
+  const finalPrice = policy.pricing
+    ? calculateZeusPriceUSD(safeUsd)
+    : safeUsd;
 
-     console.log("ZEUS PRICING:", {
+  console.log("ZEUS PRICING:", {
     variantId: variant.id,
     raw: variant.price,
     usd,
-    final: mxnPrice
+    final: finalPrice
   });
 
   await shopifyRequest(normalizedShop, {
