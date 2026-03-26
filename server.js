@@ -1627,6 +1627,8 @@ const policy = resolvePolicy({
 const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
 // 🔥 TRANSLATION
+const store = await getStore(normalizedShop);
+const language = store?.language || "es";
 const translatedTitleRaw = await translateText(realProduct.title, { language });
 let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html, { language });
 
