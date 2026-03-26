@@ -14,6 +14,7 @@ const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
 const { generateTitle } = require("./src/engines/title.engine");
+const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
 const { resolvePolicy } = require("./src/policies/policy.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
@@ -1628,6 +1629,7 @@ translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
 // 🔥 TITLE ENGINE
 let optimizedTitle = generateTitle(translatedTitle);
+optimizedTitle = injectKeywordInTitle(optimizedTitle);
 
 translatedTitle = ensureNonEmptyTitle(
   optimizedTitle || translatedTitle,
