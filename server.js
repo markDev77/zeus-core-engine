@@ -1787,6 +1787,10 @@ if (!locationId) {
     }
 
   } // 👈 ESTE CIERRA EL FOR
+  
+}
+
+  
 // ==========================
 // 🔥 PRICE UPDATE (POLICY)
 // ==========================
