@@ -17,23 +17,42 @@ function getMarkupByRange(usd) {
   return 8;
 }
 
+// ==========================
+// 🔥 PRICING
+// ==========================
 function resolvePricing({ usd }) {
   const base = Number(usd || 0);
 
-  if (!base || base <= 0) return 0;
+  if (!base || base <= 0) {
+    return 0;
+  }
 
   const markup = getMarkupByRange(base);
 
-  return base + markup;
+  const finalPrice = base + markup;
+
+  // 🔥 asegurar formato Shopify (string decimal)
+  return Number(finalPrice.toFixed(2));
 }
 
+// ==========================
+// 🔥 INVENTORY
+// ==========================
 function resolveInventory() {
   return 11;
 }
 
+// ==========================
+// 🔥 EXPORT
+// ==========================
 module.exports = {
   name: "usadrop",
 
+  // flags (compatibles con tu engine actual)
+  pricing: true,
+  fallback_price: true,
+  inventory_fixed: true,
+  weight_fixed: true,
   description_mode: "hybrid",
 
   resolvePricing,
