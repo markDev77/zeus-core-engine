@@ -1773,15 +1773,14 @@ await shopifyRequest(normalizedShop, {
   headers: { "X-Shopify-Access-Token": access_token },
   data: {
     product: {
-      id: productId,
-      title: payload.title,
-      body_html: payload.body_html,
-      vendor: payload.vendor,
-      product_type: intent.type,
-      tags: payload.tags,
-      product_category: payload.product_category || undefined,
-      status: "active"
-    }
+  id: productId,
+  title: payload.title,
+  body_html: payload.body_html,
+  vendor: payload.vendor,
+  product_type: payload.product_type || payload.product_category, // 🔥 AQUÍ
+  tags: payload.tags,
+  status: "active"
+}
   }
 });
 
