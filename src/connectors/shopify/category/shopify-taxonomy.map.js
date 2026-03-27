@@ -1,31 +1,17 @@
-// Shopify Taxonomy Mapping
-// Clave normalizada ZEUS → Shopify category string
+// Shopify Taxonomy Map (MVP)
 
 const SHOPIFY_TAXONOMY_MAP = {
-  // HOGAR
-  "hogar>iluminacion>lamparas decorativas>luz nocturna led":
-    "Home & Garden > Lighting > Night Lights",
+  // CLEANING
+  "cleaning tools": "gid://shopify/ProductTaxonomyNode/640",
+  "cleaning supplies": "gid://shopify/ProductTaxonomyNode/641",
+  "mop": "gid://shopify/ProductTaxonomyNode/640",
 
-  "hogar>iluminacion>lamparas decorativas":
-    "Home & Garden > Lighting > Lamps",
+  // HOME
+  "home decor": "gid://shopify/ProductTaxonomyNode/200",
+  "lighting": "gid://shopify/ProductTaxonomyNode/210",
 
-  "hogar>iluminacion":
-    "Home & Garden > Lighting",
-
-  // ELECTRÓNICA
-  "electronica>audio>audifonos":
-    "Electronics > Audio > Headphones",
-
-  "electronica>accesorios>cables":
-    "Electronics > Accessories > Cables",
-
-  // MODA
-  "moda>ropa>playeras":
-    "Apparel & Accessories > Clothing > Shirts & Tops",
-
-  // DEFAULT CONTROLADO
-  "default":
-    null
+  // DEFAULT
+  "general": "gid://shopify/ProductTaxonomyNode/1"
 };
 
 module.exports = {
