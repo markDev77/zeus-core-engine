@@ -57,7 +57,23 @@ function mapToShopifyCategory(intent) {
     }
   }
 
-  return null;
+  // 🔥 FALLBACK INTELIGENTE
+if (intent.category && intent.category !== "General") {
+  return {
+    product_category: "Home & Garden",
+    match_key: "fallback_domain",
+    source: "fallback",
+    confidence: 0.4
+  };
+}
+
+// 🔥 DEFAULT FINAL
+return {
+  product_category: "Miscellaneous",
+  match_key: "default",
+  source: "default",
+  confidence: 0.1
+};
 }
 
 module.exports = {
