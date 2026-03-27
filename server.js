@@ -1700,7 +1700,17 @@ if (Math.random() < AI_TITLE_RATIO) {
 }
 
 // 🔥 CATEGORY
-const detectedCat = detectCategory(translatedTitle);
+const { resolveIntent, buildCategoryPath } = require("./src/engines/category.engine.v2");
+
+const intent = resolveIntent({
+  title: translatedTitle,
+  description: realProduct.body_html,
+  language,
+  vendor: realProduct.vendor
+});
+
+const detectedCat = intent.category;
+const categoryPath = buildCategoryPath(intent);
 
 // 🔥 AI BLOCK
 let aiBlock = null;
@@ -1722,9 +1732,22 @@ translatedHtml = buildFinalDescription({
 
 // 🔥 TAGS
 const tags = buildTagSetFromProduct(realProduct, [
-  detectedCat,
+  intent.domain,
+  intent.category,
+  intent.subcategory,
+  categoryPath,
   "ZEUS_ORIGIN"
 ]).join(",");
+
+console.log("🧠 CATEGORY BRAIN V2:", {
+  productId,
+  domain: intent.domain,
+  category: intent.category,
+  subcategory: intent.subcategory,
+  type: intent.type,
+  confidence: intent.confidence,
+  categoryPath
+});
 
 // 🔥 UPDATE SHOPIFY
 await shopifyRequest(normalizedShop, {
@@ -1737,7 +1760,7 @@ await shopifyRequest(normalizedShop, {
       title: translatedTitle,
       body_html: translatedHtml,
       vendor: "friDker Internacional",
-      product_type: detectedCat,
+      product_type: intent.type,
       tags,
       status: "active"
     }
