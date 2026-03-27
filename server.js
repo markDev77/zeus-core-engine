@@ -1778,6 +1778,7 @@ await shopifyRequest(normalizedShop, {
   body_html: payload.body_html,
   vendor: payload.vendor,
   product_type: payload.product_type || payload.product_category, // 🔥 AQUÍ
+  product_category: payload.product_category || undefined,
   tags: payload.tags,
   status: "active"
 }
