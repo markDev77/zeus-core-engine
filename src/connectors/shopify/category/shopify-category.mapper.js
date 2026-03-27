@@ -1,5 +1,6 @@
 const { SHOPIFY_TAXONOMY_MAP } = require("./shopify-taxonomy.map");
 
+
 // Normaliza texto para matching estable
 function normalize(value) {
   return String(value || "")
@@ -60,7 +61,7 @@ function mapToShopifyCategory(intent) {
   // 🔥 FALLBACK INTELIGENTE
 if (intent.category && intent.category !== "General") {
   return {
-    product_category: "Home & Garden",
+    product_category: "gid://shopify/ProductTaxonomyNode/640",
     match_key: "fallback_domain",
     source: "fallback",
     confidence: 0.4
