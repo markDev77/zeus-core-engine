@@ -15,6 +15,7 @@ console.log("🔥 ZEUS DB URL:", process.env.DATABASE_URL);
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
+const { buildShopifyPayload } = require("./src/connectors/shopify/shopify.payload.builder");
 const { generateTitle, improveTitleWithContext } = require("./src/engines/title.engine");
 const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
@@ -1702,6 +1703,7 @@ if (Math.random() < AI_TITLE_RATIO) {
 // 🔥 CATEGORY
 const { resolveIntent, buildCategoryPath } = require("./src/engines/category.engine.v2");
 
+
 const intent = resolveIntent({
   title: translatedTitle,
   description: realProduct.body_html,
@@ -1749,6 +1751,24 @@ console.log("🧠 CATEGORY BRAIN V2:", {
   categoryPath
 });
 
+// 🔥 BUILD ZEUS → SHOPIFY PAYLOAD
+const payload = buildShopifyPayload({
+  product: realProduct,
+  optimized: {
+    title: translatedTitle,
+    body_html: translatedHtml,
+    tags
+  },
+  intent,
+  policyOutput: {
+    vendor: policy.resolveVendor ? policy.resolveVendor() : "UsaDrop"
+  },
+  clientRules: null
+});
+
+// 🔍 DEBUG (MUY IMPORTANTE)
+console.log("ZEUS FINAL PAYLOAD:", payload);
+
 // 🔥 UPDATE SHOPIFY
 await shopifyRequest(normalizedShop, {
   method: "PUT",
@@ -1757,11 +1777,12 @@ await shopifyRequest(normalizedShop, {
   data: {
     product: {
       id: productId,
-      title: translatedTitle,
-      body_html: translatedHtml,
-      vendor: "friDker Internacional",
+      title: payload.title,
+      body_html: payload.body_html,
+      vendor: payload.vendor,
       product_type: intent.type,
-      tags,
+      tags: payload.tags,
+      product_category: payload.product_category || undefined,
       status: "active"
     }
   }
