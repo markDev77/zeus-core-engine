@@ -332,6 +332,49 @@ function resolveIntent({ title = "", description = "", language = "es", vendor =
   const corpus = buildCorpus({ title, description });
   const attributes = extractAttributes({ title, text: corpus });
   const { best, bestScore } = resolveBestRule(corpus);
+  // 🔥 SEMANTIC BOOST (MINIMO VIABLE CORE)
+const text = `${title} ${description}`.toLowerCase();
+
+if (
+  text.includes("lingerie") ||
+  text.includes("lenceria") ||
+  text.includes("sleepwear") ||
+  text.includes("nightdress") ||
+  text.includes("pijama") ||
+  text.includes("underwear")
+) {
+  return {
+    domain: "Apparel & Accessories",
+    category: "Clothing",
+    subcategory: "Underwear & Lingerie",
+    type: "Lingerie",
+    attributes,
+    use_case: "semantic_boost",
+    confidence: 0.85,
+    language: lang,
+    source_vendor: vendor || null
+  };
+}
+
+if (
+  text.includes("rodillo") ||
+  text.includes("foam roller") ||
+  text.includes("yoga") ||
+  text.includes("fitness") ||
+  text.includes("masaje")
+) {
+  return {
+    domain: "Sporting Goods",
+    category: "Exercise & Fitness",
+    subcategory: "Recovery & Therapy",
+    type: "Foam Roller",
+    attributes,
+    use_case: "semantic_boost",
+    confidence: 0.8,
+    language: lang,
+    source_vendor: vendor || null
+  };
+}
   // 🔥 CATEGORY PRO
 const pro = resolveCategoryPro({
   title,
