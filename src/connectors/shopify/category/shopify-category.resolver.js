@@ -26,16 +26,17 @@ function resolveShopifyCategory({
   // 3. MAPPING ESTÁNDAR
   const mapped = mapToShopifyCategory(intent);
 
-  if (mapped) {
-    return mapped;
-  }
+// 🔥 SIEMPRE DEVOLVER ALGO (NO NULL)
+if (mapped && mapped.product_category) {
+  return mapped;
+}
 
-  // 4. FALLBACK CONTROLADO
-  return {
-    product_category: null,
-    source: "none",
-    confidence: 0
-  };
+// 🔥 FALLBACK FORZADO GLOBAL
+return {
+  product_category: "Miscellaneous",
+  source: "forced_fallback",
+  confidence: 0.2
+};
 }
 
 module.exports = {
