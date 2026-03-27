@@ -1,6 +1,7 @@
 // /src/engines/category.engine.v2.js
 
 const cheerio = require("cheerio");
+const { resolveCategoryPro } = require("./category.brain.pro");
 
 // ==========================
 // NORMALIZATION
@@ -331,6 +332,28 @@ function resolveIntent({ title = "", description = "", language = "es", vendor =
   const corpus = buildCorpus({ title, description });
   const attributes = extractAttributes({ title, text: corpus });
   const { best, bestScore } = resolveBestRule(corpus);
+  // 🔥 CATEGORY PRO
+const pro = resolveCategoryPro({
+  title,
+  description
+});
+
+if (pro) {
+  return {
+    domain: pro.domain,
+    category: pro.category,
+    subcategory: pro.subcategory,
+    type: pro.type,
+    attributes,
+    use_case: "pro_detected",
+    confidence: pro.confidence || 0.8,
+    language: lang,
+    source_vendor: vendor || null
+  };
+}
+  
+  // 🔥 CATEGORY PRO (OVERRIDE INTELIGENTE)
+
 
   if (!best) {
     return buildFallbackIntent(attributes);
