@@ -1850,7 +1850,6 @@ return { success: true };
   console.error("transformProductById error:", err.response?.data || err.message);
   return { success: false, reason: "error" };
 }
-}
     
 /* ==========================
    STABLE MODE
