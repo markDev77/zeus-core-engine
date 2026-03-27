@@ -1779,7 +1779,7 @@ if (!locationId) {
         data: {
           location_id: locationId,
           inventory_item_id: variant.inventory_item_id,
-          available: FIXED_STOCK
+          available: policy.resolveInventory(),
         }
       });
     } catch (e) {
@@ -1790,7 +1790,54 @@ if (!locationId) {
     }
 
   } // 👈 ESTE CIERRA EL FOR
+// ==========================
+// 🔥 PRICE UPDATE (POLICY)
+// ==========================
 
+for (const variant of realVariants) {
+  if (!variant.id) continue;
+
+  try {
+    const basePrice = Number(variant.price || 0);
+
+if (!basePrice || basePrice <= 0) {
+  console.log("⚠️ INVALID BASE PRICE", {
+    variantId: variant.id,
+    price: variant.price
+  });
+  continue;
+}
+
+const finalPrice = policy.resolvePricing({
+  usd: basePrice
+});
+
+    await shopifyRequest(normalizedShop, {
+      method: "PUT",
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
+      headers: {
+        "X-Shopify-Access-Token": access_token
+      },
+      data: {
+        variant: {
+          id: variant.id,
+          price: finalPrice
+        }
+      }
+    });
+    await new Promise(r => setTimeout(r, 120));
+
+    console.log("💰 PRICE UPDATED", {
+      variantId: variant.id,
+      price: finalPrice.toFixed(2)
+    });
+
+  } catch (e) {
+    console.log("❌ PRICE ERROR", {
+      variantId: variant.id,
+      error: e.response?.data || e.message
+    });
+  }
 }
 
 // 🔥 LOG FINAL REAL (ÚNICO)
