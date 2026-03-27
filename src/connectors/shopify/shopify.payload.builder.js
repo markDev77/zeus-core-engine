@@ -22,16 +22,22 @@ function buildShopifyPayload({
 
   // 🔹 BASE PAYLOAD (NO ROMPER LO EXISTENTE)
   const payload = {
-    title: optimized.title,
-    body_html: optimized.body_html,
-    tags: optimized.tags,
-    vendor
-  };
+  title: optimized.title,
+  body_html: optimized.body_html,
+  tags: optimized.tags,
+  vendor,
+
+  // 🔥 HACK SHOPIFY (VISIBLE CATEGORY)
+  product_type: null // se asigna abajo
+};
 
   // 🔹 CATEGORY SHOPIFY (SOLO SI EXISTE)
   if (categoryResult.product_category) {
-    payload.product_category = categoryResult.product_category;
-  }
+  payload.product_category = categoryResult.product_category;
+
+  // 🔥 CLAVE: esto es lo que Shopify SÍ muestra
+  payload.product_type = categoryResult.product_category;
+}
 
   // 🔹 DEBUG OPCIONAL
   payload.metafields = [
