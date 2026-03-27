@@ -1786,6 +1786,15 @@ await shopifyRequest(normalizedShop, {
   }
 });
 
+// 🔥 CATEGORY GRAPHQL (FIX REAL SHOPIFY CATEGORY)
+await applyShopifyCategory({
+  shop: normalizedShop,
+  accessToken: access_token,
+  productId,
+  productCategory: payload.product_category,
+  apiVersion: PRODUCT_API_VERSION
+});
+
 // ==========================
 // INVENTARIO FIJO (11)
 // ==========================
