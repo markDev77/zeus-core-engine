@@ -68,9 +68,9 @@ if (intent.category && intent.category !== "General") {
   };
 }
 
-// 🔥 DEFAULT FINAL
+// 🔥 DEFAULT FINAL (SIEMPRE VALIDO PARA SHOPIFY)
 return {
-  product_category: "Miscellaneous",
+  product_category: "gid://shopify/ProductTaxonomyNode/1",
   match_key: "default",
   source: "default",
   confidence: 0.1
