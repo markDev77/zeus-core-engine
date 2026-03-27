@@ -1653,6 +1653,21 @@ translatedTitle = ensureNonEmptyTitle(
 );
 
 // ==========================
+// 🔥 POLICY RESOLVE (CORRECTO)
+// ==========================
+const source = String(realProduct.vendor || "").toLowerCase();
+
+const policy = resolvePolicy({
+  source,
+  platform: "shopify"
+});
+
+console.log("🧠 POLICY ACTIVE:", {
+  source,
+  policy: policy.name
+});
+
+// ==========================
 // 🔥 AI TITLE (NUEVO BLOQUE)
 // ==========================
 
