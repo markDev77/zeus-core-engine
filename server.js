@@ -526,35 +526,32 @@ const LEATHER_REPLACEMENT = "piel sintética";
 ========================== */
 
 const MARKETPLACE_BLOCK_WORDS = [
-  "defensa",
-  "autodefensa",
-  "self defense",
-  "self-defense",
-  "arma",
   "weapon",
   "knife",
   "cuchillo",
   "navaja",
-  "dagger",
-  "espiga",
-  "punta",
-  "táctico",
-  "tactico",
-  "municion",
-  "munición",
-  "ammunition",
-  "granada",
-  "explosivo",
-  "pistola",
-  "rifle",
   "gun",
-  "firearm"
+  "rifle",
+  "pistola",
+  "firearm",
+  "ammunition",
+  "explosivo",
+  "granada"
 ];
 
 function isBlockedProduct(title, bodyHtml) {
-  const t = String(title || "").toLowerCase();
-  const b = cheerio.load(bodyHtml || "", { decodeEntities: false }).text().toLowerCase();
-  return MARKETPLACE_BLOCK_WORDS.some((w) => t.includes(w) || b.includes(w));
+  const text = `${title || ""} ${bodyHtml || ""}`
+    .toLowerCase()
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const words = text.split(" ").filter(Boolean);
+
+  return MARKETPLACE_BLOCK_WORDS.some((blockedWord) =>
+    words.includes(String(blockedWord).toLowerCase())
+  );
 }
 
 /* ==========================
