@@ -1777,7 +1777,7 @@ await shopifyRequest(normalizedShop, {
   title: payload.title,
   body_html: payload.body_html,
   vendor: payload.vendor,
-  product_type: payload.product_type,
+  product_type: payload.category || "General",
   product_category: payload.product_category,
   tags: payload.tags,
   status: "active"
