@@ -16,6 +16,7 @@ const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
 const { buildShopifyPayload } = require("./src/connectors/shopify/shopify.payload.builder");
+const { applyShopifyCategory } = require("./src/connectors/shopify/shopify.category.service");
 const { generateTitle, improveTitleWithContext } = require("./src/engines/title.engine");
 const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
