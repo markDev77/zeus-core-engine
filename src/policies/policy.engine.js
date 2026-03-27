@@ -1,28 +1,47 @@
 // /src/policies/policy.engine.js
 
-function resolvePolicy({ source }) {
+const usadropPolicy = require("./Shopify/usadrop.policy");
 
-  // DEFAULT
+function resolvePolicy({ source, platform }) {
+
+  const normalizedSource = String(source || "").toLowerCase();
+
+  // ==========================
+  // 🔧 DEFAULT BASE POLICY
+  // ==========================
   const base = {
+    name: "default",
+
     pricing: false,
     fallback_price: false,
     inventory_fixed: false,
     weight_fixed: false,
-    description_mode: "standard"
+    description_mode: "standard",
+
+    // 🔥 SAFE METHODS (NUNCA ROMPE)
+    resolvePricing: ({ usd }) => {
+      return Number(usd || 0);
+    },
+
+    resolveInventory: () => {
+      return 0;
+    }
   };
 
-  // USADROP RULES
-  if (source === "usadrop") {
+  // ==========================
+  // 🔥 USADROP POLICY
+  // ==========================
+  if (platform === "shopify" && normalizedSource === "usadrop") {
     return {
       ...base,
-      pricing: true,
-      fallback_price: true,
-      inventory_fixed: true,
-      weight_fixed: true,
-      description_mode: "hybrid"
+      ...usadropPolicy,
+      name: "usadrop"
     };
   }
 
+  // ==========================
+  // 🔄 FALLBACK
+  // ==========================
   return base;
 }
 
