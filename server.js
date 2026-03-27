@@ -1621,9 +1621,6 @@ return { success: false, reason: "duplicate" };
 }
 
 // 🔥 POLICY LAYER
-const policy = resolvePolicy({
-  source: "usadrop"
-});
 
 const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
