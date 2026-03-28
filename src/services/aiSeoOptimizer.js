@@ -162,8 +162,14 @@ CRITICAL TITLE RULES:
 - Avoid explicit or sensitive wording depending on region
 - Use natural ecommerce language
 - Keep titles clean, readable, and conversion-focused
+- Rewrite the title completely, do NOT reuse original structure
 - Structure:
   Product type + key benefit + main feature + target use
+
+  DIVERSITY RULES:
+- Each description must use a different narrative style
+- Do NOT start repeatedly with "Descubre", "Imagina", or similar
+- Vary openings: question, benefit-first, direct, scenario
 
 SEO Description
 150 to 250 words
