@@ -1719,11 +1719,21 @@ console.log("🧠 CATEGORY BRAIN V2:", {
   categoryPath
 });
 
+const safeDescription =
+  (aiOptimized && aiOptimized.description) ||
+  translatedHtml ||
+  `<p>${translatedTitle}</p>`;
+
+const cleanTitle = (aiOptimized?.title || translatedTitle)
+  .replace(/[-–—]/g, "")
+  .replace(/\s+/g, " ")
+  .trim();
+
 const payload = buildShopifyPayload({
   product: realProduct,
   optimized: {
-    title: aiOptimized?.title || translatedTitle,
-    body_html: aiOptimized?.description || translatedHtml,
+    title: cleanTitle,
+    body_html: safeDescription,
     tags
   },
   intent,
