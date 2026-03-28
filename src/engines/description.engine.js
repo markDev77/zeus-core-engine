@@ -82,32 +82,6 @@ function buildSplashGuardBlock() {
   `;
 }
 
-function buildGenericBlock() {
-  return `
-    <div style="margin-bottom:20px;">
-      <p>
-        Producto pensado para ofrecer funcionalidad, practicidad y una mejor experiencia de uso en el día a día.
-        Ideal para quienes buscan soluciones útiles y fáciles de integrar a su rutina.
-      </p>
-
-      <p>
-        Su diseño permite un uso cómodo y versátil en distintos contextos, ayudando a resolver necesidades cotidianas con una propuesta clara y funcional.
-      </p>
-
-      <ul>
-        <li>Diseño práctico y funcional</li>
-        <li>Fácil de usar</li>
-        <li>Ideal para uso diario</li>
-        <li>Opción útil para distintos entornos</li>
-      </ul>
-
-      <p>
-        Una alternativa pensada para quienes valoran practicidad, funcionalidad y facilidad de uso.
-      </p>
-    </div>
-  `;
-}
-
 function buildZeusDescription({ title, originalHtml }) {
   const ctx = detectContext(title, originalHtml);
 
@@ -121,13 +95,11 @@ const { buildSEOIntro } = require("./seo.engine");
 
 function buildFinalDescription({ title, originalHtml, aiBlock }) {
 
-  const zeusBlock = buildZeusDescription({ title, originalHtml });
   const seoIntro = buildSEOIntro(title);
 
   return `
     ${seoIntro}
     ${aiBlock || ""}
-    ${zeusBlock}
     ${originalHtml || ""}
   `;
 }
