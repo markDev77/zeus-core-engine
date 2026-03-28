@@ -168,7 +168,8 @@ CRITICAL TITLE RULES:
 
 DIVERSITY RULES:
 - Each description must use a different narrative style
-- Do NOT start repeatedly with "Descubre", "Imagina", or similar
+- NEVER start with "Descubre" or "Imagina"
+- If you do, the output is invalid and must be regenerated
 - Vary openings: question, benefit-first, direct, scenario
 
 STRICT ENFORCEMENT RULES:
@@ -270,10 +271,18 @@ Return JSON only:
     let result;
 
     try {
-      result = JSON.parse(text);
-    } catch {
-      return product;
-    }
+    try {
+  const cleaned = text
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .trim();
+
+  result = JSON.parse(cleaned);
+
+} catch (err) {
+  console.error("JSON PARSE ERROR:", text);
+  return product;
+}
 
     const cleanTitle = cleanSeoTitle(
       result.seoTitle || result.title || normalizedTitle
