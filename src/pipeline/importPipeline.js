@@ -71,6 +71,28 @@ async function runImportPipeline(input) {
   console.log("ZEUS PIPELINE RAW INPUT:");
   console.log(JSON.stringify(input, null, 2));
 
+const shop = input.shop;
+
+  if (!shop) {
+    throw new Error("ZEUS PIPELINE: shop missing");
+  }
+
+  const storeResult = await pool.query(
+    `SELECT region, language, currency FROM stores WHERE shop = $1 LIMIT 1`,
+    [shop]
+  );
+
+  const store = storeResult.rows[0] || {};
+
+  const zeusContext = {
+    language: store.language || "en",
+    region: store.region || null,
+    currency: store.currency || "USD"
+  };
+
+  console.log("ZEUS CONTEXT:", zeusContext);
+  
+
   /*
   ==========================================
   SOURCE DETECTION
