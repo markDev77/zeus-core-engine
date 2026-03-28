@@ -231,7 +231,7 @@ Return JSON only:
         },
         body: JSON.stringify({
           model: "gpt-4o-mini",
-          temperature: 0.5,
+          temperature: 0.85,
           max_tokens: 700,
           messages: [
             {
