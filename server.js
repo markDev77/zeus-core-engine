@@ -1667,36 +1667,6 @@ console.log("🧠 POLICY ACTIVE:", {
 // 🔥 AI TITLE (NUEVO BLOQUE)
 // ==========================
 
-const AI_TITLE_RATIO = 0.9;
-
-if (Math.random() < AI_TITLE_RATIO) {
-  console.log("🤖 AI TITLE TRIGGERED", {
-    shop: normalizedShop,
-    originalTitle: translatedTitle
-  });
-
-  const aiTitle = await improveTitleWithAI({
-    title: translatedTitle,
-    language
-  });
-
-  if (aiTitle && aiTitle.length > 10) {
-    console.log("✅ AI TITLE APPLIED", {
-      before: translatedTitle,
-      after: aiTitle
-    });
-
-    translatedTitle = aiTitle;
-
-  } else {
-    console.log("⚠️ AI TITLE SKIPPED (invalid output)", {
-      aiTitle
-    });
-  }
-
-} else {
-  console.log("⏭️ AI TITLE SKIPPED (ratio)");
-}
 
 // 🔥 CATEGORY
 const { resolveIntent, buildCategoryPath } = require("./src/engines/category.engine.v2");
@@ -1712,23 +1682,6 @@ const intent = resolveIntent({
 const detectedCat = intent.category;
 const categoryPath = buildCategoryPath(intent);
 
-// 🔥 AI BLOCK
-let aiBlock = null;
-
-if (policy.description_mode === "hybrid") {
-  aiBlock = await generateAIContent({
-    title: translatedTitle,
-    category: detectedCat,
-    language
-  });
-}
-
-// 🔥 DESCRIPTION
-translatedHtml = buildFinalDescription({
-  title: translatedTitle,
-  originalHtml: translatedHtml,
-  aiBlock
-});
 
 // 🔥 TAGS
 const tags = buildTagSetFromProduct(realProduct, [
@@ -1749,12 +1702,11 @@ console.log("🧠 CATEGORY BRAIN V2:", {
   categoryPath
 });
 
-// 🔥 BUILD ZEUS → SHOPIFY PAYLOAD
 const payload = buildShopifyPayload({
   product: realProduct,
   optimized: {
     title: translatedTitle,
-    body_html: translatedHtml,
+    body_html: aiOptimized.description,
     tags
   },
   intent,
