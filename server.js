@@ -1706,7 +1706,7 @@ const payload = buildShopifyPayload({
   product: realProduct,
   optimized: {
     title: translatedTitle,
-    body_html: aiOptimized.description,
+    body_html: translatedHtml,
     tags
   },
   intent,
