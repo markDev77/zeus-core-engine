@@ -46,16 +46,15 @@ function buildEffectiveStoreProfile(input = {}, shopDomain = "") {
     ...(input.storeProfile || {})
   };
 
-  if (shopDomain === "eawi7g-hj.myshopify.com") {
-    return {
-      ...base,
-      region: "MX",
-      country: "MX",
-      language: "es",
-      currency: "MXN",
-      shopDomain
-    };
-  }
+  return {
+    ...base,
+    region: base.region || null,
+    country: base.country || base.region || null,
+    language: base.language || "en",
+    currency: base.currency || "USD",
+    shopDomain
+  };
+}
 
   return {
     ...base,
@@ -71,28 +70,26 @@ async function runImportPipeline(input) {
   console.log("ZEUS PIPELINE RAW INPUT:");
   console.log(JSON.stringify(input, null, 2));
 
-const shop = input.shop;
+  const shop = input.shop;
 
   if (!shop) {
     throw new Error("ZEUS PIPELINE: shop missing");
   }
 
+  // 🔥 STORE CONTEXT FROM DB (FUENTE REAL)
   const storeResult = await pool.query(
     `SELECT region, language, currency FROM stores WHERE shop = $1 LIMIT 1`,
     [shop]
   );
 
-  const store = storeResult.rows[0] || {};
+  const storeDB = storeResult.rows[0] || {};
 
-  const zeusContext = {
-    language: store.language || "en",
-    region: store.region || null,
-    currency: store.currency || "USD"
-  };
-
-  console.log("ZEUS CONTEXT:", zeusContext);
+  console.log("ZEUS STORE DB CONTEXT:", {
+    region: storeDB.region,
+    language: storeDB.language,
+    currency: storeDB.currency
+  });
   
-
   /*
   ==========================================
   SOURCE DETECTION
@@ -191,9 +188,17 @@ const shop = input.shop;
   }
 
   const effectiveStoreProfile = buildEffectiveStoreProfile(
-    input,
-    shopDomain
-  );
+  {
+    ...input,
+    storeProfile: {
+      ...input.storeProfile,
+      region: storeDB.region,
+      language: storeDB.language,
+      currency: storeDB.currency
+    }
+  },
+  shopDomain
+);
 
   /*
   ==========================================
