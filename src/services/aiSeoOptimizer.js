@@ -166,10 +166,15 @@ CRITICAL TITLE RULES:
 - Structure:
   Product type + key benefit + main feature + target use
 
-  DIVERSITY RULES:
+DIVERSITY RULES:
 - Each description must use a different narrative style
 - Do NOT start repeatedly with "Descubre", "Imagina", or similar
 - Vary openings: question, benefit-first, direct, scenario
+
+STRICT ENFORCEMENT RULES:
+- If the description starts with "Descubre" or "Imagina", the output is invalid
+- You must vary structure across products
+- Repetition will invalidate the result
 
 SEO Description
 150 to 250 words
@@ -196,6 +201,10 @@ CRITICAL:
 - Do NOT repeat information
 - Keep a persuasive ecommerce tone
 - Replace explicit or sensitive terms with neutral ecommerce wording
+
+REWRITE LEVEL:
+- Do NOT paraphrase
+- Completely reinterpret the product for ecommerce conversion
 
 Avoid generic phrases.
 
@@ -224,7 +233,7 @@ Return JSON only:
 "keywords":[]
 }
 `;
-
+  
   try {
 
     const response = await fetch(
