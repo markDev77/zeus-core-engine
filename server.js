@@ -1663,21 +1663,38 @@ console.log("🧠 POLICY ACTIVE:", {
   policy: policy.name
 });
 
-// ==========================
-// 🔥 AI TITLE (NUEVO BLOQUE)
-// ==========================
-
-
 // 🔥 CATEGORY
 const { resolveIntent, buildCategoryPath } = require("./src/engines/category.engine.v2");
-
-
 const intent = resolveIntent({
   title: translatedTitle,
   description: realProduct.body_html,
   language,
   vendor: realProduct.vendor
 });
+
+// 🔥 AI SEO OPTIMIZER (CORE REAL)
+let aiOptimized = null;
+
+try {
+  aiOptimized = await aiSeoOptimizer(
+    {
+      title: translatedTitle,
+      description: translatedHtml,
+      tags,
+      source,
+      shopDomain: shop,
+      category: detectedCat
+    },
+    {
+      language,
+      region
+    },
+    { source }
+  );
+} catch (err) {
+  console.warn("AI OPTIMIZER ERROR:", err.message);
+  aiOptimized = null;
+}
 
 const detectedCat = intent.category;
 const categoryPath = buildCategoryPath(intent);
@@ -1705,8 +1722,8 @@ console.log("🧠 CATEGORY BRAIN V2:", {
 const payload = buildShopifyPayload({
   product: realProduct,
   optimized: {
-    title: translatedTitle,
-    body_html: translatedHtml,
+    title: aiOptimized?.title || translatedTitle,
+    body_html: aiOptimized?.description || translatedHtml,
     tags
   },
   intent,
