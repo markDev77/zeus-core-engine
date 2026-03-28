@@ -156,19 +156,45 @@ SEO Title
 Main keyword first
 Natural ecommerce format
 
+CRITICAL TITLE RULES:
+- Do NOT use hyphens (-), commas, or separators
+- Do NOT translate literally
+- Avoid explicit or sensitive wording depending on region
+- Use natural ecommerce language
+- Keep titles clean, readable, and conversion-focused
+- Structure:
+  Product type + key benefit + main feature + target use
+
 SEO Description
 150 to 250 words
 
-Structure:
-Introduction
+Opening Hook (IMPORTANT)
+- Start with a short emotional or relatable scenario
+- Make the user imagine using the product
+- Keep it natural, not exaggerated or overly dramatic
+
 Benefits
+- Focus on real user outcomes
+
 Key Features
+- Clear, scannable points
+
 Recommended Use
+- Practical usage scenarios
+
 Who This Product Is For
+- Target user clearly defined
+
+CRITICAL:
+- Do NOT include generic filler text
+- Do NOT repeat information
+- Keep a persuasive ecommerce tone
+- Replace explicit or sensitive terms with neutral ecommerce wording
 
 Avoid generic phrases.
 
 Language: ${language}
+Region: ${region}
 
 Category:
 ${category}
