@@ -160,11 +160,14 @@ CRITICAL TITLE RULES:
 - Do NOT use hyphens (-), commas, or separators
 - Do NOT translate literally
 - Avoid explicit or sensitive wording depending on region
+- Replace explicit or sensitive terms with neutral commercial wording
 - Use natural ecommerce language
 - Keep titles clean, readable, and conversion-focused
 - Rewrite the title completely, do NOT reuse original structure
 - You MUST transform the title into a completely new commercial version
 - Do NOT reuse original words directly
+- REMOVE any symbols such as "-", ",", or unnecessary punctuation
+- Output must be clean plain text only
 - Structure:
   Product type + key benefit + main feature + target use
 
@@ -178,6 +181,8 @@ STRICT ENFORCEMENT RULES:
 - If the description starts with "Descubre" or "Imagina", the output is invalid
 - You must vary structure across products
 - Repetition will invalidate the result
+- Avoid repetitive ecommerce phrasing patterns
+- Do NOT use predictable templates
 
 SEO Description
 150 to 250 words
@@ -204,10 +209,17 @@ CRITICAL:
 - Do NOT repeat information
 - Keep a persuasive ecommerce tone
 - Replace explicit or sensitive terms with neutral ecommerce wording
+- Avoid patterns like "Producto pensado para..." or similar filler blocks
 
 REWRITE LEVEL:
 - Do NOT paraphrase
 - Completely reinterpret the product for ecommerce conversion
+- The output must feel written from scratch, not adapted
+
+OUTPUT VALIDATION:
+- If title contains "-" or "," → INVALID
+- If description starts with "Descubre" or "Imagina" → INVALID
+- If structure feels repetitive → INVALID
 
 Avoid generic phrases.
 
@@ -235,8 +247,7 @@ Return JSON only:
 "seoDescription":"",
 "keywords":[]
 }
-`;
-  
+`;  
   try {
 
     const response = await fetch(
