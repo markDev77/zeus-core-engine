@@ -163,6 +163,8 @@ CRITICAL TITLE RULES:
 - Use natural ecommerce language
 - Keep titles clean, readable, and conversion-focused
 - Rewrite the title completely, do NOT reuse original structure
+- You MUST transform the title into a completely new commercial version
+- Do NOT reuse original words directly
 - Structure:
   Product type + key benefit + main feature + target use
 
