@@ -256,6 +256,7 @@ Return JSON only:
     }
 
     const text = data.choices[0].message.content;
+    console.log("AI RAW RESPONSE:", text);
 
     let result;
 
