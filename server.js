@@ -1758,9 +1758,21 @@ const marketRules = getMarketRules({
   language: store?.language
 });
 
-translatedTitle = applyMarketRulesToTitle(translatedTitle, marketRules);
-translatedHtml = applyMarketRulesToDescription(translatedHtml, marketRules);
+translatedTitle = applyMarketRulesToTitle(
+  translatedTitle,
+  marketRules,
+  {
+    aiTitle: aiStructured?.title
+  }
+);
 
+translatedHtml = applyMarketRulesToDescription(
+  translatedHtml,
+  marketRules,
+  {
+    aiBlock
+  }
+);
 
 // 🔥 TAGS
 const tags = buildTagSetFromProduct(realProduct, [
