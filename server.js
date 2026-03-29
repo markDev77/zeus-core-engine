@@ -1682,20 +1682,22 @@ try {
       description: translatedHtml,
       tags,
       source,
-      shopDomain: shop,
+      shopDomain: normalizedShop,
       category: detectedCat
     },
     {
       language,
-      region
-    },
-    { source }
+      region: "GLOBAL"
+    }
   );
 } catch (err) {
   console.warn("AI OPTIMIZER ERROR:", err.message);
   aiOptimized = null;
 }
 
+console.log("AI OUTPUT:", aiOptimized);
+console.log("TRANSLATED HTML:", translatedHtml);
+    
 const detectedCat = intent.category;
 const categoryPath = buildCategoryPath(intent);
 
@@ -1720,11 +1722,15 @@ console.log("🧠 CATEGORY BRAIN V2:", {
 });
 
 const safeDescription =
-  (aiOptimized && aiOptimized.description) ||
-  translatedHtml ||
-  `<p>${translatedTitle}</p>`;
+  (aiOptimized && aiOptimized.description && aiOptimized.description.length > 80)
+    ? aiOptimized.description
+    : buildFinalDescription({
+        title: translatedTitle,
+        originalHtml: translatedHtml,
+        aiBlock: null
+      });
 
-const cleanTitle = (aiOptimized?.title || translatedTitle)
+const cleanTitle = (aiOptimized && aiOptimized.title ? aiOptimized.title : translatedTitle)
   .replace(/[-–—]/g, "")
   .replace(/\s+/g, " ")
   .trim();
