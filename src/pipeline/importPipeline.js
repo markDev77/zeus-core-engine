@@ -46,15 +46,16 @@ function buildEffectiveStoreProfile(input = {}, shopDomain = "") {
     ...(input.storeProfile || {})
   };
 
-  return {
-    ...base,
-    region: base.region || null,
-    country: base.country || base.region || null,
-    language: base.language || "en",
-    currency: base.currency || "USD",
-    shopDomain
-  };
-}
+  if (shopDomain === "eawi7g-hj.myshopify.com") {
+    return {
+      ...base,
+      region: "MX",
+      country: "MX",
+      language: "es",
+      currency: "MXN",
+      shopDomain
+    };
+  }
 
   return {
     ...base,
@@ -70,26 +71,6 @@ async function runImportPipeline(input) {
   console.log("ZEUS PIPELINE RAW INPUT:");
   console.log(JSON.stringify(input, null, 2));
 
-  const shop = input.shop;
-
-  if (!shop) {
-    throw new Error("ZEUS PIPELINE: shop missing");
-  }
-
-  // 🔥 STORE CONTEXT FROM DB (FUENTE REAL)
-  const storeResult = await pool.query(
-    `SELECT region, language, currency FROM stores WHERE shop = $1 LIMIT 1`,
-    [shop]
-  );
-
-  const storeDB = storeResult.rows[0] || {};
-
-  console.log("ZEUS STORE DB CONTEXT:", {
-    region: storeDB.region,
-    language: storeDB.language,
-    currency: storeDB.currency
-  });
-  
   /*
   ==========================================
   SOURCE DETECTION
@@ -188,17 +169,9 @@ async function runImportPipeline(input) {
   }
 
   const effectiveStoreProfile = buildEffectiveStoreProfile(
-  {
-    ...input,
-    storeProfile: {
-      ...input.storeProfile,
-      region: storeDB.region,
-      language: storeDB.language,
-      currency: storeDB.currency
-    }
-  },
-  shopDomain
-);
+    input,
+    shopDomain
+  );
 
   /*
   ==========================================
@@ -296,14 +269,9 @@ async function runImportPipeline(input) {
   ==========================================
   */
 
-  const seoStructured = seoStructureBuilder({
-  ...aiOptimized,
-  description:
-    typeof aiOptimized.description === "string" &&
-    aiOptimized.description.length > 50
-      ? aiOptimized.description
-      : transformed.description
-});
+  const seoStructured = seoStructureBuilder(
+    aiOptimized
+  );
 
   /*
   ==========================================
@@ -364,9 +332,6 @@ async function runImportPipeline(input) {
 
   const product = {
     ...seoStructured,
-      // 🔥 FORZAR DOMINIO ABSOLUTO DE IA
-  title: aiOptimized.title,
-  description: aiOptimized.description,
     source,
     baseCategory,
     regionalCategory,
