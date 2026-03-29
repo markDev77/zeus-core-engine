@@ -185,34 +185,40 @@ function buildFallbackBullets(title, plainText) {
 
 function buildFinalDescription({ title, originalHtml, aiBlock }) {
   const safeOriginal = stripOuterWrappers(originalHtml || "");
-  const imageTags = extractImageTags(safeOriginal);
 
-  const htmlWithoutImages = removeImageTags(safeOriginal);
-  const plainText = removeGenericNoise(htmlToPlainText(htmlWithoutImages));
-  const lines = splitLines(plainText);
+  // 🔒 NO tocar HTML original (CRÍTICO)
+  const hasHtml = safeOriginal.includes("<img");
 
-  const specLines = extractSpecLines(lines);
-  const narrativeLines = extractNarrativeLines(lines);
+  // ==========================
+  // 🔥 INTRO SEO
+  // ==========================
+  const intro = `
+<p><strong>${title}</strong>. Diseñado para ofrecer una solución práctica, funcional y adaptable a diferentes situaciones del día a día, combinando comodidad, eficiencia y facilidad de uso.</p>
+`.trim();
 
-  const intro = hasLeadParagraph(aiBlock) ? "" : buildIntro(title);
-  const aiSection = normalize(aiBlock || "") ? aiBlock.trim() : buildFallbackBullets(title, plainText);
-  const narrativeSection = buildNarrativeSection(narrativeLines);
-  const specsSection = buildSpecsSection(specLines);
-  const mediaSection = buildMediaSection(imageTags);
+  // ==========================
+  // 🔥 BLOQUE IA
+  // ==========================
+  const aiSection = normalize(aiBlock || "")
+    ? aiBlock.trim()
+    : buildFallbackBullets(title, "");
+
+  // ==========================
+  // 🔥 OUTPUT FINAL
+  // ==========================
+  if (hasHtml) {
+    return `
+${intro}
+
+${aiSection}
+
+${safeOriginal}
+`.trim();
+  }
 
   return `
 ${intro}
 
 ${aiSection}
-
-${narrativeSection}
-
-${specsSection}
-
-${mediaSection}
 `.trim();
 }
-
-module.exports = {
-  buildFinalDescription
-};
