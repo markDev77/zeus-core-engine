@@ -44,11 +44,10 @@ Write a PRODUCT DESCRIPTION optimized for conversion and SEO.
 
 RULES:
 - Return ONLY clean HTML
-- Keep supplier content at the END
 - Use persuasive storytelling (vary tone)
 - Avoid generic openings
 - No exaggeration
-- Include 2–3 natural SEO keywords based on the product title
+- Include 7–10 natural SEO keywords based on the product title
 
 STRUCTURE:
 1. Context + use case
@@ -90,8 +89,10 @@ OUTPUT:
 
     const safeSupplier = typeof description === "string" ? description : "";
 
-    const finalDescription = cleanDescription + (safeSupplier ? "\n" + safeSupplier : "");
-
+    const safeSupplier = typeof description === "string"
+  ? description.replace(/<html[\s\S]*<\/html>/gi, "")
+  : "";
+    
     return finalDescription;
 
   } catch (error) {
@@ -109,7 +110,7 @@ async function improveTitleWithAI({ title, language }) {
 
     const baseTitle = (title || "")
       .replace(/[^a-zA-Z0-9\s]/g, "")
-      .replace(/\s+/g, " ")
+      .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g, "")
       .toLowerCase()
       .trim();
 
