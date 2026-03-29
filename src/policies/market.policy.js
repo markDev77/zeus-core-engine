@@ -141,9 +141,15 @@ function enforceSingleFormat(value, style) {
 }
 
 function toBulletsOnly(value) {
-  const items = extractMeaningfulLines(value).slice(0, 5);
+  const items = extractMeaningfulLines(value)
+    .map(l => l.replace(/<[^>]+>/g, ""))
+    .map(l => l.trim())
+    .filter(l => l.length > 20 && l.length < 120)
+    .slice(0, 5);
 
-  return items.map((l) => `• ${cleanLine(l)}`).join("\n");
+  return items
+    .map((l) => `• ${cleanLine(l)}`)
+    .join("\n");
 }
 
 function toParagraphOnly(value) {
