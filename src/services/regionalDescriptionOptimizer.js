@@ -50,14 +50,31 @@ function detectFeatures(source = "") {
 
 function buildSpanishDescription({ title = "", description = "", category = "general" }) {
 
+  const source = `${title} ${description}`.toLowerCase();
+  const features = detectFeatures(source);
+
   let html = "";
 
   html += `<h2>${capitalize(title)}</h2>`;
 
-  html += `<p>${description || title}</p>`;
+  html += `<p>${capitalize(description || title)}. Este producto ha sido optimizado para ecommerce, ofreciendo una combinación de funcionalidad, durabilidad y diseño pensado para compradores en México y Latinoamérica.</p>`;
 
-  return html;
-}
+  html += `<h3>Beneficios principales</h3>`;
+  html += `<ul>`;
+
+  if (features.length === 0) {
+
+    html += `<li>Diseño confiable pensado para uso diario</li>`;
+    html += `<li>Construcción enfocada en durabilidad y rendimiento</li>`;
+    html += `<li>Fácil de utilizar en diferentes entornos</li>`;
+
+  } else {
+
+    features.forEach(f => {
+      html += `<li>${f}</li>`;
+    });
+
+  }
 
   html += `</ul>`;
 
