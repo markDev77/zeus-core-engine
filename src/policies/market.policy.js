@@ -183,6 +183,28 @@ function extractMeaningfulLines(value) {
     });
 }
 
+/**
+ * 🔥 Elimina frases genéricas de plantilla (post-engine cleanup)
+ */
+function removeTemplatePhrases(value) {
+  const patterns = [
+    /transforma[^.]*\./gi,
+    /imagina[^.]*\./gi,
+    /producto pensado[^.]*\./gi,
+    /ideal para quienes[^.]*\./gi,
+    /una alternativa pensada[^.]*\./gi,
+    /diseñado para[^.]*\./gi
+  ];
+
+  let result = value;
+
+  patterns.forEach((regex) => {
+    result = result.replace(regex, "");
+  });
+
+  return result;
+}
+
 /* -----------------------------------------
  * TITLE HELPERS
  * ----------------------------------------- */
