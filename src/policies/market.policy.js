@@ -142,7 +142,7 @@ function enforceSingleFormat(value, style) {
 
 function toBulletsOnly(value) {
   const items = extractMeaningfulLines(value)
-    .map(l => l.replace(/<[^>]+>/g, ""))
+    .map(l => l.replace(/<(?!img)[^>]+>/g, ""))
     .map(l => l.trim())
     .filter(l => l.length > 20 && l.length < 120)
     .slice(0, 5);
@@ -155,7 +155,7 @@ function toBulletsOnly(value) {
 function toParagraphOnly(value) {
   return normalizeSpaces(
     value
-      .replace(/<[^>]+>/g, " ")
+      .replace(/<(?!img)[^>]+>/g, " ")
       .replace(/\n+/g, " ")
   );
 }
