@@ -1,14 +1,12 @@
 "use strict";
 
 /**
- * ZEUS - Market Policy Layer
+ * ZEUS - Market Policy Layer v2
  * -----------------------------------------
- * Final adaptation layer AFTER engines
- * BEFORE payload builder
- *
- * NO AI
- * NO business logic
- * NO connector logic
+ * Ahora incluye:
+ * - limpieza estructural
+ * - eliminación de duplicados
+ * - control de formato final REAL
  */
 
 const { REGION_PROFILES } = require("../data/regionProfiles");
@@ -23,13 +21,10 @@ function getMarketRules({ country, language }) {
   return {
     country: profile.country,
     language: profile.language,
-
     titleStyle: profile.titleStyle || "neutral",
     descriptionStyle: profile.descriptionStyle || "paragraph",
-
     bannedWords: profile.bannedWords || [],
     replacementMap: profile.replacementMap || {},
-
     cta: profile.cta || null
   };
 }
@@ -41,15 +36,11 @@ function applyMarketRulesToTitle(title, rules = {}) {
 
   result = applyReplacementMap(result, rules.replacementMap);
   result = removeBannedWords(result, rules.bannedWords);
-
   result = normalizeSpaces(result);
   result = dedupeWords(result);
-
   result = applyTitleStyle(result, rules.titleStyle);
 
-  result = trim(result, 140);
-
-  return result;
+  return trim(result, 140);
 }
 
 function applyMarketRulesToDescription(description, rules = {}) {
@@ -57,20 +48,24 @@ function applyMarketRulesToDescription(description, rules = {}) {
 
   let result = description;
 
+  // 🔥 NUEVO: limpieza estructural
+  result = stripMarkdownArtifacts(result);
+  result = stripCodeBlocks(result);
+  result = removeDuplicateBlocks(result);
+
   result = applyReplacementMap(result, rules.replacementMap);
   result = removeBannedWords(result, rules.bannedWords);
 
-  result = normalizeParagraphs(result);
+  result = cleanHtml(result);
 
-  result = applyDescriptionStyle(result, rules.descriptionStyle);
+  // 🔥 CONTROL TOTAL DE FORMATO
+  result = enforceSingleFormat(result, rules.descriptionStyle);
 
   if (rules.cta) {
     result = appendCTA(result, rules.cta);
   }
 
-  result = trim(result, 2200);
-
-  return result;
+  return trim(result, 2200);
 }
 
 module.exports = {
@@ -84,19 +79,85 @@ module.exports = {
  * ----------------------------------------- */
 
 function resolveRegionProfile(country, language) {
-  if (!country && !language) return REGION_PROFILES["DEFAULT"];
+  const key = `${language}-${country}`.toUpperCase();
+  return REGION_PROFILES[key] || REGION_PROFILES["DEFAULT"];
+}
 
-  const key = `${language || ""}-${country || ""}`.toUpperCase();
+/* -----------------------------------------
+ * 🔥 CLEANING LAYER (NUEVO)
+ * ----------------------------------------- */
 
-  if (REGION_PROFILES[key]) return REGION_PROFILES[key];
+function stripMarkdownArtifacts(value) {
+  return value
+    .replace(/```html/g, "")
+    .replace(/```/g, "");
+}
 
-  const fallbackLang = Object.values(REGION_PROFILES).find(
-    (r) => r.language === language
+function stripCodeBlocks(value) {
+  return value.replace(/```[\s\S]*?```/g, "");
+}
+
+function removeDuplicateBlocks(value) {
+  const seen = new Set();
+
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => {
+      if (!line) return false;
+      const key = line.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join("\n");
+}
+
+function cleanHtml(value) {
+  return value
+    .replace(/<html[\s\S]*?>/gi, "")
+    .replace(/<\/html>/gi, "")
+    .replace(/<head>[\s\S]*?<\/head>/gi, "")
+    .trim();
+}
+
+/* -----------------------------------------
+ * 🔥 FORMAT CONTROL (CLAVE)
+ * ----------------------------------------- */
+
+function enforceSingleFormat(value, style) {
+  switch (style) {
+    case "bullets":
+      return toBulletsOnly(value);
+
+    case "storytelling":
+      return toParagraphOnly(value);
+
+    default:
+      return toParagraphOnly(value);
+  }
+}
+
+function toBulletsOnly(value) {
+  const items = extractMeaningfulLines(value).slice(0, 5);
+
+  return items.map((l) => `• ${cleanLine(l)}`).join("\n");
+}
+
+function toParagraphOnly(value) {
+  return normalizeSpaces(
+    value
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\n+/g, " ")
   );
+}
 
-  if (fallbackLang) return fallbackLang;
-
-  return REGION_PROFILES["DEFAULT"];
+function extractMeaningfulLines(value) {
+  return value
+    .replace(/<[^>]+>/g, "\n")
+    .split(/\n|\. /)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 20); // evita basura
 }
 
 /* -----------------------------------------
@@ -109,11 +170,10 @@ function applyTitleStyle(value, style) {
       return value.toUpperCase();
 
     case "title":
-      return value.replace(/\w\S*/g, (txt) => {
-        return txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase();
-      });
+      return value.replace(/\w\S*/g, (txt) =>
+        txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()
+      );
 
-    case "neutral":
     default:
       return capitalizeFirst(value);
   }
@@ -121,44 +181,15 @@ function applyTitleStyle(value, style) {
 
 function dedupeWords(value) {
   const words = value.split(" ");
-  const clean = [];
+  const result = [];
 
   for (let i = 0; i < words.length; i++) {
-    if (clean[clean.length - 1] !== words[i]) {
-      clean.push(words[i]);
+    if (result[result.length - 1] !== words[i]) {
+      result.push(words[i]);
     }
   }
 
-  return clean.join(" ");
-}
-
-/* -----------------------------------------
- * DESCRIPTION HELPERS
- * ----------------------------------------- */
-
-function applyDescriptionStyle(value, style) {
-  switch (style) {
-    case "bullets":
-      return toBullets(value);
-
-    case "storytelling":
-      return toStorytelling(value);
-
-    case "paragraph":
-    default:
-      return value;
-  }
-}
-
-function toBullets(value) {
-  const lines = splitLines(value).slice(0, 5);
-
-  return lines.map((l) => `• ${cleanLine(l)}`).join("\n");
-}
-
-function toStorytelling(value) {
-  const clean = normalizeSpaces(value);
-  return clean;
+  return result.join(" ");
 }
 
 /* -----------------------------------------
@@ -191,29 +222,13 @@ function normalizeSpaces(value) {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function normalizeParagraphs(value) {
-  return value
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .join("\n");
-}
-
 function appendCTA(value, cta) {
-  if (!cta) return value;
   return `${value}\n\n${cta}`;
 }
 
 function trim(value, max) {
   if (value.length <= max) return value;
-  return value.substring(0, max).replace(/\s+\S*$/, "");
-}
-
-function splitLines(value) {
-  return value
-    .split(/\n|\. /)
-    .map((l) => l.trim())
-    .filter(Boolean);
+  return value.substring(0, max);
 }
 
 function cleanLine(value) {
