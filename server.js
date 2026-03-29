@@ -1719,21 +1719,31 @@ const intent = resolveIntent({
 const detectedCat = intent.category;
 const categoryPath = buildCategoryPath(intent);
 
-// 🔥 AI BLOCK
+// ==========================
+// 🔥 AI STRUCTURED BLOCK (ZEUS B)
+// ==========================
 let aiBlock = null;
 
-if (policy.description_mode === "hybrid") {
-  aiBlock = await generateAIContent({
-    title: translatedTitle,
-    category: detectedCat,
-    language
-  });
+const aiStructured = await generateAIContent({
+  title: translatedTitle,
+  category: detectedCat,
+  language
+});
+
+if (aiStructured) {
+  // 🔥 TITLE DESDE IA
+  translatedTitle = aiStructured.title;
+
+  // 🔥 DESCRIPTION DESDE IA (bullets controlados)
+  aiBlock = aiStructured.bullets
+    .map(b => `• ${b}`)
+    .join("\n");
 }
 
 // 🔥 DESCRIPTION
 translatedHtml = buildFinalDescription({
   title: translatedTitle,
-  originalHtml: translatedHtml,
+  originalHtml: "",
   aiBlock
 });
 
