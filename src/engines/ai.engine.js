@@ -173,13 +173,6 @@ return cleanTitle;
   return title; // fallback seguro
 }
 
-   
-  } catch (err) {
-    console.log("AI TITLE ERROR:", err.message);
-    return title; // fallback crítico
-  }
-}
-
 // ==========================
 // EXPORTS
 // ==========================
