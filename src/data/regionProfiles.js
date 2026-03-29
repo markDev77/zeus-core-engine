@@ -8,9 +8,12 @@ const REGION_PROFILES = {
     translationMode: "auto",
     marketSignalMode: "enabled",
     seoLocale: "en-US",
-    titleStyle: "generic",
-    descriptionStyle: "generic",
+
+    // 🔥 ESTÁNDAR
+    titleStyle: "title",
+    descriptionStyle: "storytelling",
     tagStyle: "generic",
+
     categoryLocale: "en"
   },
 
@@ -23,9 +26,12 @@ const REGION_PROFILES = {
     translationMode: "auto",
     marketSignalMode: "enabled",
     seoLocale: "es-MX",
-    titleStyle: "mx-commerce",
-    descriptionStyle: "mx-commerce",
+
+    // 🔥 AJUSTE CLAVE
+    titleStyle: "title",
+    descriptionStyle: "bullets",
     tagStyle: "mx-commerce",
+
     categoryLocale: "es"
   },
 
@@ -38,9 +44,12 @@ const REGION_PROFILES = {
     translationMode: "auto",
     marketSignalMode: "enabled",
     seoLocale: "es-CO",
-    titleStyle: "co-commerce",
-    descriptionStyle: "co-commerce",
+
+    // 🔥 AJUSTE
+    titleStyle: "title",
+    descriptionStyle: "bullets",
     tagStyle: "co-commerce",
+
     categoryLocale: "es"
   },
 
@@ -53,9 +62,12 @@ const REGION_PROFILES = {
     translationMode: "auto",
     marketSignalMode: "enabled",
     seoLocale: "es-SV",
-    titleStyle: "sv-commerce",
-    descriptionStyle: "sv-commerce",
+
+    // 🔥 AJUSTE
+    titleStyle: "title",
+    descriptionStyle: "bullets",
     tagStyle: "sv-commerce",
+
     categoryLocale: "es"
   },
 
@@ -68,9 +80,12 @@ const REGION_PROFILES = {
     translationMode: "auto",
     marketSignalMode: "enabled",
     seoLocale: "en-US",
-    titleStyle: "us-commerce",
-    descriptionStyle: "us-commerce",
+
+    // 🔥 DIFERENCIA CLAVE
+    titleStyle: "title",
+    descriptionStyle: "storytelling",
     tagStyle: "us-commerce",
+
     categoryLocale: "en"
   }
 };
