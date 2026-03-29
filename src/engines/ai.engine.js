@@ -1,9 +1,7 @@
-// /src/engines/ai.engine.js
-
 const axios = require("axios");
 
 // ==========================
-// LANGUAGE HELPERS (INLINE SAFE)
+// LANGUAGE HELPERS
 // ==========================
 function normalizeLanguage(lang) {
   if (!lang) return "en";
@@ -27,11 +25,15 @@ function getLanguageInstruction(language) {
 }
 
 // ==========================
-// DESCRIPTION (CORE IA)
+// DESCRIPTION ENGINE
 // ==========================
 async function generateAIContent({ title, description, language }) {
   try {
     const langInstruction = getLanguageInstruction(language);
+
+    const cleanInput = (description || "")
+      .replace(/<[^>]*>/g, "")
+      .substring(0, 800);
 
     const prompt = `
 ${langInstruction}
@@ -43,21 +45,20 @@ Write a PRODUCT DESCRIPTION optimized for conversion and SEO.
 RULES:
 - Return ONLY clean HTML
 - Keep supplier content at the END
-- Use persuasive storytelling (vary tone, avoid templates)
-- Avoid generic openings like "Este producto", "Descubre"
-- No exaggeration or fake claims
-- Include 2–3 natural SEO keywords from the product title
+- Use persuasive storytelling (vary tone)
+- Avoid generic openings
+- No exaggeration
+- Include 2–3 natural SEO keywords based on the product title
 
 STRUCTURE:
 1. Context + use case
 2. Benefits
 3. Bullet points
 4. Closing
-5. Supplier content at the end
 
 INPUT:
 Title: ${title}
-Description: ${description}
+Description: ${cleanInput}
 
 OUTPUT:
 `;
@@ -79,28 +80,38 @@ OUTPUT:
     const aiDescription = response.data.choices[0].message.content.trim();
 
     const cleanDescription = aiDescription
-  .replace(/```html|```/g, "")
-  .replace(/\n+/g, " ")
-  .trim();
+      .replace(/```html|```/g, "")
+      .replace(/\n+/g, " ")
+      .trim();
 
-if (!cleanDescription || cleanDescription.length < 50) {
-  return description || "";
+    if (!cleanDescription || cleanDescription.length < 50) {
+      return description || "";
+    }
+
+    const safeSupplier = typeof description === "string" ? description : "";
+
+    const finalDescription = cleanDescription + (safeSupplier ? "\n" + safeSupplier : "");
+
+    return finalDescription;
+
+  } catch (error) {
+    console.error("AI DESCRIPTION ERROR:", error?.response?.data || error.message);
+    return description || "";
+  }
 }
 
-// evitar undefined
-const safeSupplier = description ? description : "";
-
-const finalDescription = cleanDescription + "\n" + safeSupplier;
-
-return finalDescription;
-    
-
 // ==========================
-// TITLE (IA ENHANCEMENT CONTROLADO)
+// TITLE ENGINE
 // ==========================
 async function improveTitleWithAI({ title, language }) {
   try {
     const langInstruction = getLanguageInstruction(language);
+
+    const baseTitle = (title || "")
+      .replace(/[^a-zA-Z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .toLowerCase()
+      .trim();
 
     const prompt = `
 ${langInstruction}
@@ -110,15 +121,14 @@ You are an ecommerce SEO title generator.
 Generate a HIGH-CONVERTING product title.
 
 MANDATORY STRUCTURE:
-Brand (if exists) + Product Type + Key Feature + Variant
+Product Type + Key Feature + Variant
 
 RULES:
 - Max 70 characters
-- No symbols like "-", "|", "/"
+- No symbols
 - Do NOT translate literally
-- Rewrite commercially
-- Prioritize search intent
-- Use real ecommerce keywords
+- Rewrite for ecommerce search intent
+- Use real keywords customers search
 - Avoid filler words
 
 EXAMPLES:
@@ -127,7 +137,7 @@ EXAMPLES:
 - Pulsera LED fluorescente ajustable para eventos
 
 INPUT:
-${title}
+${baseTitle}
 
 OUTPUT:
 `;
@@ -147,26 +157,26 @@ OUTPUT:
     );
 
     const aiTitle = response.data.choices[0].message.content.trim();
+
     let cleanTitle = aiTitle
-  .replace(/[-|/*]+/g, "")
-  .replace(/\s+/g, " ")
-  .trim();
+      .replace(/[-|/*]+/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
 
-if (!cleanTitle || cleanTitle.length < 10) {
-  return title;
-}
+    if (!cleanTitle || cleanTitle.length < 10) {
+      return title;
+    }
 
-if (cleanTitle.length > 60) {
-  cleanTitle = cleanTitle.substring(0, 60).trim();
-}
+    if (cleanTitle.length > 70) {
+      cleanTitle = cleanTitle.substring(0, 70).trim();
+    }
 
-return cleanTitle;
+    return cleanTitle;
 
-} catch (error) {
-  console.error("AI TITLE ERROR:", error?.response?.data || error.message);
-  return title; // fallback seguro
-}
-  
+  } catch (error) {
+    console.error("AI TITLE ERROR:", error?.response?.data || error.message);
+    return title;
+  }
 }
 
 // ==========================
