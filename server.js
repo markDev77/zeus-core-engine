@@ -1667,7 +1667,7 @@ console.log("🧠 POLICY ACTIVE:", {
 // 🔥 AI TITLE (NUEVO BLOQUE)
 // ==========================
 
-const AI_TITLE_RATIO = 1;
+const AI_TITLE_RATIO = 0.2;
 
 if (Math.random() < AI_TITLE_RATIO) {
   console.log("🤖 AI TITLE TRIGGERED", {
@@ -1774,17 +1774,15 @@ await shopifyRequest(normalizedShop, {
   headers: { "X-Shopify-Access-Token": access_token },
   data: {
     product: {
-      id: productId,
-
-      title: translatedTitle,
-      body_html: translatedHtml,
-
-      vendor: payload.vendor,
-      product_type: payload.category || "General",
-      product_category: payload.product_category,
-      tags: payload.tags,
-      status: "active"
-    }
+  id: productId,
+  title: payload.title,
+  body_html: payload.body_html,
+  vendor: payload.vendor,
+  product_type: payload.category || "General",
+  product_category: payload.product_category,
+  tags: payload.tags,
+  status: "active"
+}
   }
 });
 
