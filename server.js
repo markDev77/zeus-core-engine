@@ -1663,8 +1663,45 @@ console.log("🧠 POLICY ACTIVE:", {
   policy: policy.name
 });
 
+// ==========================
+// 🔥 AI TITLE (NUEVO BLOQUE)
+// ==========================
+
+const AI_TITLE_RATIO = 0.2;
+
+if (Math.random() < AI_TITLE_RATIO) {
+  console.log("🤖 AI TITLE TRIGGERED", {
+    shop: normalizedShop,
+    originalTitle: translatedTitle
+  });
+
+  const aiTitle = await improveTitleWithAI({
+    title: translatedTitle,
+    language
+  });
+
+  if (aiTitle && aiTitle.length > 10) {
+    console.log("✅ AI TITLE APPLIED", {
+      before: translatedTitle,
+      after: aiTitle
+    });
+
+    translatedTitle = aiTitle;
+
+  } else {
+    console.log("⚠️ AI TITLE SKIPPED (invalid output)", {
+      aiTitle
+    });
+  }
+
+} else {
+  console.log("⏭️ AI TITLE SKIPPED (ratio)");
+}
+
 // 🔥 CATEGORY
 const { resolveIntent, buildCategoryPath } = require("./src/engines/category.engine.v2");
+
+
 const intent = resolveIntent({
   title: translatedTitle,
   description: realProduct.body_html,
@@ -1672,35 +1709,26 @@ const intent = resolveIntent({
   vendor: realProduct.vendor
 });
 
-// 🔥 AI SEO OPTIMIZER (CORE REAL)
-let aiOptimized = null;
-
-try {
-  aiOptimized = await aiSeoOptimizer(
-    {
-      title: translatedTitle,
-      description: translatedHtml,
-      tags,
-      source,
-      shopDomain: normalizedShop,
-      category: detectedCat
-    },
-    {
-      language,
-      region: "GLOBAL"
-    }
-  );
-} catch (err) {
-  console.warn("AI OPTIMIZER ERROR:", err.message);
-  aiOptimized = null;
-}
-
-console.log("AI OUTPUT:", aiOptimized);
-console.log("TRANSLATED HTML:", translatedHtml);
-    
 const detectedCat = intent.category;
 const categoryPath = buildCategoryPath(intent);
 
+// 🔥 AI BLOCK
+let aiBlock = null;
+
+if (policy.description_mode === "hybrid") {
+  aiBlock = await generateAIContent({
+    title: translatedTitle,
+    category: detectedCat,
+    language
+  });
+}
+
+// 🔥 DESCRIPTION
+translatedHtml = buildFinalDescription({
+  title: translatedTitle,
+  originalHtml: translatedHtml,
+  aiBlock
+});
 
 // 🔥 TAGS
 const tags = buildTagSetFromProduct(realProduct, [
@@ -1721,25 +1749,12 @@ console.log("🧠 CATEGORY BRAIN V2:", {
   categoryPath
 });
 
-const safeDescription =
-  (aiOptimized && aiOptimized.description && aiOptimized.description.length > 80)
-    ? aiOptimized.description
-    : buildFinalDescription({
-        title: translatedTitle,
-        originalHtml: translatedHtml,
-        aiBlock: null
-      });
-
-const cleanTitle = (aiOptimized && aiOptimized.title ? aiOptimized.title : translatedTitle)
-  .replace(/[-–—]/g, "")
-  .replace(/\s+/g, " ")
-  .trim();
-
+// 🔥 BUILD ZEUS → SHOPIFY PAYLOAD
 const payload = buildShopifyPayload({
   product: realProduct,
   optimized: {
-    title: cleanTitle,
-    body_html: safeDescription,
+    title: translatedTitle,
+    body_html: translatedHtml,
     tags
   },
   intent,
