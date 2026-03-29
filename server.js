@@ -1667,7 +1667,7 @@ console.log("🧠 POLICY ACTIVE:", {
 // 🔥 AI TITLE (NUEVO BLOQUE)
 // ==========================
 
-const AI_TITLE_RATIO = 0.2;
+const AI_TITLE_RATIO = 1;
 
 if (Math.random() < AI_TITLE_RATIO) {
   console.log("🤖 AI TITLE TRIGGERED", {
