@@ -2,8 +2,11 @@
 ========================================
 ZEUS AI SEO OPTIMIZER
 ========================================
-Optimiza títulos, descripción SEO y keywords
-usando señales del Category Brain.
+Estable para producción:
+- siempre devuelve title string
+- siempre devuelve description string
+- nunca devuelve [object Object]
+- no rompe payload
 ========================================
 */
 
@@ -12,7 +15,6 @@ function stripUnsafeTagsFromHtml(html = "") {
     .replace(/<script\b[\s\S]*?<\/script>/gi, "")
     .replace(/<style\b[\s\S]*?<\/style>/gi, "")
     .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, "")
-    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -23,6 +25,7 @@ function stripHtmlForPrompt(html = "") {
     .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, " ")
     .replace(/<picture\b[\s\S]*?<\/picture>/gi, " ")
     .replace(/<video\b[\s\S]*?<\/video>/gi, " ")
+    .replace(/<img\b[^>]*>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -40,12 +43,13 @@ function normalizeIncomingTitle(title = "") {
 function cleanSeoTitle(title = "") {
   let clean = String(title || "")
     .replace(/^title\s*:/i, "")
-    .replace(/[,:;\-–—]+/g, " ")
+    .replace(/[,:;\-–—/|]+/g, " ")
+    .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  if (clean.length > 90) {
-    clean = clean.substring(0, 90).trim();
+  if (clean.length > 70) {
+    clean = clean.substring(0, 70).trim();
   }
 
   return clean;
@@ -67,208 +71,145 @@ function dedupeTags(tags = []) {
 
 function cleanSupplierHtml(html = "") {
   return String(html || "")
-    .replace(/<p>\s*<p>/gi, "<p>")
-    .replace(/<\/p>\s*<\/p>/gi, "</p>")
-    .replace(/<p>\s*<\/p>/gi, "")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, "")
+    .replace(/<iframe\b[\s\S]*?<\/iframe>/gi, "")
+    .replace(/\[object Object\]/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function buildFinalDescription({ originalHTML, seoDescription }) {
+  const cleanSeo = String(seoDescription || "").trim();
+  const cleanHtml = cleanSupplierHtml(stripUnsafeTagsFromHtml(originalHTML));
 
-  const cleanHtml = cleanSupplierHtml(
-    stripUnsafeTagsFromHtml(originalHTML)
-  );
+  if (!cleanSeo) {
+    return cleanHtml;
+  }
 
   return `
 <div class="zeus-seo-block">
-
-${seoDescription}
-
+${cleanSeo}
 </div>
-
 <hr>
-
 <div class="zeus-supplier-content">
-
 ${cleanHtml}
-
 </div>
 `.trim();
 }
 
 function resolveOptimizationLocale(storeProfile = {}, product = {}) {
-
-  const shopDomain =
-    storeProfile.shopDomain ||
-    product.shopDomain ||
-    "";
-
-  if (shopDomain === "eawi7g-hj.myshopify.com") {
-    return {
-      region: "MX",
-      language: "es",
-    };
-  }
-
   return {
     region: storeProfile.region || storeProfile.country || "GLOBAL",
-    language: storeProfile.language || "en",
+    language: storeProfile.language || "en"
   };
 }
 
-async function aiSeoOptimizer(product = {}, storeProfile = {}) {
+function extractJsonObject(text = "") {
+  const raw = String(text || "")
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
 
+  const first = raw.indexOf("{");
+  const last = raw.lastIndexOf("}");
+
+  if (first === -1 || last === -1 || last <= first) {
+    return null;
+  }
+
+  return raw.substring(first, last + 1);
+}
+
+async function aiSeoOptimizer(product = {}, storeProfile = {}) {
   if (!product.title) {
     return product;
   }
 
   const normalizedTitle = normalizeIncomingTitle(product.title);
-
   const locale = resolveOptimizationLocale(storeProfile, product);
-
   const region = locale.region;
   const language = locale.language;
-
   const originalHTML = product.description || "";
 
   const promptDescription = stripHtmlForPrompt(
     originalHTML + " " + (product.originalDescription || "")
-  ).substring(0, 500);
+  ).substring(0, 700);
 
   const category =
     product.baseCategory ||
     product.category ||
     "general";
 
-  const tags =
-    (product.tags || []).slice(0, 10).join(", ");
+  const tags = (product.tags || []).slice(0, 10).join(", ");
 
   const prompt = `
 You are a senior ecommerce SEO copywriter.
 
-Create an optimized ecommerce product listing.
+Return ONLY valid JSON.
 
-Requirements:
+{
+  "title": "",
+  "description": "",
+  "seoTitle": "",
+  "seoDescription": "",
+  "keywords": []
+}
 
-SEO Title
-60 to 90 characters
-Main keyword first
-Natural ecommerce format
+RULES FOR TITLE:
+- Max 70 characters
+- No commas
+- No hyphens
+- No separators
+- No literal translation
+- Rewrite commercially for ecommerce
+- Use clear search intent
+- Use this structure when possible:
+  Product type + key feature + variant or use
 
-CRITICAL TITLE RULES:
-- Do NOT use hyphens (-), commas, or separators
-- Do NOT translate literally
-- Avoid explicit or sensitive wording depending on region
-- Replace explicit or sensitive terms with neutral commercial wording
-- Use natural ecommerce language
-- Keep titles clean, readable, and conversion-focused
-- Rewrite the title completely, do NOT reuse original structure
-- You MUST transform the title into a completely new commercial version
-- Do NOT reuse original words directly
-- REMOVE any symbols such as "-", ",", or unnecessary punctuation
-- Output must be clean plain text only
-- Structure:
-  Product type + key benefit + main feature + target use
-
-DIVERSITY RULES:
-- Each description must use a different narrative style
-- NEVER start with "Descubre" or "Imagina"
-- If you do, the output is invalid and must be regenerated
-- Vary openings: question, benefit-first, direct, scenario
-
-STRICT ENFORCEMENT RULES:
-- If the description starts with "Descubre" or "Imagina", the output is invalid
-- You must vary structure across products
-- Repetition will invalidate the result
-- Avoid repetitive ecommerce phrasing patterns
-- Do NOT use predictable templates
-
-SEO Description
-150 to 250 words
-
-Opening Hook (IMPORTANT)
-- Start with a short emotional or relatable scenario
-- Make the user imagine using the product
-- Keep it natural, not exaggerated or overly dramatic
-
-Benefits
-- Focus on real user outcomes
-
-Key Features
-- Clear, scannable points
-
-Recommended Use
-- Practical usage scenarios
-
-Who This Product Is For
-- Target user clearly defined
-
-CRITICAL:
-- Do NOT include generic filler text
-- Do NOT repeat information
-- Keep a persuasive ecommerce tone
-- Replace explicit or sensitive terms with neutral ecommerce wording
-- Avoid patterns like "Producto pensado para..." or similar filler blocks
-
-REWRITE LEVEL:
-- Do NOT paraphrase
-- Completely reinterpret the product for ecommerce conversion
-- The output must feel written from scratch, not adapted
-
-OUTPUT VALIDATION:
-- If title contains "-" or "," → INVALID
-- If description starts with "Descubre" or "Imagina" → INVALID
-- If structure feels repetitive → INVALID
-
-Avoid generic phrases.
+RULES FOR DESCRIPTION:
+- HTML only
+- Natural ecommerce tone
+- Conversion focused
+- Do not mention supplier
+- Do not mention manufacturer
+- Do not mention origin
+- Do not start with "Descubre" or "Imagina"
+- Include practical benefits and key features
+- 120 to 220 words
 
 Language: ${language}
 Region: ${region}
-
-Category:
-${category}
-
-Tags:
-${tags}
+Category: ${category}
+Tags: ${tags}
 
 Product Title:
 ${normalizedTitle}
 
 Product Description:
 ${promptDescription}
+`;
 
-Return JSON only:
-
-{
-"title":"",
-"description":"",
-"seoTitle":"",
-"seoDescription":"",
-"keywords":[]
-}
-`;  
   try {
-
     const response = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer " + process.env.OPENAI_API_KEY,
+          Authorization: "Bearer " + process.env.OPENAI_API_KEY
         },
         body: JSON.stringify({
           model: "gpt-4o-mini",
-          temperature: 0.85,
+          temperature: 0.55,
           max_tokens: 700,
           messages: [
             {
               role: "user",
-              content: prompt,
-            },
-          ],
-        }),
+              content: prompt
+            }
+          ]
+        })
       }
     );
 
@@ -279,55 +220,63 @@ Return JSON only:
     }
 
     const text = data.choices[0].message.content;
-    console.log("AI RAW RESPONSE:", text);
+    const jsonText = extractJsonObject(text);
+
+    if (!jsonText) {
+      console.error("ZEUS AI SEO JSON NOT FOUND");
+      return product;
+    }
 
     let result;
-
     try {
-    try {
-  const cleaned = text
-    .replace(/```json/g, "")
-    .replace(/```/g, "")
-    .trim();
+      result = JSON.parse(jsonText);
+    } catch (err) {
+      console.error("ZEUS AI SEO JSON PARSE ERROR:", jsonText);
+      return product;
+    }
 
-  result = JSON.parse(cleaned);
+    const rawTitle =
+      typeof result.seoTitle === "string" && result.seoTitle.trim()
+        ? result.seoTitle
+        : typeof result.title === "string" && result.title.trim()
+          ? result.title
+          : normalizedTitle;
 
-} catch (err) {
-  console.error("JSON PARSE ERROR:", text);
-  return product;
-}
+    const cleanTitle = cleanSeoTitle(rawTitle) || normalizedTitle;
 
-    const cleanTitle = cleanSeoTitle(
-      result.seoTitle || result.title || normalizedTitle
-    );
+    const rawDescription =
+      typeof result.description === "string"
+        ? result.description
+        : typeof result.seoDescription === "string"
+          ? result.seoDescription
+          : "";
+
+    const cleanSeoDescription = String(rawDescription || "")
+      .replace(/\[object Object\]/gi, "")
+      .trim();
 
     const finalDescription = buildFinalDescription({
       originalHTML,
-      seoDescription: result.description || "",
+      seoDescription: cleanSeoDescription
     });
 
     return {
       ...product,
       title: cleanTitle,
       description: finalDescription || originalHTML,
-      seoTitle: cleanSeoTitle(result.seoTitle || cleanTitle),
-      seoDescription: String(result.seoDescription || "").trim(),
+      seoTitle: cleanTitle,
+      seoDescription: cleanSeoDescription,
       tags: dedupeTags([
         ...(product.tags || []),
-        ...((result.keywords || []).map((k) =>
-          String(k || "").trim()
-        )),
-      ]),
+        ...((result.keywords || []).map((k) => String(k || "").trim()))
+      ])
     };
-
   } catch (error) {
-
     console.error("ZEUS AI SEO ERROR:", error.message);
-
     return product;
   }
 }
 
 module.exports = {
-  aiSeoOptimizer,
+  aiSeoOptimizer
 };
