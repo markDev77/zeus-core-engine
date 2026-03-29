@@ -296,9 +296,14 @@ async function runImportPipeline(input) {
   ==========================================
   */
 
-  const seoStructured = seoStructureBuilder(
-    aiOptimized
-  );
+  const seoStructured = seoStructureBuilder({
+  ...aiOptimized,
+  description:
+    typeof aiOptimized.description === "string" &&
+    aiOptimized.description.length > 50
+      ? aiOptimized.description
+      : transformed.description
+});
 
   /*
   ==========================================
