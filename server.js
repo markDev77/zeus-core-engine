@@ -1744,20 +1744,6 @@ if (aiStructured) {
   aiBlock = `${intro}${bulletsHtml}`;
 }
 
-  // 🔥 OUTPUT FINAL
-  aiBlock = `
-${intro}
-${bulletsHtml}
-`;
-}
-
-  // 🔥 OUTPUT FINAL
-  aiBlock = `
-${intro}
-${bulletsHtml}
-`;
-}
-
 // 🔥 DESCRIPTION
 translatedHtml = buildFinalDescription({
   title: translatedTitle,
