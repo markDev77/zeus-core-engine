@@ -146,7 +146,7 @@ OUTPUT:
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.7,
+        temperature: 0.95,
         messages: [{ role: "user", content: prompt }]
       },
       {
