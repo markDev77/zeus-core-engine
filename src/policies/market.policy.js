@@ -52,9 +52,11 @@ function applyMarketRulesToDescription(description, rules = {}) {
   result = stripMarkdownArtifacts(result);
   result = stripCodeBlocks(result);
   result = removeDuplicateBlocks(result);
+  result = removeTemplatePhrases(result);
 
   result = applyReplacementMap(result, rules.replacementMap);
   result = removeBannedWords(result, rules.bannedWords);
+  
 
   result = cleanHtml(result);
 
