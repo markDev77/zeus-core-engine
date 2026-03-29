@@ -78,9 +78,7 @@ OUTPUT:
 
     const aiDescription = response.data.choices[0].message.content.trim();
 
-    const aiDescription = response.data.choices[0].message.content.trim();
-
-const cleanDescription = aiDescription
+    const cleanDescription = aiDescription
   .replace(/```html|```/g, "")
   .replace(/\n+/g, " ")
   .trim();
