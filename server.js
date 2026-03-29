@@ -22,6 +22,13 @@ const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engin
 const { buildFinalDescription } = require("./src/engines/description.engine");
 const { resolvePolicy } = require("./src/policies/policy.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
+const {
+  getMarketRules,
+  applyMarketRulesToTitle,
+  applyMarketRulesToDescription
+} = require("./src/policies/market.policy");
+
+
 // ==========================
 // STRIPE INIT
 // ==========================
@@ -1729,6 +1736,17 @@ translatedHtml = buildFinalDescription({
   originalHtml: translatedHtml,
   aiBlock
 });
+
+// 🔥 MARKET POLICY LAYER (NO TOCAR CORE)
+
+const marketRules = getMarketRules({
+  country: store?.region,
+  language: store?.language
+});
+
+translatedTitle = applyMarketRulesToTitle(translatedTitle, marketRules);
+translatedHtml = applyMarketRulesToDescription(translatedHtml, marketRules);
+
 
 // 🔥 TAGS
 const tags = buildTagSetFromProduct(realProduct, [
