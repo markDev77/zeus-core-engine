@@ -4,142 +4,212 @@ function normalize(text) {
   return String(text || "").replace(/\s+/g, " ").trim();
 }
 
-function detectContext(title = "", originalHtml = "") {
-  const text = `${title} ${originalHtml}`.toLowerCase();
-
-  if (
-    text.includes("mocas") ||
-    text.includes("zapato") ||
-    text.includes("shoe") ||
-    text.includes("loafer")
-  ) {
-    return "footwear";
-  }
-
-  if (
-    text.includes("salpicadura") ||
-    text.includes("baffle") ||
-    text.includes("deflector") ||
-    text.includes("kitchen")
-  ) {
-    return "splash_guard";
-  }
-
-  return "generic";
-}
-
-function buildFootwearBlock() {
-  return `
-    <div style="margin-bottom:20px;">
-      <p>
-        Diseñado para quienes buscan una opción cómoda y funcional para complementar un estilo casual o de vestir.
-        Su construcción favorece el uso diario y una presencia más cuidada.
-      </p>
-
-      <p>
-        Este modelo ofrece una apariencia versátil para oficina, reuniones, salidas o uso cotidiano.
-        Su diseño facilita la combinación con distintos outfits y aporta una imagen más pulida sin sacrificar practicidad.
-      </p>
-
-      <ul>
-        <li>Diseño ideal para uso diario o de vestir</li>
-        <li>Fácil de combinar con looks casuales o formales</li>
-        <li>Opción práctica para oficina, salidas y reuniones</li>
-        <li>Estilo cómodo y funcional</li>
-      </ul>
-
-      <p>
-        Si buscas un calzado con presencia, versatilidad y uso práctico, esta puede ser una excelente alternativa para tu catálogo.
-      </p>
-    </div>
-  `;
-}
-
-function buildSplashGuardBlock() {
-  return `
-    <div style="margin-bottom:20px;">
-      <p>
-        Accesorio práctico pensado para ayudar a contener salpicaduras y mantener una zona más limpia durante el uso diario.
-        Ideal para espacios donde se busca mayor orden y comodidad.
-      </p>
-
-      <p>
-        Su función principal es reducir el alcance de las salpicaduras y facilitar una experiencia más limpia en tareas de cocina o lavado.
-        Es una opción útil para hogares que buscan practicidad y mejor control del área de trabajo.
-      </p>
-
-      <ul>
-        <li>Ayuda a reducir salpicaduras</li>
-        <li>Útil para mantener el área más limpia</li>
-        <li>Práctico para uso diario</li>
-        <li>Fácil de integrar en espacios funcionales</li>
-      </ul>
-
-      <p>
-        Recomendado para quienes buscan una solución simple y funcional para mejorar la limpieza y el orden en su espacio.
-      </p>
-    </div>
-  `;
-}
-
-function buildGenericBlock() {
-  return `
-    <div style="margin-bottom:20px;">
-      <p>
-        Producto pensado para ofrecer funcionalidad, practicidad y una mejor experiencia de uso en el día a día.
-        Ideal para quienes buscan soluciones útiles y fáciles de integrar a su rutina.
-      </p>
-
-      <p>
-        Su diseño permite un uso cómodo y versátil en distintos contextos, ayudando a resolver necesidades cotidianas con una propuesta clara y funcional.
-      </p>
-
-      <ul>
-        <li>Diseño práctico y funcional</li>
-        <li>Fácil de usar</li>
-        <li>Ideal para uso diario</li>
-        <li>Opción útil para distintos entornos</li>
-      </ul>
-
-      <p>
-        Una alternativa pensada para quienes valoran practicidad, funcionalidad y facilidad de uso.
-      </p>
-    </div>
-  `;
-}
-
-function buildFinalDescription({ title, originalHtml, aiBlock }) {
-  let safeOriginal = originalHtml || "";
-
-  // 🔥 limpiar solo wrappers peligrosos (NO tocar imágenes)
-  safeOriginal = safeOriginal
+function stripOuterWrappers(html = "") {
+  return String(html || "")
     .replace(/<\/?html[^>]*>/gi, "")
     .replace(/<\/?head[^>]*>/gi, "")
     .replace(/<\/?body[^>]*>/gi, "")
     .trim();
+}
 
-  // 🔥 INTRO SEO (natural, no plantilla quemada)
-  const intro = `<p><strong>${title}</strong>. Diseñado para mejorar tu experiencia diaria, combinando funcionalidad, comodidad y practicidad en cada uso.</p>`;
+function extractImageTags(html = "") {
+  const matches = String(html || "").match(/<img\b[^>]*>/gi);
+  return matches || [];
+}
 
-  // 🔥 BLOQUE IA (ya viene en UL)
-  const aiSection = aiBlock || "";
+function removeImageTags(html = "") {
+  return String(html || "").replace(/<img\b[^>]*>/gi, "");
+}
 
-  // 🔥 FILTRAR TEXTO BASURA DEL PROVEEDOR
-  const cleanedOriginal = safeOriginal
+function htmlToPlainText(html = "") {
+  return String(html || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "• ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\u00a0/g, " ")
+    .replace(/\n{2,}/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function splitLines(text = "") {
+  return String(text || "")
+    .split("\n")
+    .map((line) => normalize(line))
+    .filter(Boolean);
+}
+
+function dedupeLines(lines = []) {
+  const seen = new Set();
+  const out = [];
+
+  for (const line of lines) {
+    const key = normalize(line).toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(line);
+  }
+
+  return out;
+}
+
+function removeGenericNoise(text = "") {
+  return String(text || "")
+    .replace(/producto ideal.*?\./gi, "")
     .replace(/producto pensado.*?\./gi, "")
     .replace(/ideal para quienes.*?\./gi, "")
     .replace(/su diseño permite.*?\./gi, "")
     .replace(/diseño práctico.*?\./gi, "")
     .replace(/opción útil.*?\./gi, "")
+    .replace(/una alternativa pensada.*?\./gi, "")
+    .replace(/designed to improve.*?\./gi, "")
+    .replace(/perfect for daily use.*?\./gi, "")
+    .replace(/\n{2,}/g, "\n")
     .trim();
+}
 
-  // 🔥 ENSAMBLE FINAL
+function extractSpecLines(lines = []) {
+  return lines.filter((line) => {
+    const l = line.toLowerCase();
+
+    return (
+      l.includes(":") ||
+      /\b\d+(\.\d+)?\s?(cm|mm|kg|g|mah|v|w|h|min|℃|°c)\b/i.test(line) ||
+      l.includes("material") ||
+      l.includes("size") ||
+      l.includes("battery") ||
+      l.includes("input voltage") ||
+      l.includes("output voltage") ||
+      l.includes("charging") ||
+      l.includes("capacity") ||
+      l.includes("temperature range")
+    );
+  });
+}
+
+function extractNarrativeLines(lines = []) {
+  return lines.filter((line) => {
+    const l = line.toLowerCase();
+
+    if (!line || line.length < 20) return false;
+    if (line.startsWith("•")) return false;
+
+    const looksLikeSpec =
+      l.includes(":") ||
+      /\b\d+(\.\d+)?\s?(cm|mm|kg|g|mah|v|w|h|min|℃|°c)\b/i.test(line);
+
+    if (looksLikeSpec) return false;
+
+    return true;
+  });
+}
+
+function buildIntro(title) {
+  return `<p><strong>${title}</strong>. Una opción pensada para combinar funcionalidad, practicidad y una mejor experiencia de uso en el día a día, adaptándose a distintos contextos de uso personal, hogar, viaje o rutina diaria.</p>`;
+}
+
+function hasLeadParagraph(aiBlock = "") {
+  return /<p[\s>]/i.test(String(aiBlock || ""));
+}
+
+function buildSpecsSection(specLines = []) {
+  if (!specLines.length) return "";
+
+  const items = dedupeLines(specLines).slice(0, 8);
+
+  return `
+<div style="margin-top:16px;">
+  <h3 style="margin:0 0 8px 0;">Especificaciones destacadas</h3>
+  <ul>
+    ${items.map((line) => `<li>${line}</li>`).join("")}
+  </ul>
+</div>
+`.trim();
+}
+
+function buildNarrativeSection(narrativeLines = []) {
+  if (!narrativeLines.length) return "";
+
+  const items = dedupeLines(narrativeLines).slice(0, 2);
+
+  return `
+<div style="margin-top:16px;">
+  ${items.map((line) => `<p>${line}</p>`).join("")}
+</div>
+`.trim();
+}
+
+function buildMediaSection(imageTags = []) {
+  if (!imageTags.length) return "";
+
+  return `
+<div style="margin-top:16px;">
+  <h3 style="margin:0 0 8px 0;">Galería del producto</h3>
+  <div>
+    ${imageTags.join("")}
+  </div>
+</div>
+`.trim();
+}
+
+function buildFallbackBullets(title, plainText) {
+  const text = `${title} ${plainText}`.toLowerCase();
+
+  const bullets = [];
+
+  if (text.includes("usb")) bullets.push("Funciona con carga USB para mayor practicidad.");
+  if (text.includes("portable") || text.includes("portátil")) bullets.push("Diseño portátil fácil de llevar a cualquier lugar.");
+  if (text.includes("travel") || text.includes("viaje")) bullets.push("Ideal para uso diario, oficina o viajes.");
+  if (text.includes("hair") || text.includes("cabello") || text.includes("rizador") || text.includes("plancha")) {
+    bullets.push("Pensado para facilitar el peinado en poco tiempo.");
+  }
+  if (text.includes("storage") || text.includes("alimentos") || text.includes("food")) {
+    bullets.push("Ayuda a organizar y transportar alimentos con mayor comodidad.");
+  }
+
+  if (!bullets.length) {
+    bullets.push("Diseño funcional pensado para un uso práctico y cotidiano.");
+    bullets.push("Formato cómodo y fácil de integrar en tu rutina diaria.");
+  }
+
+  return `
+<ul>
+  ${bullets.slice(0, 5).map((b) => `<li>${b}</li>`).join("")}
+</ul>
+`.trim();
+}
+
+function buildFinalDescription({ title, originalHtml, aiBlock }) {
+  const safeOriginal = stripOuterWrappers(originalHtml || "");
+  const imageTags = extractImageTags(safeOriginal);
+
+  const htmlWithoutImages = removeImageTags(safeOriginal);
+  const plainText = removeGenericNoise(htmlToPlainText(htmlWithoutImages));
+  const lines = splitLines(plainText);
+
+  const specLines = extractSpecLines(lines);
+  const narrativeLines = extractNarrativeLines(lines);
+
+  const intro = hasLeadParagraph(aiBlock) ? "" : buildIntro(title);
+  const aiSection = normalize(aiBlock || "") ? aiBlock.trim() : buildFallbackBullets(title, plainText);
+  const narrativeSection = buildNarrativeSection(narrativeLines);
+  const specsSection = buildSpecsSection(specLines);
+  const mediaSection = buildMediaSection(imageTags);
+
   return `
 ${intro}
 
 ${aiSection}
 
-${cleanedOriginal}
+${narrativeSection}
+
+${specsSection}
+
+${mediaSection}
 `.trim();
 }
 
