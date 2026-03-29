@@ -29,39 +29,55 @@ function getLanguageInstruction(language) {
 // ==========================
 // DESCRIPTION (CORE IA)
 // ==========================
-async function generateAIContent({ title, category, language }) {
+async function generateAIContent({ title, description, language }) {
   try {
     const langInstruction = getLanguageInstruction(language);
 
     const prompt = `
 ${langInstruction}
 
-Optimize this product for ecommerce.
+You are an ecommerce copywriter.
 
-Product:
-${title}
+Write a PRODUCT DESCRIPTION optimized for conversion.
 
-Category:
-${category}
+RULES:
+- Return ONLY clean HTML
+- No emojis
+- No storytelling
+- No generic phrases like "Discover", "Imagine", "Introducing"
+- No exaggeration or fake claims
+- No repetition
+- Keep it realistic and product-focused
 
-Rules:
-- Do NOT repeat the title
-- Focus on conversion
-- Include real-life usage context (kitchen, home, office, beauty, etc.)
-- 120 to 180 words
-- Avoid generic descriptions
-- Do NOT invent technical specifications
-- Write naturally and clearly
+STRUCTURE:
+1. Short paragraph (what it is + main benefit)
+2. Bullet points (key features)
+3. Closing line (practical usage or value)
 
-Return ONLY clean HTML using <p> and <ul>
+STYLE:
+- Clear
+- Direct
+- Commercial
+- Natural ecommerce language
+
+FORMAT:
+- Use <p> for paragraphs
+- Use <ul><li> for features
+- No inline styles
+
+INPUT:
+Title: ${title}
+Description: ${description}
+
+OUTPUT:
 `;
 
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7
+        temperature: 0.8,
+        messages: [{ role: "user", content: prompt }]
       },
       {
         headers: {
@@ -70,11 +86,22 @@ Return ONLY clean HTML using <p> and <ul>
       }
     );
 
-    return response.data.choices[0].message.content;
+    const aiDescription = response.data.choices[0].message.content.trim();
 
-  } catch (err) {
-    console.log("AI DESCRIPTION ERROR:", err.message);
-    return null;
+    let cleanDescription = aiDescription
+      .replace(/```html|```/g, "")
+      .replace(/\n+/g, "")
+      .trim();
+
+    if (!cleanDescription || cleanDescription.length < 50) {
+      return description;
+    }
+
+    return cleanDescription;
+
+  } catch (error) {
+    console.error("AI DESCRIPTION ERROR:", error?.response?.data || error.message);
+    return description; // fallback seguro
   }
 }
 
@@ -88,29 +115,34 @@ async function improveTitleWithAI({ title, language }) {
     const prompt = `
 ${langInstruction}
 
-Improve this ecommerce product title.
+You are an ecommerce title optimizer.
 
-Rules:
+Generate a HIGH-CONVERTING product title.
+
+RULES:
+- Return ONLY the final title
 - Maximum 60 characters
-- High conversion focus
-- Clear, natural, and readable
-- Do NOT add fake features
-- Do NOT exaggerate
+- No symbols like "-", "|", "/", "*"
+- No keyword stuffing
+- No fake features
+- No exaggeration
 - Keep original meaning
-- Avoid spammy or keyword stuffing
-- Make it attractive but realistic
+- Do NOT translate literally
+- Use natural ecommerce language
+- Focus on product type + key benefit
+- Make it clean, readable, and commercial
 
-Original title:
+INPUT TITLE:
 ${title}
 
-Return ONLY the improved title.
+OUTPUT:
 `;
 
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.5,
+        temperature: 0.7,
         messages: [{ role: "user", content: prompt }]
       },
       {
@@ -121,18 +153,27 @@ Return ONLY the improved title.
     );
 
     const aiTitle = response.data.choices[0].message.content.trim();
+    let cleanTitle = aiTitle
+  .replace(/[-|/*]+/g, "")
+  .replace(/\s+/g, " ")
+  .trim();
 
-    // 🔒 SAFETY FILTER
-    if (!aiTitle || aiTitle.length < 8) {
-      return title;
-    }
+if (!cleanTitle || cleanTitle.length < 10) {
+  return title;
+}
 
-    if (aiTitle.length > 70) {
-      return title;
-    }
+if (cleanTitle.length > 60) {
+  cleanTitle = cleanTitle.substring(0, 60).trim();
+}
 
-    return aiTitle;
+return cleanTitle;
 
+} catch (error) {
+  console.error("AI TITLE ERROR:", error?.response?.data || error.message);
+  return title; // fallback seguro
+}
+
+   
   } catch (err) {
     console.log("AI TITLE ERROR:", err.message);
     return title; // fallback crítico
