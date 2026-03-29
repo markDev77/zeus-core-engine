@@ -26,8 +26,7 @@ function getLanguageInstruction(language) {
   return map[lang] || map.en;
 }
 
-// ==========================
-// DESCRIPTION (CORE IA)
+// DESCRIPTION + TITLE (AI STRUCTURED - ZEUS B)
 // ==========================
 async function generateAIContent({ title, category, language }) {
   try {
@@ -36,7 +35,7 @@ async function generateAIContent({ title, category, language }) {
     const prompt = `
 ${langInstruction}
 
-Optimize this product for ecommerce.
+You are optimizing a product for ecommerce.
 
 Product:
 ${title}
@@ -44,24 +43,49 @@ ${title}
 Category:
 ${category}
 
-Rules:
-- Do NOT repeat the title
-- Focus on conversion
-- Include real-life usage context (kitchen, home, office, beauty, etc.)
-- 120 to 180 words
-- Avoid generic descriptions
-- Do NOT invent technical specifications
-- Write naturally and clearly
+Return STRICT JSON with this structure:
 
-Return ONLY clean HTML using <p> and <ul>
+{
+  "title": "...",
+  "bullets": [
+    "...",
+    "...",
+    "...",
+    "...",
+    "..."
+  ]
+}
+
+RULES:
+
+TITLE:
+- Max 60 characters
+- High conversion intent
+- Clear and natural
+- Do NOT exaggerate
+- Do NOT invent features
+- Keep original meaning
+
+BULLETS:
+- Exactly 5 bullets
+- Each bullet between 6 and 12 words
+- Focus on benefits (not generic phrases)
+- Avoid repetition
+- No fluff or filler text
+- No technical specs unless obvious from title
+
+IMPORTANT:
+- DO NOT return HTML
+- DO NOT explain anything
+- RETURN ONLY VALID JSON
 `;
 
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7
+        temperature: 0.5,
+        messages: [{ role: "user", content: prompt }]
       },
       {
         headers: {
@@ -70,10 +94,32 @@ Return ONLY clean HTML using <p> and <ul>
       }
     );
 
-    return response.data.choices[0].message.content;
+    const raw = response.data.choices[0].message.content;
+
+    // 🔒 SAFE PARSE
+    let parsed = null;
+
+    try {
+      parsed = JSON.parse(raw);
+    } catch (parseErr) {
+      console.log("AI JSON PARSE ERROR:", parseErr.message);
+      return null;
+    }
+
+    // 🔒 VALIDATION
+    if (
+      !parsed ||
+      !parsed.title ||
+      !Array.isArray(parsed.bullets) ||
+      parsed.bullets.length === 0
+    ) {
+      return null;
+    }
+
+    return parsed;
 
   } catch (err) {
-    console.log("AI DESCRIPTION ERROR:", err.message);
+    console.log("AI STRUCTURED ERROR:", err.message);
     return null;
   }
 }
