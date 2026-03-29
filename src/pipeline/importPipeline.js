@@ -364,6 +364,9 @@ async function runImportPipeline(input) {
 
   const product = {
     ...seoStructured,
+      // 🔥 FORZAR DOMINIO ABSOLUTO DE IA
+  title: aiOptimized.title,
+  description: aiOptimized.description,
     source,
     baseCategory,
     regionalCategory,
