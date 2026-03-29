@@ -1773,19 +1773,20 @@ await shopifyRequest(normalizedShop, {
   url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
   headers: { "X-Shopify-Access-Token": access_token },
   data: {
-  product: {
-    id: productId,
+    product: {
+      id: productId,
 
-    title: translatedTitle,
-    body_html: translatedHtml,
+      title: translatedTitle,
+      body_html: translatedHtml,
 
-    vendor: payload.vendor,
-    product_type: payload.category || "General",
-    product_category: payload.product_category,
-    tags: payload.tags,
-    status: "active"
+      vendor: payload.vendor,
+      product_type: payload.category || "General",
+      product_category: payload.product_category,
+      tags: payload.tags,
+      status: "active"
+    }
   }
-}
+});
 
 // 🔥 CATEGORY GRAPHQL (FIX REAL SHOPIFY CATEGORY)
 await applyShopifyCategory({
