@@ -31,7 +31,10 @@ async function generateAIContent({ title, description, language }) {
   try {
     const langInstruction = getLanguageInstruction(language);
 
-    const cleanInput = (description || "")
+    const safeInput =
+      typeof description === "string" ? description : "";
+
+    const cleanInput = safeInput
       .replace(/<[^>]*>/g, "")
       .substring(0, 800);
 
@@ -93,15 +96,20 @@ Description: ${cleanInput}
       console.error("AI PARSE ERROR:", aiRaw);
       return {
         title,
-        description: description || ""
+        description: safeInput
       };
     }
 
-    // 🔹 TITLE CLEAN
-    let cleanTitle = parsed.title
-      ?.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g, "")
-      ?.replace(/\s+/g, " ")
-      ?.trim();
+    // ==========================
+    // TITLE CLEAN
+    // ==========================
+    let cleanTitle =
+      typeof parsed.title === "string" ? parsed.title : "";
+
+    cleanTitle = cleanTitle
+      .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
 
     if (!cleanTitle || cleanTitle.length < 10) {
       cleanTitle = title;
@@ -111,28 +119,29 @@ Description: ${cleanInput}
       cleanTitle = cleanTitle.substring(0, 70).trim();
     }
 
-    // 🔹 DESCRIPTION CLEAN
-    let cleanDescription = parsed.description
-      ?.replace(/```html|```/g, "")
-      ?.replace(/\n+/g, " ")
-      ?.trim();
-
-    if (!cleanDescription || cleanDescription.length < 50) {
-      cleanDescription = "";
-    }
-
-    // 🔹 CLEAN SUPPLIER HTML
-    const safeSupplier =
-      typeof description === "string"
-        ? description.replace(/<html[\s\S]*<\/html>/gi, "")
+    // ==========================
+    // DESCRIPTION CLEAN
+    // ==========================
+    let cleanDescription =
+      typeof parsed.description === "string"
+        ? parsed.description
         : "";
 
-    const finalDescription =
-      cleanDescription + (safeSupplier ? "\n" + safeSupplier : "");
+    cleanDescription = cleanDescription
+      .replace(/```html|```/g, "")
+      .replace(/\n+/g, " ")
+      .trim();
 
+    if (!cleanDescription || cleanDescription.length < 50) {
+      throw new Error("AI DESCRIPTION EMPTY");
+    }
+
+    // ==========================
+    // FINAL OUTPUT (SIN PROVEEDOR)
+    // ==========================
     return {
       title: cleanTitle,
-      description: finalDescription
+      description: cleanDescription
     };
 
   } catch (error) {
@@ -143,14 +152,11 @@ Description: ${cleanInput}
 
     return {
       title,
-      description: description || ""
+      description:
+        typeof description === "string" ? description : ""
     };
   }
 }
-  
-// ==========================
-// TITLE ENGINE
-// ==========================
 // ==========================
 // TITLE ENGINE (DEPRECATED - NOT IN USE)
 // ==========================
