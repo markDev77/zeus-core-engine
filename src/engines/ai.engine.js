@@ -1,176 +1,137 @@
-const axios = require("axios");
+// /src/engines/description.engine.js
 
-// ==========================
-// LANGUAGE HELPERS
-// ==========================
-function normalizeLanguage(lang) {
-  if (!lang) return "en";
-
-  return String(lang)
-    .toLowerCase()
-    .split("-")[0]
-    .split("_")[0];
+function normalize(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
 }
 
-function getLanguageInstruction(language) {
-  const lang = normalizeLanguage(language);
+function detectContext(title = "", originalHtml = "") {
+  const text = `${title} ${originalHtml}`.toLowerCase();
 
-  const map = {
-    es: "Responde en español.",
-    en: "Respond in English.",
-    pt: "Responda em português."
-  };
-
-  return map[lang] || map.en;
-}
-
-// ==========================
-// DESCRIPTION ENGINE
-// ==========================
-async function generateAIContent({ title, description, language }) {
-  try {
-    const langInstruction = getLanguageInstruction(language);
-
-    const safeInput =
-      typeof description === "string" ? description : "";
-
-    const cleanInput = safeInput
-      .replace(/<[^>]*>/g, "")
-      .substring(0, 800);
-
-    const prompt = `
-${langInstruction}
-
-You are an ecommerce optimizer.
-
-Generate BOTH:
-
-1. Product title (SEO optimized)
-2. Product description (conversion focused)
-
-RULES TITLE:
-- Max 70 characters
-- No symbols
-- Do NOT translate literally
-- Use real ecommerce search keywords
-- Structure: Product Type + Key Feature + Variant
-
-RULES DESCRIPTION:
-- Return clean HTML
-- Use persuasive storytelling (non-repetitive)
-- No supplier mention
-- Include 2–3 SEO keywords naturally
-
-OUTPUT FORMAT (STRICT JSON):
-{
-  "title": "...",
-  "description": "..."
-}
-
-INPUT:
-Title: ${title}
-Description: ${cleanInput}
-`;
-
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o-mini",
-        temperature: 0.7,
-        messages: [{ role: "user", content: prompt }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-        }
-      }
-    );
-
-    const aiRaw = response.data.choices[0].message.content.trim();
-
-    let parsed;
-
-    try {
-      parsed = JSON.parse(aiRaw);
-    } catch (e) {
-      console.error("AI PARSE ERROR:", aiRaw);
-      return {
-        title,
-        description: safeInput
-      };
-    }
-
-    // ==========================
-    // TITLE CLEAN
-    // ==========================
-    let cleanTitle =
-      typeof parsed.title === "string" ? parsed.title : "";
-
-    cleanTitle = cleanTitle
-      .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    if (!cleanTitle || cleanTitle.length < 10) {
-      cleanTitle = title;
-    }
-
-    if (cleanTitle.length > 70) {
-      cleanTitle = cleanTitle.substring(0, 70).trim();
-    }
-
-    // ==========================
-    // DESCRIPTION CLEAN
-    // ==========================
-    let cleanDescription =
-      typeof parsed.description === "string"
-        ? parsed.description
-        : "";
-
-    cleanDescription = cleanDescription
-      .replace(/```html|```/g, "")
-      .replace(/\n+/g, " ")
-      .trim();
-
-    if (!cleanDescription || cleanDescription.length < 50) {
-      throw new Error("AI DESCRIPTION EMPTY");
-    }
-
-    // ==========================
-    // FINAL OUTPUT (SIN PROVEEDOR)
-    // ==========================
-    return {
-      title: cleanTitle,
-      description: cleanDescription
-    };
-
-  } catch (error) {
-    console.error(
-      "AI ENGINE ERROR:",
-      error?.response?.data || error.message
-    );
-
-    return {
-      title,
-      description:
-        typeof description === "string" ? description : ""
-    };
+  if (
+    text.includes("mocas") ||
+    text.includes("zapato") ||
+    text.includes("shoe") ||
+    text.includes("loafer")
+  ) {
+    return "footwear";
   }
-}
-// ==========================
-// TITLE ENGINE (DEPRECATED - NOT IN USE)
-// ==========================
-async function improveTitleWithAI({ title, language }) {
-  // ⚠️ NO USAR
-  // ZEUS ahora usa generateAIContent() para título + descripción en una sola llamada
 
-  return title;
+  if (
+    text.includes("salpicadura") ||
+    text.includes("baffle") ||
+    text.includes("deflector") ||
+    text.includes("kitchen")
+  ) {
+    return "splash_guard";
+  }
+
+  return "generic";
 }
 
-// ==========================
-// EXPORTS
-// ==========================
+function buildFootwearBlock() {
+  return `
+    <div style="margin-bottom:20px;">
+      <p>
+        Diseñado para quienes buscan una opción cómoda y funcional para complementar un estilo casual o de vestir.
+        Su construcción favorece el uso diario y una presencia más cuidada.
+      </p>
+
+      <p>
+        Este modelo ofrece una apariencia versátil para oficina, reuniones, salidas o uso cotidiano.
+        Su diseño facilita la combinación con distintos outfits y aporta una imagen más pulida sin sacrificar practicidad.
+      </p>
+
+      <ul>
+        <li>Diseño ideal para uso diario o de vestir</li>
+        <li>Fácil de combinar con looks casuales o formales</li>
+        <li>Opción práctica para oficina, salidas y reuniones</li>
+        <li>Estilo cómodo y funcional</li>
+      </ul>
+
+      <p>
+        Si buscas un calzado con presencia, versatilidad y uso práctico, esta puede ser una excelente alternativa para tu catálogo.
+      </p>
+    </div>
+  `;
+}
+
+function buildSplashGuardBlock() {
+  return `
+    <div style="margin-bottom:20px;">
+      <p>
+        Accesorio práctico pensado para ayudar a contener salpicaduras y mantener una zona más limpia durante el uso diario.
+        Ideal para espacios donde se busca mayor orden y comodidad.
+      </p>
+
+      <p>
+        Su función principal es reducir el alcance de las salpicaduras y facilitar una experiencia más limpia en tareas de cocina o lavado.
+        Es una opción útil para hogares que buscan practicidad y mejor control del área de trabajo.
+      </p>
+
+      <ul>
+        <li>Ayuda a reducir salpicaduras</li>
+        <li>Útil para mantener el área más limpia</li>
+        <li>Práctico para uso diario</li>
+        <li>Fácil de integrar en espacios funcionales</li>
+      </ul>
+
+      <p>
+        Recomendado para quienes buscan una solución simple y funcional para mejorar la limpieza y el orden en su espacio.
+      </p>
+    </div>
+  `;
+}
+
+function buildGenericBlock() {
+  return `
+    <div style="margin-bottom:20px;">
+      <p>
+        Producto pensado para ofrecer funcionalidad, practicidad y una mejor experiencia de uso en el día a día.
+        Ideal para quienes buscan soluciones útiles y fáciles de integrar a su rutina.
+      </p>
+
+      <p>
+        Su diseño permite un uso cómodo y versátil en distintos contextos, ayudando a resolver necesidades cotidianas con una propuesta clara y funcional.
+      </p>
+
+      <ul>
+        <li>Diseño práctico y funcional</li>
+        <li>Fácil de usar</li>
+        <li>Ideal para uso diario</li>
+        <li>Opción útil para distintos entornos</li>
+      </ul>
+
+      <p>
+        Una alternativa pensada para quienes valoran practicidad, funcionalidad y facilidad de uso.
+      </p>
+    </div>
+  `;
+}
+
+function buildZeusDescription({ title, originalHtml }) {
+  const ctx = detectContext(title, originalHtml);
+
+  if (ctx === "footwear") return buildFootwearBlock();
+  if (ctx === "splash_guard") return buildSplashGuardBlock();
+
+  return buildGenericBlock();
+}
+
+const { buildSEOIntro } = require("./seo.engine");
+
+function buildFinalDescription({ title, originalHtml, aiBlock }) {
+
+  const zeusBlock = buildZeusDescription({ title, originalHtml });
+  const seoIntro = buildSEOIntro(title);
+
+  return `
+    ${seoIntro}
+    ${aiBlock || ""}
+    ${zeusBlock}
+    ${originalHtml || ""}
+  `;
+}
+
 module.exports = {
-  generateAIContent,
-  improveTitleWithAI
+  buildFinalDescription
 };
