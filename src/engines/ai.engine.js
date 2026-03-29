@@ -3,7 +3,7 @@
 const axios = require("axios");
 
 // ==========================
-// LANGUAGE HELPERS (INLINE SAFE)
+// LANGUAGE HELPERS
 // ==========================
 function normalizeLanguage(lang) {
   if (!lang) return "en";
@@ -26,7 +26,27 @@ function getLanguageInstruction(language) {
   return map[lang] || map.en;
 }
 
-// DESCRIPTION + TITLE (AI STRUCTURED - ZEUS B)
+// ==========================
+// VALIDATORS (CLAVE)
+// ==========================
+function isBadTitle(original, generated) {
+  if (!generated) return true;
+
+  const o = original.toLowerCase().trim();
+  const g = generated.toLowerCase().trim();
+
+  return (
+    g === o ||
+    g.length < 20 ||
+    g.includes(",") ||
+    g.includes(" -") ||
+    g.endsWith("para") ||
+    g.endsWith("con")
+  );
+}
+
+// ==========================
+// AI STRUCTURED (ZEUS GTM)
 // ==========================
 async function generateAIContent({ title, category, language }) {
   try {
@@ -35,56 +55,46 @@ async function generateAIContent({ title, category, language }) {
     const prompt = `
 ${langInstruction}
 
-You are optimizing a product for ecommerce.
+You are a senior ecommerce conversion copywriter.
 
-Product:
-${title}
+Rewrite this product to maximize conversion and SEO.
 
-Category:
-${category}
+INPUT:
+Title: ${title}
+Category: ${category}
 
-Return STRICT JSON with this structure:
+GOALS:
+- Make it attractive and sellable
+- Improve clarity and intent
+- Add real-life usage context
 
+TITLE RULES:
+- Max 70 characters
+- Must be DIFFERENT from original
+- No symbols like "-" or "," at the end
+- Include main keyword + benefit
+- Natural, not robotic
+
+DESCRIPTION RULES:
+- Start with a persuasive paragraph (2–3 lines)
+- Then 4–6 benefit-driven bullet points
+- Avoid generic phrases like "ideal para uso diario"
+- Focus on real benefits
+- Do NOT invent specs
+
+RETURN STRICT JSON:
 {
   "title": "...",
-  "bullets": [
-    "...",
-    "...",
-    "...",
-    "...",
-    "..."
-  ]
+  "intro": "...",
+  "bullets": ["...", "...", "...", "..."]
 }
-
-RULES:
-
-TITLE:
-- Max 60 characters
-- High conversion intent
-- Clear and natural
-- Do NOT exaggerate
-- Do NOT invent features
-- Keep original meaning
-
-BULLETS:
-- Exactly 5 bullets
-- Each bullet between 6 and 12 words
-- Focus on benefits (not generic phrases)
-- Avoid repetition
-- No fluff or filler text
-- No technical specs unless obvious from title
-
-IMPORTANT:
-- DO NOT return HTML
-- DO NOT explain anything
-- RETURN ONLY VALID JSON
 `;
 
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.5,
+        temperature: 0.7,
         messages: [{ role: "user", content: prompt }]
       },
       {
@@ -96,36 +106,34 @@ IMPORTANT:
 
     const raw = response.data.choices[0].message.content;
 
-    // 🔒 SAFE PARSE
     let parsed = null;
 
     try {
       parsed = JSON.parse(raw);
-    } catch (parseErr) {
-      console.log("AI JSON PARSE ERROR:", parseErr.message);
+    } catch (e) {
+      console.log("AI JSON ERROR:", e.message);
       return null;
     }
 
-    // 🔒 VALIDATION
-    if (
-      !parsed ||
-      !parsed.title ||
-      !Array.isArray(parsed.bullets) ||
-      parsed.bullets.length === 0
-    ) {
+    if (!parsed || !parsed.title || !parsed.intro || !parsed.bullets) {
       return null;
+    }
+
+    // 🔥 VALIDACIÓN DE TÍTULO
+    if (isBadTitle(title, parsed.title)) {
+      parsed.title = title;
     }
 
     return parsed;
 
   } catch (err) {
-    console.log("AI STRUCTURED ERROR:", err.message);
+    console.log("AI ENGINE ERROR:", err.message);
     return null;
   }
 }
 
 // ==========================
-// TITLE (IA ENHANCEMENT CONTROLADO)
+// TITLE IMPROVER (fallback)
 // ==========================
 async function improveTitleWithAI({ title, language }) {
   try {
@@ -134,19 +142,15 @@ async function improveTitleWithAI({ title, language }) {
     const prompt = `
 ${langInstruction}
 
-Improve this ecommerce product title.
+Improve this product title for ecommerce conversion.
 
 Rules:
-- Maximum 60 characters
-- High conversion focus
-- Clear, natural, and readable
-- Do NOT add fake features
-- Do NOT exaggerate
-- Keep original meaning
-- Avoid spammy or keyword stuffing
-- Make it attractive but realistic
+- Max 60 characters
+- Must be clearer and more attractive
+- Must be different from original
+- No symbols like "-" or ","
 
-Original title:
+Title:
 ${title}
 
 Return ONLY the improved title.
@@ -156,7 +160,7 @@ Return ONLY the improved title.
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.5,
+        temperature: 0.7,
         messages: [{ role: "user", content: prompt }]
       },
       {
@@ -168,12 +172,7 @@ Return ONLY the improved title.
 
     const aiTitle = response.data.choices[0].message.content.trim();
 
-    // 🔒 SAFETY FILTER
-    if (!aiTitle || aiTitle.length < 8) {
-      return title;
-    }
-
-    if (aiTitle.length > 70) {
+    if (isBadTitle(title, aiTitle)) {
       return title;
     }
 
@@ -181,7 +180,7 @@ Return ONLY the improved title.
 
   } catch (err) {
     console.log("AI TITLE ERROR:", err.message);
-    return title; // fallback crítico
+    return title;
   }
 }
 
