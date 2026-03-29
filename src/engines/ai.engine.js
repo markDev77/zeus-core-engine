@@ -38,36 +38,42 @@ async function generateAIContent({ title, description, language }) {
     const prompt = `
 ${langInstruction}
 
-You are an ecommerce copywriter.
+You are an ecommerce optimizer.
 
-Write a PRODUCT DESCRIPTION optimized for conversion and SEO.
+Generate BOTH:
 
-RULES:
-- Return ONLY clean HTML
-- Do NOT mention supplier, manufacturer, or origin
-- Use persuasive storytelling (vary tone)
-- Avoid generic openings
-- No exaggeration
-- Include 2–3 natural SEO keywords based on the product title
+1. Product title (SEO optimized)
+2. Product description (conversion focused)
 
-STRUCTURE:
-1. Context + use case
-2. Benefits
-3. Bullet points
-4. Closing
+RULES TITLE:
+- Max 70 characters
+- No symbols
+- Do NOT translate literally
+- Use real ecommerce search keywords
+- Structure: Product Type + Key Feature + Variant
+
+RULES DESCRIPTION:
+- Return clean HTML
+- Use persuasive storytelling (non-repetitive)
+- No supplier mention
+- Include 2–3 SEO keywords naturally
+
+OUTPUT FORMAT (STRICT JSON):
+{
+  "title": "...",
+  "description": "..."
+}
 
 INPUT:
 Title: ${title}
 Description: ${cleanInput}
-
-OUTPUT:
 `;
 
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.8,
+        temperature: 0.7,
         messages: [{ role: "user", content: prompt }]
       },
       {
@@ -77,17 +83,45 @@ OUTPUT:
       }
     );
 
-    const aiDescription = response.data.choices[0].message.content.trim();
+    const aiRaw = response.data.choices[0].message.content.trim();
 
-    const cleanDescription = aiDescription
-      .replace(/```html|```/g, "")
-      .replace(/\n+/g, " ")
-      .trim();
+    let parsed;
 
-    if (!cleanDescription || cleanDescription.length < 50) {
-      return description || "";
+    try {
+      parsed = JSON.parse(aiRaw);
+    } catch (e) {
+      console.error("AI PARSE ERROR:", aiRaw);
+      return {
+        title,
+        description: description || ""
+      };
     }
 
+    // 🔹 TITLE CLEAN
+    let cleanTitle = parsed.title
+      ?.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g, "")
+      ?.replace(/\s+/g, " ")
+      ?.trim();
+
+    if (!cleanTitle || cleanTitle.length < 10) {
+      cleanTitle = title;
+    }
+
+    if (cleanTitle.length > 70) {
+      cleanTitle = cleanTitle.substring(0, 70).trim();
+    }
+
+    // 🔹 DESCRIPTION CLEAN
+    let cleanDescription = parsed.description
+      ?.replace(/```html|```/g, "")
+      ?.replace(/\n+/g, " ")
+      ?.trim();
+
+    if (!cleanDescription || cleanDescription.length < 50) {
+      cleanDescription = "";
+    }
+
+    // 🔹 CLEAN SUPPLIER HTML
     const safeSupplier =
       typeof description === "string"
         ? description.replace(/<html[\s\S]*<\/html>/gi, "")
@@ -96,94 +130,35 @@ OUTPUT:
     const finalDescription =
       cleanDescription + (safeSupplier ? "\n" + safeSupplier : "");
 
-    return finalDescription;
+    return {
+      title: cleanTitle,
+      description: finalDescription
+    };
 
   } catch (error) {
     console.error(
-      "AI DESCRIPTION ERROR:",
+      "AI ENGINE ERROR:",
       error?.response?.data || error.message
     );
-    return description || "";
+
+    return {
+      title,
+      description: description || ""
+    };
   }
 }
   
 // ==========================
 // TITLE ENGINE
 // ==========================
+// ==========================
+// TITLE ENGINE (DEPRECATED - NOT IN USE)
+// ==========================
 async function improveTitleWithAI({ title, language }) {
-  try {
-    const langInstruction = getLanguageInstruction(language);
+  // ⚠️ NO USAR
+  // ZEUS ahora usa generateAIContent() para título + descripción en una sola llamada
 
-    const baseTitle = (title || "")
-      .replace(/[^a-zA-Z0-9\s]/g, "")
-      .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g, "")
-      .toLowerCase()
-      .trim();
-
-    const prompt = `
-${langInstruction}
-
-You are an ecommerce SEO title generator.
-
-Generate a HIGH-CONVERTING product title.
-
-MANDATORY STRUCTURE:
-Product Type + Key Feature + Variant
-
-RULES:
-- Max 70 characters
-- No symbols
-- Do NOT translate literally
-- Rewrite for ecommerce search intent
-- Use real keywords customers search
-- Avoid filler words
-
-EXAMPLES:
-- Rodilleras deportivas silicona antideslizante negras
-- Conjunto lencería malla bordado floral negro S
-- Pulsera LED fluorescente ajustable para eventos
-
-INPUT:
-${baseTitle}
-
-OUTPUT:
-`;
-
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o-mini",
-        temperature: 0.95,
-        messages: [{ role: "user", content: prompt }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-        }
-      }
-    );
-
-    const aiTitle = response.data.choices[0].message.content.trim();
-
-    let cleanTitle = aiTitle
-      .replace(/[-|/*]+/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    if (!cleanTitle || cleanTitle.length < 10) {
-      return title;
-    }
-
-    if (cleanTitle.length > 70) {
-      cleanTitle = cleanTitle.substring(0, 70).trim();
-    }
-
-    return cleanTitle;
-
-  } catch (error) {
-    console.error("AI TITLE ERROR:", error?.response?.data || error.message);
-    return title;
-  }
+  return title;
 }
 
 // ==========================
