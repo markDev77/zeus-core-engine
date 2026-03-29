@@ -36,38 +36,23 @@ async function generateAIContent({ title, description, language }) {
     const prompt = `
 ${langInstruction}
 
+You are an ecommerce copywriter.
+
 Write a PRODUCT DESCRIPTION optimized for conversion and SEO.
 
 RULES:
 - Return ONLY clean HTML
-- Keep supplier technical content at the END (do not remove it)
-- Use light persuasive storytelling (vary tone, avoid templates)
-- Avoid repeating openings across products
-- Do NOT use generic phrases like "Este producto", "Descubre", "Imagina"
+- Keep supplier content at the END
+- Use persuasive storytelling (vary tone, avoid templates)
+- Avoid generic openings like "Este producto", "Descubre"
 - No exaggeration or fake claims
-- No emojis
 
 STRUCTURE:
-1. Opening (context + use case, varies per product)
-2. Benefits (what problem it solves)
-3. Bullet points (features with keywords)
-4. Closing (use case or outcome)
-5. Keep original supplier HTML AFTER your content
-
-SEO:
-- Naturally include keywords from title
-- Avoid keyword stuffing
-
-STYLE:
-- Clear
-- Direct
-- Commercial
-- Natural ecommerce language
-
-FORMAT:
-- Use <p> for paragraphs
-- Use <ul><li> for features
-- No inline styles
+1. Context + use case
+2. Benefits
+3. Bullet points
+4. Closing
+5. Supplier content at the end
 
 INPUT:
 Title: ${title}
@@ -89,29 +74,26 @@ OUTPUT:
         }
       }
     );
-const aiDescription = response.data.choices[0].message.content.trim();
 
-let cleanDescription = aiDescription
-  .replace(/```html|```/g, "")
-  .replace(/\n+/g, " ")
-  .trim();
+    const aiDescription = response.data.choices[0].message.content.trim();
 
-// fallback si IA falla
-if (!cleanDescription || cleanDescription.length < 50) {
-  return description;
-}
+    const cleanDescription = aiDescription
+      .replace(/```html|```/g, "")
+      .replace(/\n+/g, " ")
+      .trim();
 
-// combinar IA + proveedor (proveedor siempre al final)
-const finalDescription = `
-${cleanDescription}
-${description}
-`;
+    if (!cleanDescription || cleanDescription.length < 50) {
+      return description;
+    }
 
-return finalDescription;
+    const finalDescription = cleanDescription + "\n" + description;
 
-} catch (error) {
-  console.error("AI DESCRIPTION ERROR:", error?.response?.data || error.message);
-  return description; // fallback seguro
+    return finalDescription;
+
+  } catch (error) {
+    console.error("AI DESCRIPTION ERROR:", error?.response?.data || error.message);
+    return description;
+  }
 }
     
 
