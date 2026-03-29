@@ -108,28 +108,39 @@ function buildGenericBlock() {
   `;
 }
 
-function buildZeusDescription({ title, originalHtml }) {
-  const ctx = detectContext(title, originalHtml);
-
-  if (ctx === "footwear") return buildFootwearBlock();
-  if (ctx === "splash_guard") return buildSplashGuardBlock();
-
-  return buildGenericBlock();
-}
-
-const { buildSEOIntro } = require("./seo.engine");
-
 function buildFinalDescription({ title, originalHtml, aiBlock }) {
+  let safeOriginal = originalHtml || "";
 
-  const zeusBlock = buildZeusDescription({ title, originalHtml });
-  const seoIntro = buildSEOIntro(title);
+  // 🔥 limpiar solo wrappers peligrosos (NO tocar imágenes)
+  safeOriginal = safeOriginal
+    .replace(/<\/?html[^>]*>/gi, "")
+    .replace(/<\/?head[^>]*>/gi, "")
+    .replace(/<\/?body[^>]*>/gi, "")
+    .trim();
 
+  // 🔥 INTRO SEO (natural, no plantilla quemada)
+  const intro = `<p><strong>${title}</strong>. Diseñado para mejorar tu experiencia diaria, combinando funcionalidad, comodidad y practicidad en cada uso.</p>`;
+
+  // 🔥 BLOQUE IA (ya viene en UL)
+  const aiSection = aiBlock || "";
+
+  // 🔥 FILTRAR TEXTO BASURA DEL PROVEEDOR
+  const cleanedOriginal = safeOriginal
+    .replace(/producto pensado.*?\./gi, "")
+    .replace(/ideal para quienes.*?\./gi, "")
+    .replace(/su diseño permite.*?\./gi, "")
+    .replace(/diseño práctico.*?\./gi, "")
+    .replace(/opción útil.*?\./gi, "")
+    .trim();
+
+  // 🔥 ENSAMBLE FINAL
   return `
-    ${seoIntro}
-    ${aiBlock || ""}
-    ${zeusBlock}
-    ${originalHtml || ""}
-  `;
+${intro}
+
+${aiSection}
+
+${cleanedOriginal}
+`.trim();
 }
 
 module.exports = {
