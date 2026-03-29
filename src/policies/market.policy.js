@@ -1,12 +1,12 @@
 "use strict";
 
 /**
- * ZEUS - Market Policy Layer v2
+ * ZEUS - Market Policy Layer v3 (AI-aware)
  * -----------------------------------------
- * Ahora incluye:
- * - limpieza estructural
- * - eliminación de duplicados
- * - control de formato final REAL
+ * - Control de fuente (AI vs engine)
+ * - Respeta HTML (no rompe imágenes)
+ * - Limpieza estructural
+ * - Formato controlado por policy
  */
 
 const { REGION_PROFILES } = require("../data/regionProfiles");
@@ -21,34 +21,63 @@ function getMarketRules({ country, language }) {
   return {
     country: profile.country,
     language: profile.language,
+
     titleStyle: profile.titleStyle || "neutral",
     descriptionStyle: profile.descriptionStyle || "paragraph",
+
+    // 🔥 NUEVO (CONTROL ZEUS)
+    title_source: profile.title_source || "ai",
+    description_source: profile.description_source || "ai",
+
     bannedWords: profile.bannedWords || [],
     replacementMap: profile.replacementMap || {},
     cta: profile.cta || null
   };
 }
 
-function applyMarketRulesToTitle(title, rules = {}) {
+/* -----------------------------------------
+ * TITLE
+ * ----------------------------------------- */
+
+function applyMarketRulesToTitle(title, rules = {}, context = {}) {
+  const { aiTitle } = context;
+
+  // 🔥 PRIORIDAD AI (ZEUS)
+  if (rules.title_source === "ai" && aiTitle) {
+    return trim(normalizeSpaces(aiTitle), 140);
+  }
+
   if (!title) return "";
 
   let result = title;
 
   result = applyReplacementMap(result, rules.replacementMap);
   result = removeBannedWords(result, rules.bannedWords);
+
   result = normalizeSpaces(result);
   result = dedupeWords(result);
+
   result = applyTitleStyle(result, rules.titleStyle);
 
   return trim(result, 140);
 }
 
-function applyMarketRulesToDescription(description, rules = {}) {
+/* -----------------------------------------
+ * DESCRIPTION
+ * ----------------------------------------- */
+
+function applyMarketRulesToDescription(description, rules = {}, context = {}) {
+  const { aiBlock } = context;
+
+  // 🔥 PRIORIDAD AI (NO TOCAR HTML)
+  if (rules.description_source === "ai" && aiBlock) {
+    return aiBlock;
+  }
+
   if (!description) return "";
 
   let result = description;
 
-  // 🔥 NUEVO: limpieza estructural
   result = stripMarkdownArtifacts(result);
   result = stripCodeBlocks(result);
   result = removeDuplicateBlocks(result);
@@ -56,11 +85,10 @@ function applyMarketRulesToDescription(description, rules = {}) {
 
   result = applyReplacementMap(result, rules.replacementMap);
   result = removeBannedWords(result, rules.bannedWords);
-  
 
-  result = cleanHtml(result);
+  // ⚠️ SOLO LIMPIA HTML SUPERIOR (NO IMÁGENES)
+  result = cleanHtmlSafe(result);
 
-  // 🔥 CONTROL TOTAL DE FORMATO
   result = enforceSingleFormat(result, rules.descriptionStyle);
 
   if (rules.cta) {
@@ -77,7 +105,7 @@ module.exports = {
 };
 
 /* -----------------------------------------
- * REGION RESOLUTION
+ * REGION
  * ----------------------------------------- */
 
 function resolveRegionProfile(country, language) {
@@ -86,13 +114,11 @@ function resolveRegionProfile(country, language) {
 }
 
 /* -----------------------------------------
- * 🔥 CLEANING LAYER (NUEVO)
+ * CLEANING
  * ----------------------------------------- */
 
 function stripMarkdownArtifacts(value) {
-  return value
-    .replace(/```html/g, "")
-    .replace(/```/g, "");
+  return value.replace(/```html/g, "").replace(/```/g, "");
 }
 
 function stripCodeBlocks(value) {
@@ -115,7 +141,10 @@ function removeDuplicateBlocks(value) {
     .join("\n");
 }
 
-function cleanHtml(value) {
+/**
+ * 🔥 CRÍTICO: NO eliminar <img>
+ */
+function cleanHtmlSafe(value) {
   return value
     .replace(/<html[\s\S]*?>/gi, "")
     .replace(/<\/html>/gi, "")
@@ -124,7 +153,7 @@ function cleanHtml(value) {
 }
 
 /* -----------------------------------------
- * 🔥 FORMAT CONTROL (CLAVE)
+ * FORMAT
  * ----------------------------------------- */
 
 function enforceSingleFormat(value, style) {
@@ -142,22 +171,20 @@ function enforceSingleFormat(value, style) {
 
 function toBulletsOnly(value) {
   const items = extractMeaningfulLines(value)
-    .map(l => l.replace(/<(?!img)[^>]+>/g, ""))
-    .map(l => l.trim())
-    .filter(l => l.length > 20 && l.length < 120)
+    .map((l) => l.replace(/<(?!img)[^>]+>/g, ""))
+    .map((l) => l.trim())
+    .filter((l) => l.length > 20 && l.length < 120)
     .slice(0, 5);
 
-  return items
-    .map((l) => `• ${cleanLine(l)}`)
-    .join("\n");
+  return `<ul>${items.map((l) => `<li>${cleanLine(l)}</li>`).join("")}</ul>`;
 }
 
 function toParagraphOnly(value) {
-  return normalizeSpaces(
+  return `<p>${normalizeSpaces(
     value
       .replace(/<(?!img)[^>]+>/g, " ")
       .replace(/\n+/g, " ")
-  );
+  )}</p>`;
 }
 
 function extractMeaningfulLines(value) {
@@ -175,17 +202,11 @@ function extractMeaningfulLines(value) {
         !lower.includes("producto pensado") &&
         !lower.includes("ideal para quienes") &&
         !lower.includes("una alternativa pensada") &&
-        !lower.includes("diseñado para ofrecer") &&
-        !lower.includes("material:") &&
-        !lower.includes("categoría") &&
-        !lower.includes("product category")
+        !lower.includes("diseñado para ofrecer")
       );
     });
 }
 
-/**
- * 🔥 Elimina frases genéricas de plantilla (post-engine cleanup)
- */
 function removeTemplatePhrases(value) {
   const patterns = [
     /transforma[^.]*\./gi,
@@ -238,7 +259,7 @@ function dedupeWords(value) {
 }
 
 /* -----------------------------------------
- * COMMON HELPERS
+ * COMMON
  * ----------------------------------------- */
 
 function applyReplacementMap(value, map = {}) {
