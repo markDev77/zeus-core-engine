@@ -36,23 +36,27 @@ async function generateAIContent({ title, description, language }) {
     const prompt = `
 ${langInstruction}
 
-You are an ecommerce copywriter.
-
-Write a PRODUCT DESCRIPTION optimized for conversion.
+Write a PRODUCT DESCRIPTION optimized for conversion and SEO.
 
 RULES:
 - Return ONLY clean HTML
-- No emojis
-- No storytelling
-- No generic phrases like "Discover", "Imagine", "Introducing"
+- Keep supplier technical content at the END (do not remove it)
+- Use light persuasive storytelling (vary tone, avoid templates)
+- Avoid repeating openings across products
+- Do NOT use generic phrases like "Este producto", "Descubre", "Imagina"
 - No exaggeration or fake claims
-- No repetition
-- Keep it realistic and product-focused
+- No emojis
 
 STRUCTURE:
-1. Short paragraph (what it is + main benefit)
-2. Bullet points (key features)
-3. Closing line (practical usage or value)
+1. Opening (context + use case, varies per product)
+2. Benefits (what problem it solves)
+3. Bullet points (features with keywords)
+4. Closing (use case or outcome)
+5. Keep original supplier HTML AFTER your content
+
+SEO:
+- Naturally include keywords from title
+- Avoid keyword stuffing
 
 STYLE:
 - Clear
@@ -85,25 +89,31 @@ OUTPUT:
         }
       }
     );
+const aiDescription = response.data.choices[0].message.content.trim();
 
-    const aiDescription = response.data.choices[0].message.content.trim();
+let cleanDescription = aiDescription
+  .replace(/```html|```/g, "")
+  .replace(/\n+/g, " ")
+  .trim();
 
-    let cleanDescription = aiDescription
-      .replace(/```html|```/g, "")
-      .replace(/\n+/g, "")
-      .trim();
-
-    if (!cleanDescription || cleanDescription.length < 50) {
-      return description;
-    }
-
-    return cleanDescription;
-
-  } catch (error) {
-    console.error("AI DESCRIPTION ERROR:", error?.response?.data || error.message);
-    return description; // fallback seguro
-  }
+// fallback si IA falla
+if (!cleanDescription || cleanDescription.length < 50) {
+  return description;
 }
+
+// combinar IA + proveedor (proveedor siempre al final)
+const finalDescription = `
+${cleanDescription}
+${description}
+`;
+
+return finalDescription;
+
+} catch (error) {
+  console.error("AI DESCRIPTION ERROR:", error?.response?.data || error.message);
+  return description; // fallback seguro
+}
+    
 
 // ==========================
 // TITLE (IA ENHANCEMENT CONTROLADO)
