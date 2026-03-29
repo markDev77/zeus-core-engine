@@ -163,20 +163,12 @@ RULES FOR TITLE:
 - No separators
 - No literal translation
 - Rewrite commercially for ecommerce
-- Use clear search intent
-- Use this structure when possible:
-  Product type + key feature + variant or use
 
 RULES FOR DESCRIPTION:
 - HTML only
 - Natural ecommerce tone
 - Conversion focused
-- Do not mention supplier
-- Do not mention manufacturer
-- Do not mention origin
-- Do not start with "Descubre" or "Imagina"
-- Include practical benefits and key features
-- 120 to 220 words
+- No supplier mention
 
 Language: ${language}
 Region: ${region}
@@ -204,10 +196,7 @@ ${promptDescription}
           temperature: 0.55,
           max_tokens: 700,
           messages: [
-            {
-              role: "user",
-              content: prompt
-            }
+            { role: "user", content: prompt }
           ]
         })
       }
@@ -223,15 +212,13 @@ ${promptDescription}
     const jsonText = extractJsonObject(text);
 
     if (!jsonText) {
-      console.error("ZEUS AI SEO JSON NOT FOUND");
       return product;
     }
 
     let result;
     try {
       result = JSON.parse(jsonText);
-    } catch (err) {
-      console.error("ZEUS AI SEO JSON PARSE ERROR:", jsonText);
+    } catch {
       return product;
     }
 
@@ -260,15 +247,33 @@ ${promptDescription}
       seoDescription: cleanSeoDescription
     });
 
+    // 🔥 HARD FALLBACK FINAL (ESTABILIDAD)
+    let forcedTitle = cleanTitle;
+    let forcedDescription = finalDescription;
+
+    if (!forcedTitle || forcedTitle === normalizedTitle) {
+      forcedTitle = normalizedTitle;
+    }
+
+    if (
+      !forcedDescription ||
+      forcedDescription.includes("[object Object]") ||
+      forcedDescription.length < 50
+    ) {
+      forcedDescription = originalHTML || `<div>${forcedTitle}</div>`;
+    }
+
     return {
       ...product,
-      title: cleanTitle,
-      description: finalDescription || originalHTML,
-      seoTitle: cleanTitle,
+      title: forcedTitle,
+      description: forcedDescription,
+      seoTitle: forcedTitle,
       seoDescription: cleanSeoDescription,
       tags: dedupeTags([
         ...(product.tags || []),
-        ...((result.keywords || []).map((k) => String(k || "").trim()))
+        ...((result.keywords || []).map((k) =>
+          String(k || "").trim()
+        ))
       ])
     };
   } catch (error) {
