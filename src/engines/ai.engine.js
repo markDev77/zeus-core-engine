@@ -172,6 +172,8 @@ return cleanTitle;
   console.error("AI TITLE ERROR:", error?.response?.data || error.message);
   return title; // fallback seguro
 }
+  
+}
 
 // ==========================
 // EXPORTS
