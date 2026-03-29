@@ -44,10 +44,11 @@ Write a PRODUCT DESCRIPTION optimized for conversion and SEO.
 
 RULES:
 - Return ONLY clean HTML
+- Do NOT mention supplier, manufacturer, or origin
 - Use persuasive storytelling (vary tone)
 - Avoid generic openings
 - No exaggeration
-- Include 7–10 natural SEO keywords based on the product title
+- Include 2–3 natural SEO keywords based on the product title
 
 STRUCTURE:
 1. Context + use case
@@ -78,26 +79,33 @@ OUTPUT:
 
     const aiDescription = response.data.choices[0].message.content.trim();
 
-const cleanDescription = aiDescription
-  .replace(/```html|```/g, "")
-  .replace(/\n+/g, " ")
-  .trim();
+    const cleanDescription = aiDescription
+      .replace(/```html|```/g, "")
+      .replace(/\n+/g, " ")
+      .trim();
 
-// fallback si IA falla
-if (!cleanDescription || cleanDescription.length < 50) {
-  return description || "";
+    if (!cleanDescription || cleanDescription.length < 50) {
+      return description || "";
+    }
+
+    const safeSupplier =
+      typeof description === "string"
+        ? description.replace(/<html[\s\S]*<\/html>/gi, "")
+        : "";
+
+    const finalDescription =
+      cleanDescription + (safeSupplier ? "\n" + safeSupplier : "");
+
+    return finalDescription;
+
+  } catch (error) {
+    console.error(
+      "AI DESCRIPTION ERROR:",
+      error?.response?.data || error.message
+    );
+    return description || "";
+  }
 }
-
-// limpiar HTML basura del proveedor
-const safeSupplier = typeof description === "string"
-  ? description.replace(/<html[\s\S]*<\/html>/gi, "")
-  : "";
-
-// ✅ DECLARACIÓN CORRECTA (esto faltaba)
-const finalDescription = cleanDescription + (safeSupplier ? "\n" + safeSupplier : "");
-
-return finalDescription;
-
   
 // ==========================
 // TITLE ENGINE
