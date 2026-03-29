@@ -1,137 +1,148 @@
-// /src/engines/description.engine.js
+// /src/engines/ai.engine.js
 
-function normalize(text) {
-  return String(text || "").replace(/\s+/g, " ").trim();
+const axios = require("axios");
+
+// ==========================
+// LANGUAGE HELPERS (INLINE SAFE)
+// ==========================
+function normalizeLanguage(lang) {
+  if (!lang) return "en";
+
+  return String(lang)
+    .toLowerCase()
+    .split("-")[0]
+    .split("_")[0];
 }
 
-function detectContext(title = "", originalHtml = "") {
-  const text = `${title} ${originalHtml}`.toLowerCase();
+function getLanguageInstruction(language) {
+  const lang = normalizeLanguage(language);
 
-  if (
-    text.includes("mocas") ||
-    text.includes("zapato") ||
-    text.includes("shoe") ||
-    text.includes("loafer")
-  ) {
-    return "footwear";
+  const map = {
+    es: "Responde en español.",
+    en: "Respond in English.",
+    pt: "Responda em português."
+  };
+
+  return map[lang] || map.en;
+}
+
+// ==========================
+// DESCRIPTION (CORE IA)
+// ==========================
+async function generateAIContent({ title, category, language }) {
+  try {
+    const langInstruction = getLanguageInstruction(language);
+
+    const prompt = `
+${langInstruction}
+
+Optimize this product for ecommerce.
+
+Product:
+${title}
+
+Category:
+${category}
+
+Rules:
+- Do NOT repeat the title
+- Focus on conversion
+- Include real-life usage context (kitchen, home, office, beauty, etc.)
+- 120 to 180 words
+- Avoid generic descriptions
+- Do NOT invent technical specifications
+- Write naturally and clearly
+
+Return ONLY clean HTML using <p> and <ul>
+`;
+
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        }
+      }
+    );
+
+    return response.data.choices[0].message.content;
+
+  } catch (err) {
+    console.log("AI DESCRIPTION ERROR:", err.message);
+    return null;
   }
+}
 
-  if (
-    text.includes("salpicadura") ||
-    text.includes("baffle") ||
-    text.includes("deflector") ||
-    text.includes("kitchen")
-  ) {
-    return "splash_guard";
+// ==========================
+// TITLE (IA ENHANCEMENT CONTROLADO)
+// ==========================
+async function improveTitleWithAI({ title, language }) {
+  try {
+    const langInstruction = getLanguageInstruction(language);
+
+    const prompt = `
+${langInstruction}
+
+Improve this ecommerce product title.
+
+Rules:
+- Maximum 60 characters
+- High conversion focus
+- Clear, natural, and readable
+- Do NOT add fake features
+- Do NOT exaggerate
+- Keep original meaning
+- Avoid spammy or keyword stuffing
+- Make it attractive but realistic
+
+Original title:
+${title}
+
+Return ONLY the improved title.
+`;
+
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o-mini",
+        temperature: 0.5,
+        messages: [{ role: "user", content: prompt }]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        }
+      }
+    );
+
+    const aiTitle = response.data.choices[0].message.content.trim();
+
+    // 🔒 SAFETY FILTER
+    if (!aiTitle || aiTitle.length < 8) {
+      return title;
+    }
+
+    if (aiTitle.length > 70) {
+      return title;
+    }
+
+    return aiTitle;
+
+  } catch (err) {
+    console.log("AI TITLE ERROR:", err.message);
+    return title; // fallback crítico
   }
-
-  return "generic";
 }
 
-function buildFootwearBlock() {
-  return `
-    <div style="margin-bottom:20px;">
-      <p>
-        Diseñado para quienes buscan una opción cómoda y funcional para complementar un estilo casual o de vestir.
-        Su construcción favorece el uso diario y una presencia más cuidada.
-      </p>
-
-      <p>
-        Este modelo ofrece una apariencia versátil para oficina, reuniones, salidas o uso cotidiano.
-        Su diseño facilita la combinación con distintos outfits y aporta una imagen más pulida sin sacrificar practicidad.
-      </p>
-
-      <ul>
-        <li>Diseño ideal para uso diario o de vestir</li>
-        <li>Fácil de combinar con looks casuales o formales</li>
-        <li>Opción práctica para oficina, salidas y reuniones</li>
-        <li>Estilo cómodo y funcional</li>
-      </ul>
-
-      <p>
-        Si buscas un calzado con presencia, versatilidad y uso práctico, esta puede ser una excelente alternativa para tu catálogo.
-      </p>
-    </div>
-  `;
-}
-
-function buildSplashGuardBlock() {
-  return `
-    <div style="margin-bottom:20px;">
-      <p>
-        Accesorio práctico pensado para ayudar a contener salpicaduras y mantener una zona más limpia durante el uso diario.
-        Ideal para espacios donde se busca mayor orden y comodidad.
-      </p>
-
-      <p>
-        Su función principal es reducir el alcance de las salpicaduras y facilitar una experiencia más limpia en tareas de cocina o lavado.
-        Es una opción útil para hogares que buscan practicidad y mejor control del área de trabajo.
-      </p>
-
-      <ul>
-        <li>Ayuda a reducir salpicaduras</li>
-        <li>Útil para mantener el área más limpia</li>
-        <li>Práctico para uso diario</li>
-        <li>Fácil de integrar en espacios funcionales</li>
-      </ul>
-
-      <p>
-        Recomendado para quienes buscan una solución simple y funcional para mejorar la limpieza y el orden en su espacio.
-      </p>
-    </div>
-  `;
-}
-
-function buildGenericBlock() {
-  return `
-    <div style="margin-bottom:20px;">
-      <p>
-        Producto pensado para ofrecer funcionalidad, practicidad y una mejor experiencia de uso en el día a día.
-        Ideal para quienes buscan soluciones útiles y fáciles de integrar a su rutina.
-      </p>
-
-      <p>
-        Su diseño permite un uso cómodo y versátil en distintos contextos, ayudando a resolver necesidades cotidianas con una propuesta clara y funcional.
-      </p>
-
-      <ul>
-        <li>Diseño práctico y funcional</li>
-        <li>Fácil de usar</li>
-        <li>Ideal para uso diario</li>
-        <li>Opción útil para distintos entornos</li>
-      </ul>
-
-      <p>
-        Una alternativa pensada para quienes valoran practicidad, funcionalidad y facilidad de uso.
-      </p>
-    </div>
-  `;
-}
-
-function buildZeusDescription({ title, originalHtml }) {
-  const ctx = detectContext(title, originalHtml);
-
-  if (ctx === "footwear") return buildFootwearBlock();
-  if (ctx === "splash_guard") return buildSplashGuardBlock();
-
-  return buildGenericBlock();
-}
-
-const { buildSEOIntro } = require("./seo.engine");
-
-function buildFinalDescription({ title, originalHtml, aiBlock }) {
-
-  const zeusBlock = buildZeusDescription({ title, originalHtml });
-  const seoIntro = buildSEOIntro(title);
-
-  return `
-    ${seoIntro}
-    ${aiBlock || ""}
-    ${zeusBlock}
-    ${originalHtml || ""}
-  `;
-}
-
+// ==========================
+// EXPORTS
+// ==========================
 module.exports = {
-  buildFinalDescription
+  generateAIContent,
+  improveTitleWithAI
 };
