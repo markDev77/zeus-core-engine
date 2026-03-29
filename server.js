@@ -1735,10 +1735,11 @@ if (aiStructured) {
   translatedTitle = aiStructured.title;
 
   // 🔥 DESCRIPTION DESDE IA (bullets controlados)
-  aiBlock = aiStructured.bullets
-    .map(b => `• ${b}`)
-    .join("\n");
-}
+ aiBlock = `
+<ul>
+  ${aiStructured.bullets.map(b => `<li>${b}</li>`).join("")}
+</ul>
+`;
 
 // 🔥 DESCRIPTION
 translatedHtml = buildFinalDescription({
