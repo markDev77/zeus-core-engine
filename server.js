@@ -1734,12 +1734,29 @@ if (aiStructured) {
   // 🔥 TITLE DESDE IA
   translatedTitle = aiStructured.title;
 
-  // 🔥 DESCRIPTION DESDE IA (bullets controlados)
- aiBlock = `
+  // 🔥 INTRO SEO
+  const intro = `<p>${translatedTitle}. Producto ideal para uso diario, diseñado para ofrecer funcionalidad, comodidad y una experiencia confiable.</p>`;
+
+  // 🔥 BULLETS EN HTML (Shopify-safe)
+  const bulletsHtml = `
 <ul>
   ${aiStructured.bullets.map(b => `<li>${b}</li>`).join("")}
 </ul>
 `;
+
+  // 🔥 OUTPUT FINAL
+  aiBlock = `
+${intro}
+${bulletsHtml}
+`;
+}
+
+  // 🔥 OUTPUT FINAL
+  aiBlock = `
+${intro}
+${bulletsHtml}
+`;
+}
 
 // 🔥 DESCRIPTION
 translatedHtml = buildFinalDescription({
