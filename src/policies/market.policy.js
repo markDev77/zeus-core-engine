@@ -157,7 +157,22 @@ function extractMeaningfulLines(value) {
     .replace(/<[^>]+>/g, "\n")
     .split(/\n|\. /)
     .map((l) => l.trim())
-    .filter((l) => l.length > 20); // evita basura
+    .filter((l) => {
+      const lower = l.toLowerCase();
+
+      return (
+        l.length > 25 &&
+        !lower.includes("transforma") &&
+        !lower.includes("imagina") &&
+        !lower.includes("producto pensado") &&
+        !lower.includes("ideal para quienes") &&
+        !lower.includes("una alternativa pensada") &&
+        !lower.includes("diseñado para ofrecer") &&
+        !lower.includes("material:") &&
+        !lower.includes("categoría") &&
+        !lower.includes("product category")
+      );
+    });
 }
 
 /* -----------------------------------------
