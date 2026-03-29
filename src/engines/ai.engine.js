@@ -87,8 +87,6 @@ OUTPUT:
       return description || "";
     }
 
-    const safeSupplier = typeof description === "string" ? description : "";
-
     const safeSupplier = typeof description === "string"
   ? description.replace(/<html[\s\S]*<\/html>/gi, "")
   : "";
