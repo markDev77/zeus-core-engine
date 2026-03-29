@@ -46,6 +46,7 @@ RULES:
 - Use persuasive storytelling (vary tone, avoid templates)
 - Avoid generic openings like "Este producto", "Descubre"
 - No exaggeration or fake claims
+- Include 2–3 natural SEO keywords from the product title
 
 STRUCTURE:
 1. Context + use case
@@ -77,24 +78,23 @@ OUTPUT:
 
     const aiDescription = response.data.choices[0].message.content.trim();
 
-    const cleanDescription = aiDescription
-      .replace(/```html|```/g, "")
-      .replace(/\n+/g, " ")
-      .trim();
+    const aiDescription = response.data.choices[0].message.content.trim();
 
-    if (!cleanDescription || cleanDescription.length < 50) {
-      return description;
-    }
+const cleanDescription = aiDescription
+  .replace(/```html|```/g, "")
+  .replace(/\n+/g, " ")
+  .trim();
 
-    const finalDescription = cleanDescription + "\n" + description;
-
-    return finalDescription;
-
-  } catch (error) {
-    console.error("AI DESCRIPTION ERROR:", error?.response?.data || error.message);
-    return description;
-  }
+if (!cleanDescription || cleanDescription.length < 50) {
+  return description || "";
 }
+
+// evitar undefined
+const safeSupplier = description ? description : "";
+
+const finalDescription = cleanDescription + "\n" + safeSupplier;
+
+return finalDescription;
     
 
 // ==========================
@@ -107,24 +107,28 @@ async function improveTitleWithAI({ title, language }) {
     const prompt = `
 ${langInstruction}
 
-You are an ecommerce title optimizer.
+You are an ecommerce SEO title generator.
 
 Generate a HIGH-CONVERTING product title.
 
-RULES:
-- Return ONLY the final title
-- Maximum 60 characters
-- No symbols like "-", "|", "/", "*"
-- No keyword stuffing
-- No fake features
-- No exaggeration
-- Keep original meaning
-- Do NOT translate literally
-- Use natural ecommerce language
-- Focus on product type + key benefit
-- Make it clean, readable, and commercial
+MANDATORY STRUCTURE:
+Brand (if exists) + Product Type + Key Feature + Variant
 
-INPUT TITLE:
+RULES:
+- Max 70 characters
+- No symbols like "-", "|", "/"
+- Do NOT translate literally
+- Rewrite commercially
+- Prioritize search intent
+- Use real ecommerce keywords
+- Avoid filler words
+
+EXAMPLES:
+- Rodilleras deportivas silicona antideslizante negras
+- Conjunto lencería malla bordado floral negro S
+- Pulsera LED fluorescente ajustable para eventos
+
+INPUT:
 ${title}
 
 OUTPUT:
