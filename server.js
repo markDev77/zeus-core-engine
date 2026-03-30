@@ -1836,8 +1836,17 @@ for (const variant of realVariants) {
       error: e.response?.data || e.message
     });
   }
-}
+await consumeTokenIfAvailable(normalizedShop);
 
+console.log("✅ PRODUCT UPDATED (CLEAN PIPELINE)", { productId });
+
+return { success: true };
+
+} catch (err) {
+  console.error("❌ TRANSFORM ERROR:", err.message);
+  return { success: false };
+}
+   
 /* ==========================
    STABLE MODE
 ========================== */
