@@ -1683,9 +1683,9 @@ if (Math.random() < AI_TITLE_RATIO) {
   });
 
   const aiTitle = await improveTitleWithAI({
-    title: translatedTitle,
-    language
-  });
+  title: translatedTitle,
+  language
+});
 
   if (aiTitle && aiTitle.length > 10) {
     console.log("✅ AI TITLE APPLIED", {
