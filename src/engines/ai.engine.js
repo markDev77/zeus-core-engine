@@ -106,14 +106,27 @@ RETURN STRICT JSON:
 
     const raw = response.data.choices[0].message.content;
 
-    let parsed = null;
+    function safeParseAIResponse(raw) {
+  try {
+    const cleaned = String(raw)
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .trim();
 
-    try {
-      parsed = JSON.parse(raw);
-    } catch (e) {
-      console.log("AI JSON ERROR:", e.message);
-      return null;
-    }
+    return JSON.parse(cleaned);
+  } catch (e) {
+    console.log("AI JSON ERROR CLEANED:", e.message, {
+      rawPreview: String(raw).slice(0, 200)
+    });
+    return null;
+  }
+}
+
+parsed = safeParseAIResponse(raw);
+
+if (!parsed) {
+  return null;
+}
 
     if (!parsed || !parsed.title || !parsed.intro || !parsed.bullets) {
       return null;
