@@ -27,26 +27,7 @@ function getLanguageInstruction(language) {
 }
 
 // ==========================
-// VALIDATORS
-// ==========================
-function isBadTitle(original, generated) {
-  if (!generated) return true;
-
-  const o = original.toLowerCase().trim();
-  const g = generated.toLowerCase().trim();
-
-  return (
-    g === o ||
-    g.length < 10 ||
-    g.includes(",") ||
-    g.includes(" -") ||
-    g.endsWith("para") ||
-    g.endsWith("con")
-  );
-}
-
-// ==========================
-// AI STRUCTURED CONTENT
+// 🔥 SINGLE AI CALL (TODO EN UNO)
 // ==========================
 async function generateAIContent({ title, category, language }) {
   try {
@@ -55,29 +36,38 @@ async function generateAIContent({ title, category, language }) {
     const prompt = `
 ${langInstruction}
 
-You are a senior ecommerce copywriter.
+You are ZEUS, an ecommerce optimizer.
 
 INPUT:
-Title: ${title}
+Raw title: ${title}
 Category: ${category}
 
-GOALS:
-- Improve clarity and usability
-- Add real-life context
+TASK:
+- Translate correctly (DO NOT cut text)
+- Generate SEO title
+- Create intro
+- Create benefits
 
-STRICT RULES:
-- DO NOT rewrite the title structure
-- DO NOT change product meaning
-- NO generic phrases like "ideal para"
-- NO emotional exaggeration
+TITLE RULES:
+- Structure: product + attribute + context
+- No "ideal para", "perfecto"
+- No exaggeration
+- Clear and natural
 
-DESCRIPTION:
-- 1 short intro (2–3 lines)
-- 4–6 benefit bullets (real benefits, not features)
+DESCRIPTION RULES:
+- 1 intro (natural)
+- 4–6 benefit bullets
+- No duplication
+- No generic phrases
+
+CRITICAL:
+- Do NOT shorten the title
+- Do NOT remove meaning
 
 RETURN STRICT JSON:
+
 {
-  "title": "${title}",
+  "title": "...",
   "intro": "...",
   "bullets": ["...", "...", "..."]
 }
@@ -87,7 +77,7 @@ RETURN STRICT JSON:
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.4,
+        temperature: 0.3,
         messages: [{ role: "user", content: prompt }]
       },
       {
@@ -99,7 +89,7 @@ RETURN STRICT JSON:
 
     const raw = response.data.choices[0].message.content;
 
-    function safeParseAIResponse(raw) {
+    function safeParse(raw) {
       try {
         const cleaned = String(raw)
           .replace(/```json/gi, "")
@@ -113,9 +103,11 @@ RETURN STRICT JSON:
       }
     }
 
-    const parsed = safeParseAIResponse(raw);
+    const parsed = safeParse(raw);
 
-    if (!parsed || !parsed.intro || !parsed.bullets) {
+    if (!parsed) return null;
+
+    if (!parsed.title || !parsed.intro || !parsed.bullets) {
       return null;
     }
 
@@ -128,61 +120,10 @@ RETURN STRICT JSON:
 }
 
 // ==========================
-// TITLE IMPROVER (CRÍTICO)
+// 🔴 DESACTIVADO (NO MÁS IA EXTRA)
 // ==========================
-async function improveTitleWithAI({ title, language }) {
-  try {
-    const langInstruction = getLanguageInstruction(language);
-
-    const prompt = `
-${langInstruction}
-
-You are an ecommerce SEO optimizer.
-
-TASK:
-Refine the following product title WITHOUT changing its structure.
-
-RULES:
-- KEEP the same structure
-- DO NOT rewrite completely
-- DO NOT add phrases like "ideal para", "perfecto"
-- DO NOT change meaning
-- ONLY improve clarity and readability
-- Max 60 characters
-
-TITLE:
-${title}
-
-Return ONLY the refined title.
-`;
-
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o-mini",
-        temperature: 0.2,
-        messages: [{ role: "user", content: prompt }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-        }
-      }
-    );
-
-    const aiTitle = response.data.choices[0].message.content.trim();
-
-    // 🔒 VALIDACIÓN FUERTE
-    if (isBadTitle(title, aiTitle)) {
-      return title;
-    }
-
-    return aiTitle;
-
-  } catch (err) {
-    console.log("AI TITLE ERROR:", err.message);
-    return title;
-  }
+async function improveTitleWithAI({ title }) {
+  return title;
 }
 
 // ==========================
