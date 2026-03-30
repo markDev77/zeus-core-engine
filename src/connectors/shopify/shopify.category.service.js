@@ -1,20 +1,5 @@
-async function applyShopifyCategory({
-  shop,
-  accessToken,
-  productId,
-  productCategory,
-  apiVersion
-}) {
-  // 🔴 TEMPORALMENTE DESACTIVADO (Shopify no acepta productCategory)
-  console.log("⚠️ CATEGORY SKIPPED (unsupported by Shopify API)", {
-    shop,
-    productId,
-    productCategory
-  });
+async function applyShopifyCategory(params) {
+  console.log("🚨 CATEGORY FILE REAL EJECUTÁNDOSE 🚨");
 
   return null;
 }
-
-module.exports = {
-  applyShopifyCategory
-};
