@@ -93,7 +93,7 @@ function applyMarketRulesToDescription(description, rules = {}, context = {}) {
   result = cleanHtmlSafe(result);
 
   // SOLO aplicar si NO hay HTML estructural fuerte
-if (!result.includes("<img") && !result.includes("<table")) {
+if (!/<(img|table|div|section)/i.test(result)) {
   result = enforceSingleFormat(result, rules.descriptionStyle);
 }
 
