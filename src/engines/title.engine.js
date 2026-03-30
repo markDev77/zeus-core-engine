@@ -11,7 +11,7 @@ function cleanTitle(raw) {
     .replace(/[\[\]\(\)\{\}]/g, "")
     .replace(/\b\d+\s?(pcs|piece|set|lot)\b/gi, "")
     .replace(/\b(free shipping|hot sale|new|202\d)\b/gi, "")
-    .replace(/\b(sexy)\b/gi, "") // 🔥 quitar ruido
+    .replace(/\b(sexy|hot|fashion)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -24,59 +24,55 @@ function removeWeakWords(text) {
     .trim();
 }
 
-// 🔥 NUEVO MOTOR INTELIGENTE
-function extractComponents(title) {
+// 🔥 INTELIGENCIA CONTROLADA (SIN IA)
+function interpretAttributes(title) {
   const t = normalize(title);
+  const attributes = [];
 
-  let type = "";
-  let attribute = "";
-  let context = "";
-
-  // TYPE
-  if (t.includes("swimming") || t.includes("ban")) {
-    type = "Traje de baño";
-  } else if (t.includes("bag") || t.includes("bolsa")) {
-    type = "Bolsa";
-  } else {
-    type = title.split(" ").slice(0, 2).join(" ");
-  }
-
-  // 🔥 ATTRIBUTE INTELIGENTE
-  if (t.includes("round-hole") || t.includes("hole")) {
-    attribute += " con abertura frontal";
+  if (t.includes("round") || t.includes("hole")) {
+    attributes.push("con abertura frontal");
   }
 
   if (t.includes("necktie") || t.includes("halter")) {
-    attribute += " y tirantes tipo halter";
+    attributes.push("y tirantes tipo halter");
   }
 
-  if (t.includes("open-string")) {
-    attribute += " ajustable";
+  if (t.includes("open") || t.includes("string")) {
+    attributes.push("ajustable");
   }
 
-  attribute = attribute.trim();
-
-  // CONTEXT
-  if (t.includes("swimming") || t.includes("pool")) {
-    context = " para playa o piscina";
-  }
-
-  return {
-    type,
-    attribute,
-    context
-  };
+  return attributes.join(" ");
 }
 
-function buildSEO(parts) {
-  const { type, attribute, context } = parts;
+function detectType(title) {
+  const t = normalize(title);
 
-  let result = type;
+  if (t.includes("swimming") || t.includes("swimsuit") || t.includes("ban")) {
+    return "Traje de baño";
+  }
 
-  if (attribute) result += attribute;
-  if (context) result += context;
+  if (t.includes("bag") || t.includes("bolsa")) {
+    return "Bolsa";
+  }
 
-  return result.trim();
+  if (t.includes("lamp") || t.includes("lampara")) {
+    return "Lámpara";
+  }
+
+  return title.split(" ").slice(0, 2).join(" ");
+}
+
+function detectContext(title) {
+  const t = normalize(title);
+
+  if (t.includes("swimming") || t.includes("pool")) {
+    return "para playa o piscina";
+  }
+
+  if (t.includes("car")) return "para auto";
+  if (t.includes("home")) return "para hogar";
+
+  return "";
 }
 
 function generateTitle(rawTitle) {
@@ -86,14 +82,30 @@ function generateTitle(rawTitle) {
     let clean = cleanTitle(rawTitle);
     clean = removeWeakWords(clean);
 
-    const parts = extractComponents(clean);
+    const type = detectType(clean);
+    const attributeDetected = interpretAttributes(clean);
+    const context = detectContext(clean);
 
-    let finalTitle = buildSEO(parts);
+    // 🔥 FORZAR ATRIBUTO SI NO EXISTE
+    let attribute = attributeDetected;
 
-    if (!finalTitle || finalTitle.length < 5) {
+    if (!attribute) {
+      const words = clean.split(" ").filter(Boolean);
+      attribute = words.slice(2, 6).join(" ");
+    }
+
+    // 🔥 CONSTRUCCIÓN ZEUS
+    let finalTitle = type;
+
+    if (attribute) finalTitle += ` ${attribute}`;
+    if (context) finalTitle += ` ${context}`;
+
+    // 🔥 FALLBACK INTELIGENTE
+    if (!finalTitle || finalTitle.length < 10) {
       finalTitle = clean;
     }
 
+    // Capitalización
     finalTitle =
       finalTitle.charAt(0).toUpperCase() + finalTitle.slice(1);
 
