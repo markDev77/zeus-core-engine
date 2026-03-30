@@ -1,5 +1,3 @@
-// /src/engines/ai.engine.js
-
 const axios = require("axios");
 
 // ==========================
@@ -27,7 +25,7 @@ function getLanguageInstruction(language) {
 }
 
 // ==========================
-// 🔥 SINGLE AI CALL (TODO EN UNO)
+// 🔥 SINGLE AI CORE (MEJORADO)
 // ==========================
 async function generateAIContent({ title, category, language }) {
   try {
@@ -36,33 +34,45 @@ async function generateAIContent({ title, category, language }) {
     const prompt = `
 ${langInstruction}
 
-You are ZEUS, an ecommerce optimizer.
+You are ZEUS, an ecommerce product optimizer.
 
 INPUT:
 Raw title: ${title}
 Category: ${category}
 
 TASK:
-- Translate correctly (DO NOT cut text)
-- Generate SEO title
-- Create intro
-- Create benefits
+1. Understand the REAL product from the raw title
+2. Translate correctly (DO NOT cut text)
+3. Extract SPECIFIC attributes (shape, function, use, structure)
+4. Generate a SEO title
 
-TITLE RULES:
-- Structure: product + attribute + context
-- No "ideal para", "perfecto"
-- No exaggeration
-- Clear and natural
+TITLE RULES (CRITICAL):
+- Structure: [product type] + [specific attribute] + [usage context]
+- MUST use real attributes from the product
+- DO NOT use generic words like:
+  - moderno
+  - cómodo
+  - elegante
+  - premium
+- DO NOT invent features
+- DO NOT exaggerate
+- MUST be useful for search intent
+
+BAD EXAMPLE:
+"Traje de baño moderno y cómodo"
+
+GOOD EXAMPLE:
+"Traje de baño con tirantes ajustables para playa"
 
 DESCRIPTION RULES:
-- 1 intro (natural)
+- 1 natural intro
 - 4–6 benefit bullets
-- No duplication
 - No generic phrases
+- No repetition
 
 CRITICAL:
-- Do NOT shorten the title
-- Do NOT remove meaning
+- Do NOT shorten the original meaning
+- Do NOT lose product attributes
 
 RETURN STRICT JSON:
 
@@ -77,7 +87,7 @@ RETURN STRICT JSON:
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.3,
+        temperature: 0.2,
         messages: [{ role: "user", content: prompt }]
       },
       {
@@ -120,7 +130,7 @@ RETURN STRICT JSON:
 }
 
 // ==========================
-// 🔴 DESACTIVADO (NO MÁS IA EXTRA)
+// TITLE IMPROVER (OFF)
 // ==========================
 async function improveTitleWithAI({ title }) {
   return title;
