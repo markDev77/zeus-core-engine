@@ -1662,10 +1662,23 @@ let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html, { 
 let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
 translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
-// 🔥 TITLE ENGINE (AQUÍ VA TODO EL BLOQUE COMPLETO)
-let optimizedTitle = generateTitle(translatedTitle, {
-  language
-});
+// 🔥 1. AI PRIMERO (usa el texto REAL, no el degradado)
+let aiTitle = null;
+
+try {
+  aiTitle = await improveTitleWithAI({
+    title: translatedTitleRaw, // ← CLAVE
+    language
+  });
+} catch (e) {
+  console.log("AI title fallback:", e.message);
+}
+
+// 🔥 2. ENGINE DESPUÉS (estructura final ZEUS)
+let optimizedTitle = generateTitle(
+  aiTitle || translatedTitleRaw,
+  { language }
+);
 
 // SEO (opcional pero activo)
 optimizedTitle = injectKeywordInTitle(optimizedTitle);
