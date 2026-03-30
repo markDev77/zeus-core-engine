@@ -1671,7 +1671,7 @@ console.log("🧠 POLICY ACTIVE:", {
 });
 
 // ==========================
-// 🔥 AI TITLE (NUEVO BLOQUE)
+// 🔥 AI TITLE (CONTROLADO)
 // ==========================
 
 const AI_TITLE_RATIO = 1;
@@ -1705,9 +1705,11 @@ if (Math.random() < AI_TITLE_RATIO) {
   console.log("⏭️ AI TITLE SKIPPED (ratio)");
 }
 
+// ==========================
 // 🔥 CATEGORY
-const { resolveIntent, buildCategoryPath } = require("./src/engines/category.engine.v2");
+// ==========================
 
+const { resolveIntent, buildCategoryPath } = require("./src/engines/category.engine.v2");
 
 const intent = resolveIntent({
   title: translatedTitle,
@@ -1720,8 +1722,9 @@ const detectedCat = intent.category;
 const categoryPath = buildCategoryPath(intent);
 
 // ==========================
-// 🔥 AI STRUCTURED BLOCK (ZEUS B)
+// 🔥 AI STRUCTURED BLOCK (SOLO CONTENIDO)
 // ==========================
+
 let aiBlock = null;
 
 const aiStructured = await generateAIContent({
@@ -1731,26 +1734,26 @@ const aiStructured = await generateAIContent({
 });
 
 if (aiStructured) {
-  // 🔥 TITLE DESDE IA
-  translatedTitle = aiStructured.title;
+  // ❌ NO TOCAR TÍTULO AQUÍ (CRÍTICO)
+  // translatedTitle = aiStructured.title; ← ELIMINADO
 
-  // 🔥 INTRO SEO
-  const intro = `<p>${translatedTitle}. Producto ideal para uso diario, diseñado para ofrecer funcionalidad, comodidad y una experiencia confiable.</p>`;
-
-  // 🔥 BULLETS EN HTML (Shopify-safe)
-  const bulletsHtml = `<ul>${aiStructured.bullets.map(b => `<li>${b}</li>`).join("")}</ul>`;
-
-  // 🔥 OUTPUT FINAL
-  aiBlock = `${intro}${bulletsHtml}`;
+  // 🔥 SOLO BULLETS LIMPIOS
+  if (Array.isArray(aiStructured.bullets) && aiStructured.bullets.length) {
+    aiBlock = `<ul>${aiStructured.bullets
+      .slice(0, 6)
+      .map(b => `<li>${b}</li>`)
+      .join("")}</ul>`;
+  }
 }
 
 // 🔥 DESCRIPTION
 translatedHtml = buildFinalDescription({
   title: translatedTitle,
   originalHtml: "",
-  aiBlock
+  aiBlock,
+  language: store?.language || "en"
 });
-
+    
 // 🔥 MARKET POLICY LAYER (NO TOCAR CORE)
 
 const marketRules = getMarketRules({
