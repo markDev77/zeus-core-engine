@@ -1655,39 +1655,6 @@ const language = (store?.language || "es")
   .toLowerCase()
   .split("-")[0]
   .split("_")[0];
-const translatedTitleRaw = await translateText(realProduct.title, { language });
-let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html, { language });
-
-// 🔥 SANITIZE
-let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
-translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
-
-// 🔥 1. AI PRIMERO (usa el texto REAL, no el degradado)
-let aiTitle = null;
-
-try {
-  aiTitle = await improveTitleWithAI({
-    title: translatedTitleRaw, // ← CLAVE
-    language
-  });
-} catch (e) {
-  console.log("AI title fallback:", e.message);
-}
-
-// 🔥 2. ENGINE DESPUÉS (estructura final ZEUS)
-let optimizedTitle = generateTitle(
-  aiTitle || translatedTitleRaw,
-  { language }
-);
-
-// SEO (opcional pero activo)
-optimizedTitle = injectKeywordInTitle(optimizedTitle);
-
-// asegurar título final
-translatedTitle = ensureNonEmptyTitle(
-  optimizedTitle || translatedTitle,
-  translatedTitleRaw
-);
 
 // ==========================
 // 🔥 POLICY RESOLVE (CORRECTO)
@@ -2118,29 +2085,76 @@ async function cleanProductById(shop, access_token, productId) {
 
   await ensureMainImage(normalizedShop, access_token, productId, realProduct);
 
-  const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
+  // ==========================
+// 🔥 ZEUS TITLE + DESCRIPTION CORE (FINAL)
+// ==========================
 
-  const translatedTitleRaw = await translateText(realProduct.title);
-  let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html);
+// 🔹 STORE CONTEXT
+const store = await getStore(normalizedShop);
+const language = (store?.language || "es")
+  .toLowerCase()
+  .split("-")[0]
+  .split("_")[0];
 
-  const titleBefore = translatedTitleRaw;
-  let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
-  translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
+// 🔹 BASE INPUT
+const baseTitle = realProduct.title;
 
-  translatedTitle = ensureNonEmptyTitle(translatedTitle, titleBefore);
+// 🔹 HTML LIMPIO
+function preserveHtmlFragment(html) {
+  const $ = cheerio.load(html || "", { decodeEntities: false });
+  return $.root().children().toArray().map(node => $.html(node)).join("");
+}
 
-  await shopifyRequest(normalizedShop, {
-    method: "PUT",
-url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-    headers: { "X-Shopify-Access-Token": access_token },
-    data: {
-      product: {
-        id: productId,
-        title: translatedTitle,
-        body_html: translatedHtml
-      }
-    }
+let baseHtml = preserveHtmlFragment(realProduct.body_html);
+
+// 🔹 CONTEXTO
+const intent = resolveIntent({
+  title: baseTitle,
+  description: realProduct.body_html,
+  language,
+  vendor: realProduct.vendor
+});
+
+// 🔹 IA (ÚNICA FUENTE)
+let aiStructured = null;
+
+try {
+  aiStructured = await generateAIContent({
+    title: baseTitle,
+    category: intent.category,
+    language
   });
+} catch (e) {
+  console.log("AI content fallback:", e.message);
+}
+
+// 🔹 TITLE FINAL
+let translatedTitle = ensureNonEmptyTitle(
+  aiStructured?.title || generateTitle(baseTitle, { language }),
+  baseTitle
+);
+
+// 🔹 DESCRIPTION FINAL
+let translatedHtml = buildFinalDescription({
+  title: translatedTitle,
+  originalHtml: baseHtml,
+  aiResult: aiStructured,
+  language
+});
+
+// 🔹 UPDATE SHOPIFY (ÚNICO)
+await shopifyRequest(normalizedShop, {
+  method: "PUT",
+  url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+  headers: { "X-Shopify-Access-Token": access_token },
+  data: {
+    product: {
+      id: productId,
+      title: translatedTitle,
+      body_html: translatedHtml
+    }
+  }
+});
 
   log("Producto limpiado (CLEAN ONLY)", { shop: normalizedShop, productId });
 }
