@@ -1692,10 +1692,10 @@ let aiStructured = null;
 if (USE_SINGLE_AI) {
 
   aiStructured = await generateAIContent({
-    title: translatedTitle,
-    category: detectedCat,
-    language
-  });
+  title: translatedTitle,
+  category: null,
+  language
+});
 
   if (aiStructured?.title && aiStructured.title.length > 10) {
     translatedTitle = aiStructured.title
