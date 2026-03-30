@@ -1833,21 +1833,6 @@ for (const variant of realVariants) {
   }
 }
 
-// ==========================
-// TOKEN CONSUMPTION
-// ==========================
-await consumeTokenIfAvailable(normalizedShop);
-
-console.log("✅ PRODUCT UPDATED (CLEAN PIPELINE)", { productId });
-
-return { success: true };
-
-} catch (err) {
-  console.error("❌ TRANSFORM ERROR:", err.message);
-  return { success: false };
-}
-}
-
 /* ==========================
    STABLE MODE
 ========================== */
