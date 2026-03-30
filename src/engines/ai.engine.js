@@ -25,7 +25,7 @@ function getLanguageInstruction(language) {
 }
 
 // ==========================
-// 🔥 SINGLE AI CORE (MEJORADO)
+// 🔥 SINGLE AI CORE (CONTROL SEMÁNTICO)
 // ==========================
 async function generateAIContent({ title, category, language }) {
   try {
@@ -34,45 +34,48 @@ async function generateAIContent({ title, category, language }) {
     const prompt = `
 ${langInstruction}
 
-You are ZEUS, an ecommerce product optimizer.
+You are ZEUS, an ecommerce optimizer.
 
 INPUT:
 Raw title: ${title}
 Category: ${category}
 
 TASK:
-1. Understand the REAL product from the raw title
-2. Translate correctly (DO NOT cut text)
-3. Extract SPECIFIC attributes (shape, function, use, structure)
-4. Generate a SEO title
+1. Translate the title correctly (DO NOT cut or shorten)
+2. Identify ONLY explicit attributes from the original text
+3. Build a SEO title using ONLY real information
 
-TITLE RULES (CRITICAL):
-- Structure: [product type] + [specific attribute] + [usage context]
-- MUST use real attributes from the product
-- DO NOT use generic words like:
-  - moderno
-  - cómodo
-  - elegante
-  - premium
-- DO NOT invent features
-- DO NOT exaggerate
-- MUST be useful for search intent
+CRITICAL RULES (MANDATORY):
 
-BAD EXAMPLE:
-"Traje de baño moderno y cómodo"
+- DO NOT invent attributes
+- DO NOT assume features
+- DO NOT guess product type beyond text
+- DO NOT add context not present in title
+- DO NOT use generic words:
+  moderno, cómodo, elegante, premium
 
-GOOD EXAMPLE:
-"Traje de baño con tirantes ajustables para playa"
+- ONLY use what is explicitly written in the original title
+- If information is unclear → KEEP IT SIMPLE, DO NOT GUESS
+
+TITLE STRUCTURE:
+[product type] + [real attribute] + [optional context if explicitly present]
+
+BAD:
+"Traje de baño tropical para piscina" (if "tropical" is not in input)
+
+GOOD:
+"Traje de baño con tirantes y abertura frontal"
+
+---
 
 DESCRIPTION RULES:
-- 1 natural intro
+- 1 short intro (natural, not generic)
 - 4–6 benefit bullets
-- No generic phrases
-- No repetition
+- NO repetition
+- NO generic phrases
+- DO NOT invent specs
 
-CRITICAL:
-- Do NOT shorten the original meaning
-- Do NOT lose product attributes
+---
 
 RETURN STRICT JSON:
 
@@ -87,7 +90,7 @@ RETURN STRICT JSON:
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.2,
+        temperature: 0.1,
         messages: [{ role: "user", content: prompt }]
       },
       {
