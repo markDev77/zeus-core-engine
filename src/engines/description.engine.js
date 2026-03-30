@@ -108,8 +108,57 @@ function extractNarrativeLines(lines = []) {
   });
 }
 
-function buildIntro(title) {
-  return `<p><strong>${title}</strong>. Una opción pensada para combinar funcionalidad, practicidad y una mejor experiencia de uso en el día a día, adaptándose a distintos contextos de uso personal, hogar, viaje o rutina diaria.</p>`;
+// ==========================
+// 🔥 NUEVO INTRO DINÁMICO
+// ==========================
+function buildIntro(title, language = "en") {
+  const isES = language.startsWith("es");
+
+  return isES
+    ? `<p><strong>${title}</strong>. Diseñado para ofrecer funcionalidad real y facilidad de uso en el día a día.</p>`
+    : `<p><strong>${title}</strong>. Designed to deliver practical functionality and ease of use in everyday situations.</p>`;
+}
+
+// ==========================
+// 🔥 BULLETS CONTROLADOS POR IDIOMA
+// ==========================
+function buildFallbackBullets(title, plainText = "", language = "en") {
+  const isES = language.startsWith("es");
+
+  const text = `${title} ${plainText}`.toLowerCase();
+  const bullets = [];
+
+  if (text.includes("usb")) {
+    bullets.push(isES ? "Funciona mediante conexión USB." : "Works via USB connection.");
+  }
+
+  if (text.includes("portable")) {
+    bullets.push(isES ? "Diseño portátil fácil de transportar." : "Portable design for easy transport.");
+  }
+
+  if (text.includes("travel") || text.includes("viaje")) {
+    bullets.push(isES ? "Adecuado para uso en casa, oficina o viaje." : "Suitable for home, office, or travel use.");
+  }
+
+  if (!bullets.length) {
+    bullets.push(
+      isES
+        ? "Uso práctico en distintos escenarios."
+        : "Practical use across different scenarios."
+    );
+
+    bullets.push(
+      isES
+        ? "Diseño funcional y fácil de usar."
+        : "Functional and easy-to-use design."
+    );
+  }
+
+  return `
+<ul>
+  ${bullets.slice(0, 5).map((b) => `<li>${b}</li>`).join("")}
+</ul>
+`.trim();
 }
 
 function hasLeadParagraph(aiBlock = "") {
@@ -156,56 +205,20 @@ function buildMediaSection(imageTags = []) {
 `.trim();
 }
 
-function buildFallbackBullets(title, plainText) {
-  const text = `${title} ${plainText}`.toLowerCase();
-
-  const bullets = [];
-
-  if (text.includes("usb")) bullets.push("Funciona con carga USB para mayor practicidad.");
-  if (text.includes("portable") || text.includes("portátil")) bullets.push("Diseño portátil fácil de llevar a cualquier lugar.");
-  if (text.includes("travel") || text.includes("viaje")) bullets.push("Ideal para uso diario, oficina o viajes.");
-  if (text.includes("hair") || text.includes("cabello") || text.includes("rizador") || text.includes("plancha")) {
-    bullets.push("Pensado para facilitar el peinado en poco tiempo.");
-  }
-  if (text.includes("storage") || text.includes("alimentos") || text.includes("food")) {
-    bullets.push("Ayuda a organizar y transportar alimentos con mayor comodidad.");
-  }
-
-  if (!bullets.length) {
-    bullets.push("Diseño funcional pensado para un uso práctico y cotidiano.");
-    bullets.push("Formato cómodo y fácil de integrar en tu rutina diaria.");
-  }
-
-  return `
-<ul>
-  ${bullets.slice(0, 5).map((b) => `<li>${b}</li>`).join("")}
-</ul>
-`.trim();
-}
-
-function buildFinalDescription({ title, originalHtml, aiBlock }) {
+// ==========================
+// 🔥 FINAL BUILDER (AJUSTADO)
+// ==========================
+function buildFinalDescription({ title, originalHtml, aiBlock, language = "en" }) {
   const safeOriginal = stripOuterWrappers(originalHtml || "");
 
-  // 🔒 NO tocar HTML original (CRÍTICO)
   const hasHtml = safeOriginal.includes("<img");
 
-  // ==========================
-  // 🔥 INTRO SEO
-  // ==========================
-  const intro = `
-<p><strong>${title}</strong>. Diseñado para ofrecer una solución práctica, funcional y adaptable a diferentes situaciones del día a día, combinando comodidad, eficiencia y facilidad de uso.</p>
-`.trim();
+  const intro = buildIntro(title, language);
 
-  // ==========================
-  // 🔥 BLOQUE IA
-  // ==========================
   const aiSection = normalize(aiBlock || "")
     ? aiBlock.trim()
-    : buildFallbackBullets(title, "");
+    : buildFallbackBullets(title, "", language);
 
-  // ==========================
-  // 🔥 OUTPUT FINAL
-  // ==========================
   if (hasHtml) {
     return `
 ${intro}
@@ -222,3 +235,7 @@ ${intro}
 ${aiSection}
 `.trim();
 }
+
+module.exports = {
+  buildFinalDescription
+};
