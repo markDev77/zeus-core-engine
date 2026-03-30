@@ -1528,30 +1528,30 @@ function isDuplicateExecution(shop, productId) {
 async function transformProductById(shop, access_token, productId) {
   const normalizedShop = normalizeShopDomain(shop);
 
-  const store = await getStore(shop);
+  const store = await getStore(normalizedShop);
 
   if (!store) {
-    console.log("⛔ HARD BLOCK - STORE NOT FOUND", { shop });
+    console.log("⛔ HARD BLOCK - STORE NOT FOUND", { shop: normalizedShop });
     return { success: false, hard_block: true };
   }
 
   if (String(store.status).toLowerCase() !== "active") {
-    console.log("⛔ HARD BLOCK - STORE INACTIVE", { shop });
+    console.log("⛔ HARD BLOCK - STORE INACTIVE", { shop: normalizedShop });
     return { success: false, hard_block: true };
   }
 
   const remaining =
-  (Number(store.tokens) || 0) - (Number(store.tokens_used) || 0);
+    (Number(store.tokens) || 0) - (Number(store.tokens_used) || 0);
 
-if (remaining <= 0) {
-  console.log("⛔ HARD BLOCK WEBHOOK - NO TOKENS", {
-    shop,
-    tokens: store.tokens,
-    used: store.tokens_used,
-    remaining
-  });
-  return;
-}
+  if (remaining <= 0) {
+    console.log("⛔ HARD BLOCK WEBHOOK - NO TOKENS", {
+      shop: normalizedShop,
+      tokens: store.tokens,
+      used: store.tokens_used,
+      remaining
+    });
+    return;
+  }
 
   try {
     await sleep(PRODUCT_CREATE_WARMUP_MS);
@@ -1564,6 +1564,10 @@ if (remaining <= 0) {
 
     const realProduct = freshProduct.data.product;
     const realVariants = Array.isArray(realProduct?.variants) ? realProduct.variants : [];
+
+    // ==========================
+    // VALIDACIONES EXISTENTES (NO TOCAR)
+    // ==========================
 
     const invalidSkus = realVariants
       .map((v) => (v?.sku || "").trim())
@@ -1642,19 +1646,119 @@ if (remaining <= 0) {
         sigTag
       });
 
-return { success: false, reason: "duplicate" };
+      return { success: false, reason: "duplicate" };
+    }
+
+    // ==========================
+    // 🔥 NUEVO PIPELINE LIMPIO
+    // ==========================
+
+    const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
+
+    const language = (store?.language || "es")
+      .toLowerCase()
+      .split("-")[0]
+      .split("_")[0];
+
+    // 🔹 TRANSLATION
+    const translatedTitleRaw = await translateText(realProduct.title || "", { language });
+    let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html || "", { language });
+
+    // 🔹 SANITIZE
+    let cleanTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
+    cleanTitle = ensureNonEmptyTitle(cleanTitle, realProduct.title);
+
+    translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
+
+    // 🔹 SINGLE AI CALL
+    const aiResult = await generateAIContent({
+      title: cleanTitle,
+      description: translatedHtml,
+      language
+    });
+
+    if (aiResult?.title && aiResult.title.length > 10) {
+      cleanTitle = aiResult.title;
+    }
+
+    const finalDescription = buildFinalDescription({
+      title: cleanTitle,
+      originalHtml: translatedHtml,
+      aiResult,
+      language
+    });
+
+    // 🔹 CATEGORY
+    const { resolveIntent, buildCategoryPath } = require("./src/engines/category.engine.v2");
+
+    const intent = resolveIntent({
+      title: cleanTitle,
+      description: realProduct.body_html,
+      language,
+      vendor: realProduct.vendor
+    });
+
+    const categoryPath = buildCategoryPath(intent);
+
+    // 🔹 TAGS
+    const tags = buildTagSetFromProduct(realProduct, [
+      intent.category,
+      categoryPath,
+      "ZEUS"
+    ]).join(",");
+
+    // 🔹 SINGLE SOURCE OF TRUTH
+    const payload = buildShopifyPayload({
+      product: realProduct,
+      optimized: {
+        title: cleanTitle,
+        body_html: finalDescription,
+        tags
+      },
+      intent,
+      policyOutput: {
+        vendor: "UsaDrop"
+      },
+      clientRules: null
+    });
+
+    // 🔹 SINGLE UPDATE
+    await shopifyRequest(normalizedShop, {
+      method: "PUT",
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+      headers: { "X-Shopify-Access-Token": access_token },
+      data: {
+        product: {
+          id: productId,
+          title: payload.title,
+          body_html: payload.body_html,
+          tags: payload.tags,
+          vendor: payload.vendor,
+          product_category: payload.product_category,
+          status: "active"
+        }
+      }
+    });
+
+    await applyShopifyCategory({
+      shop: normalizedShop,
+      accessToken: access_token,
+      productId,
+      productCategory: payload.product_category,
+      apiVersion: PRODUCT_API_VERSION
+    });
+
+    await consumeTokenIfAvailable(normalizedShop);
+
+    console.log("✅ PRODUCT UPDATED (CLEAN PIPELINE)", { productId });
+
+    return { success: true };
+
+  } catch (err) {
+    console.error("❌ TRANSFORM ERROR:", err.message);
+    return { success: false };
+  }
 }
-
-// 🔥 POLICY LAYER
-
-const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
-
-// 🔥 TRANSLATION
-const store = await getStore(normalizedShop);
-const language = (store?.language || "es")
-  .toLowerCase()
-  .split("-")[0]
-  .split("_")[0];
 
 // ==========================
 // 🔥 POLICY RESOLVE (CORRECTO)
@@ -1960,92 +2064,13 @@ return { success: true };
 ========================== */
 
 async function transformProductStableById(shop, access_token, productId) {
-  const normalizedShop = normalizeShopDomain(shop);
-
-  const freshProduct = await shopifyRequest(normalizedShop, {
-    method: "GET",
-    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-    headers: { "X-Shopify-Access-Token": access_token }
+  console.log("⚠️ DISABLED: transformProductStableById", {
+    shop,
+    productId
   });
 
-  const realProduct = freshProduct.data.product;
-  const realVariants = Array.isArray(realProduct?.variants) ? realProduct.variants : [];
-
-  const invalidSkus = realVariants
-    .map((v) => (v?.sku || "").trim())
-    .filter((sku) => sku && !isValidUsadropSku(sku));
-
-  if (invalidSkus.length) {
-    await shopifyRequest(normalizedShop, {
-      method: "PUT",
-      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": access_token },
-      data: {
-        product: {
-          id: productId,
-          status: "draft",
-          tags: buildTagSetFromProduct(realProduct, ["ORIGIN_NOT_AUTHORIZED"]).join(", ")
-        }
-      }
-    });
-    log("Producto bloqueado por ORIGEN AUTORIZADO (SKU inválido)", {
-      shop: normalizedShop,
-      productId,
-      invalidSkus: invalidSkus.slice(0, 10)
-    });
-    return;
-  }
-
-  if (isBlockedProduct(realProduct.title, realProduct.body_html)) {
-    await shopifyRequest(normalizedShop, {
-      method: "PUT",
-      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
-      headers: { "X-Shopify-Access-Token": access_token },
-      data: {
-        product: {
-          id: productId,
-          status: "draft",
-          tags: buildTagSetFromProduct(realProduct, ["BLOCKED_BY_POLICY"]).join(", ")
-        }
-      }
-    });
-
-    log("Producto bloqueado por política marketplace (STABLE)", {
-      shop: normalizedShop,
-      productId,
-      title: realProduct.title
-    });
-    return;
-  }
-
-  await ensureMainImage(normalizedShop, access_token, productId, realProduct);
-
-  const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
-
-  const translatedTitleRaw = await translateText(realProduct.title);
-  let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html);
-
-  const titleBefore = translatedTitleRaw;
-
-let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
-translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
-
-translatedTitle = ensureNonEmptyTitle(translatedTitle, titleBefore);
-
-// 🔥 2. AI BLOCK (ÚNICA VEZ)
-let aiBlock = null;
-
-if (policy.description_mode === "hybrid") {
-  aiBlock = await generateAIContent({
-    title: translatedTitle,
-    category: detectedCat,
-    language
-  });
+  return { success: false, disabled: true };
 }
-
-  log("Producto transformado (STABLE)", { shop: normalizedShop, productId });
-}
-
 /* ==========================
    CLEAN ONLY
 ========================== */
