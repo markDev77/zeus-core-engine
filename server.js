@@ -1632,7 +1632,10 @@ const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html
 
 // 🔥 TRANSLATION
 const store = await getStore(normalizedShop);
-const language = store?.language || "es";
+const language = (store?.language || "es")
+  .toLowerCase()
+  .split("-")[0]
+  .split("_")[0];
 const translatedTitleRaw = await translateText(realProduct.title, { language });
 let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html, { language });
 
@@ -1748,9 +1751,9 @@ if (aiStructured) {
 // 🔥 DESCRIPTION
 translatedHtml = buildFinalDescription({
   title: translatedTitle,
-  originalHtml: translatedHtml, // ✅ AQUÍ ESTÁ EL FIX REAL
-  aiResult: aiStructured,       // ✅ alineado a nuevo engine
-  language: store?.language || "en"
+  originalHtml: translatedHtml, // ✅ FIX REAL
+  aiResult: aiStructured,       // (si ya migraste)
+  language
 });
     
 // 🔥 MARKET POLICY LAYER (NO TOCAR CORE)
