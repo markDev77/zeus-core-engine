@@ -1787,11 +1787,6 @@ if (Math.random() < AI_TITLE_RATIO) {
     originalTitle: translatedTitle
   });
 
-  const aiTitle = await improveTitleWithAI({
-  title: translatedTitle,
-  language
-});
-
   if (aiTitle && aiTitle.length > 10) {
     console.log("✅ AI TITLE APPLIED", {
       before: translatedTitle,
@@ -1825,18 +1820,6 @@ const intent = resolveIntent({
 
 const detectedCat = intent.category;
 const categoryPath = buildCategoryPath(intent);
-
-// ==========================
-// 🔥 AI STRUCTURED BLOCK (SOLO CONTENIDO)
-// ==========================
-
-let aiBlock = null;
-
-const aiStructured = await generateAIContent({
-  title: translatedTitle,
-  category: detectedCat,
-  language
-});
 
 if (aiStructured) {
   // ❌ NO TOCAR TÍTULO AQUÍ (CRÍTICO)
