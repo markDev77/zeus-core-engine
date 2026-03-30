@@ -1739,7 +1739,6 @@ async function transformProductById(shop, access_token, productId) {
           body_html: payload.body_html,
           tags: payload.tags,
           vendor: payload.vendor,
-          product_category: payload.product_category,
           status: "active"
         }
       }
