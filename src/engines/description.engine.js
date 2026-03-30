@@ -214,6 +214,13 @@ function buildFinalDescription({
   aiResult,
   language = "en"
 }) {
+console.log("🔥🔥🔥 DESCRIPTION ENGINE EXECUTING 🔥🔥🔥", {
+    hasOriginalHtml: !!originalHtml,
+    originalHtmlLength: String(originalHtml || "").length,
+    hasImg: String(originalHtml || "").includes("<img"),
+    hasAI: !!aiResult
+  });
+  
   // ==========================
   // 🔹 INTRO (NO PLANTILLA)
   // ==========================
