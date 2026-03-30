@@ -9,19 +9,24 @@ const {
   OPENAI_API_KEY
 } = process.env;
 const express = require("express");
-const { generateAIContent, improveTitleWithAI } = require("./src/engines/ai.engine");
+const { generateAIContent } = require("./src/engines/ai.engine");
+
 console.log("🤖 AI TITLE READY");
 console.log("🔥 ZEUS DB URL:", process.env.DATABASE_URL);
+
 const { Pool } = require("pg");
 const crypto = require("crypto");
 const axios = require("axios");
+
 const { buildShopifyPayload } = require("./src/connectors/shopify/shopify.payload.builder");
 const { applyShopifyCategory } = require("./src/connectors/shopify/shopify.category.service");
-const { generateAIContent } = require("./src/engines/ai.engine");
+
 const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
+
 const { resolvePolicy } = require("./src/policies/policy.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
+
 const {
   getMarketRules,
   applyMarketRulesToTitle,
