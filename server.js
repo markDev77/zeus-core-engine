@@ -1641,10 +1641,9 @@ let translatedTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHin
 translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
 // 🔥 TITLE ENGINE (AQUÍ VA TODO EL BLOQUE COMPLETO)
-let optimizedTitle = generateTitle(translatedTitle);
-
-// contexto negocio
-optimizedTitle = improveTitleWithContext(optimizedTitle);
+let optimizedTitle = generateTitle(translatedTitle, {
+  language
+});
 
 // SEO (opcional pero activo)
 optimizedTitle = injectKeywordInTitle(optimizedTitle);
