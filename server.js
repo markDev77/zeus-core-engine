@@ -1258,7 +1258,7 @@ Devuelve SOLO el texto traducido completo.
         ]
       },
       {
-        headers: { Authorization: \`Bearer \${OPENAI_API_KEY}\` }
+    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
       }
     );
 
