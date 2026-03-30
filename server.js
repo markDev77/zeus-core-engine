@@ -1748,8 +1748,8 @@ if (aiStructured) {
 // 🔥 DESCRIPTION
 translatedHtml = buildFinalDescription({
   title: translatedTitle,
-  originalHtml: "",
-  aiBlock,
+  originalHtml: translatedHtml, // ✅ AQUÍ ESTÁ EL FIX REAL
+  aiResult: aiStructured,       // ✅ alineado a nuevo engine
   language: store?.language || "en"
 });
     
