@@ -1740,24 +1740,112 @@ async function transformProductById(shop, access_token, productId) {
       }
     });
 
-    await applyShopifyCategory({
-      shop: normalizedShop,
-      accessToken: access_token,
-      productId,
-      productCategory: payload.product_category,
-      apiVersion: PRODUCT_API_VERSION
+await applyShopifyCategory({
+  shop: normalizedShop,
+  accessToken: access_token,
+  productId,
+  productCategory: payload.product_category,
+  apiVersion: PRODUCT_API_VERSION
+});
+
+// ==========================
+// RESOLVE LOCATION (SHOPIFY)
+// ==========================
+let locationId = null;
+
+try {
+  const locationsResp = await shopifyRequest(normalizedShop, {
+    method: "GET",
+    url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/locations.json`,
+    headers: { "X-Shopify-Access-Token": access_token }
+  });
+
+  const locations = locationsResp?.data?.locations || [];
+
+  if (locations.length > 0) {
+    locationId = locations[0].id;
+  }
+} catch (e) {
+  console.log("❌ LOCATION FETCH ERROR", e.message);
+}
+
+// ==========================
+// INVENTARIO FIJO (USADROP POLICY)
+// ==========================
+if (locationId) {
+  for (const variant of realVariants) {
+    if (!variant.inventory_item_id) continue;
+
+    try {
+      await shopifyRequest(normalizedShop, {
+        method: "POST",
+        url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/inventory_levels/set.json`,
+        headers: { "X-Shopify-Access-Token": access_token },
+        data: {
+          location_id: locationId,
+          inventory_item_id: variant.inventory_item_id,
+          available: 11
+        }
+      });
+    } catch (e) {
+      console.log("❌ INVENTORY ERROR", {
+        variantId: variant.id,
+        error: e.response?.data || e.message
+      });
+    }
+  }
+} else {
+  console.log("⚠️ INVENTORY SKIPPED - NO LOCATION FOUND", {
+    shop: normalizedShop,
+    productId
+  });
+}
+
+// ==========================
+// PRICE UPDATE (USADROP POLICY)
+// ==========================
+for (const variant of realVariants) {
+  if (!variant.id) continue;
+
+  try {
+    const basePrice = Number(variant.price || 0);
+    if (!basePrice) continue;
+
+    const finalPrice = basePrice;
+
+    await shopifyRequest(normalizedShop, {
+      method: "PUT",
+      url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
+      headers: { "X-Shopify-Access-Token": access_token },
+      data: {
+        variant: {
+          id: variant.id,
+          price: finalPrice
+        }
+      }
     });
 
-    await consumeTokenIfAvailable(normalizedShop);
-
-    console.log("✅ PRODUCT UPDATED (CLEAN PIPELINE)", { productId });
-
-    return { success: true };
-
-  } catch (err) {
-    console.error("❌ TRANSFORM ERROR:", err.message);
-    return { success: false };
+  } catch (e) {
+    console.log("❌ PRICE ERROR", {
+      variantId: variant.id,
+      error: e.response?.data || e.message
+    });
   }
+}
+
+// ==========================
+// TOKEN CONSUMPTION
+// ==========================
+await consumeTokenIfAvailable(normalizedShop);
+
+console.log("✅ PRODUCT UPDATED (CLEAN PIPELINE)", { productId });
+
+return { success: true };
+
+} catch (err) {
+  console.error("❌ TRANSFORM ERROR:", err.message);
+  return { success: false };
+}
 }
 
 /* ==========================
