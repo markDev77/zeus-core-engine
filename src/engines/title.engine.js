@@ -11,6 +11,7 @@ function cleanTitle(raw) {
     .replace(/[\[\]\(\)\{\}]/g, "")
     .replace(/\b\d+\s?(pcs|piece|set|lot)\b/gi, "")
     .replace(/\b(free shipping|hot sale|new|202\d)\b/gi, "")
+    .replace(/\b(sexy)\b/gi, "") // 🔥 quitar ruido
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -23,7 +24,7 @@ function removeWeakWords(text) {
     .trim();
 }
 
-// 🔥 FIX REAL (SIN TRUNCAMIENTO)
+// 🔥 NUEVO MOTOR INTELIGENTE
 function extractComponents(title) {
   const t = normalize(title);
 
@@ -31,34 +32,33 @@ function extractComponents(title) {
   let attribute = "";
   let context = "";
 
-  const words = title.split(" ").filter(Boolean);
-
   // TYPE
-  if (t.includes("bag") || t.includes("bolsa") || t.includes("mochila")) {
+  if (t.includes("swimming") || t.includes("ban")) {
+    type = "Traje de baño";
+  } else if (t.includes("bag") || t.includes("bolsa")) {
     type = "Bolsa";
-  } else if (t.includes("lamp") || t.includes("lampara")) {
-    type = "Lámpara";
-  } else if (t.includes("massager") || t.includes("masaje")) {
-    type = "Masajeador";
-  } else if (t.includes("chair") || t.includes("silla")) {
-    type = "Silla";
   } else {
-    // 🔥 fallback: primeras 2 palabras (no 1 sola)
-    type = words.slice(0, 2).join(" ");
+    type = title.split(" ").slice(0, 2).join(" ");
   }
 
-  // 🔥 ATTRIBUTE (SIN CORTAR A 3 PALABRAS)
-  if (words.length > 2) {
-    attribute = words.slice(2).join(" "); // ← aquí está el FIX real
+  // 🔥 ATTRIBUTE INTELIGENTE
+  if (t.includes("round-hole") || t.includes("hole")) {
+    attribute += " con abertura frontal";
   }
+
+  if (t.includes("necktie") || t.includes("halter")) {
+    attribute += " y tirantes tipo halter";
+  }
+
+  if (t.includes("open-string")) {
+    attribute += " ajustable";
+  }
+
+  attribute = attribute.trim();
 
   // CONTEXT
-  if (t.includes("car") || t.includes("auto")) {
-    context = "para auto";
-  } else if (t.includes("home") || t.includes("casa")) {
-    context = "para hogar";
-  } else if (t.includes("portable")) {
-    context = "portátil";
+  if (t.includes("swimming") || t.includes("pool")) {
+    context = " para playa o piscina";
   }
 
   return {
@@ -68,23 +68,18 @@ function extractComponents(title) {
   };
 }
 
-function buildSEO(titleParts) {
-  const { type, attribute, context } = titleParts;
+function buildSEO(parts) {
+  const { type, attribute, context } = parts;
 
   let result = type;
 
-  if (attribute) {
-    result += ` ${attribute}`;
-  }
-
-  if (context) {
-    result += ` ${context}`;
-  }
+  if (attribute) result += attribute;
+  if (context) result += context;
 
   return result.trim();
 }
 
-function generateTitle(rawTitle, options = {}) {
+function generateTitle(rawTitle) {
   try {
     if (!rawTitle) return "";
 
