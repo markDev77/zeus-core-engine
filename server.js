@@ -2027,6 +2027,24 @@ const finalPrice = policy.resolvePricing({
   }
 }
 
+/ 🔥 SINGLE PRODUCT UPDATE (CRÍTICO)
+await shopifyRequest(normalizedShop, {
+  method: "PUT",
+  url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/products/${productId}.json`,
+  headers: { "X-Shopify-Access-Token": access_token },
+  data: {
+    product: {
+      id: productId,
+      title: cleanTitle,
+      body_html: finalDescription,
+      tags: tags,
+      vendor: "UsaDrop",
+      product_category: categoryPath,
+      status: "active"
+    }
+  }
+});
+
 // 🔥 LOG FINAL REAL (ÚNICO)
 log("Producto transformado (FULL)", {
   shop: normalizedShop,
