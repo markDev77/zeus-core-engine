@@ -71,8 +71,11 @@ function applyMarketRulesToDescription(description, rules = {}, context = {}) {
 
   // 🔥 PRIORIDAD AI (NO TOCAR HTML)
   if (rules.description_source === "ai" && aiBlock) {
-    return aiBlock;
-  }
+  return `
+    ${description}
+    ${aiBlock}
+  `;
+}
 
   if (!description) return "";
 
@@ -89,7 +92,10 @@ function applyMarketRulesToDescription(description, rules = {}, context = {}) {
   // ⚠️ SOLO LIMPIA HTML SUPERIOR (NO IMÁGENES)
   result = cleanHtmlSafe(result);
 
+  // SOLO aplicar si NO hay HTML estructural fuerte
+if (!result.includes("<img") && !result.includes("<table")) {
   result = enforceSingleFormat(result, rules.descriptionStyle);
+}
 
   if (rules.cta) {
     result = appendCTA(result, rules.cta);
