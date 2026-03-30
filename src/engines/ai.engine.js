@@ -27,7 +27,7 @@ function getLanguageInstruction(language) {
 }
 
 // ==========================
-// VALIDATORS (CLAVE)
+// VALIDATORS
 // ==========================
 function isBadTitle(original, generated) {
   if (!generated) return true;
@@ -37,7 +37,7 @@ function isBadTitle(original, generated) {
 
   return (
     g === o ||
-    g.length < 20 ||
+    g.length < 10 ||
     g.includes(",") ||
     g.includes(" -") ||
     g.endsWith("para") ||
@@ -46,7 +46,7 @@ function isBadTitle(original, generated) {
 }
 
 // ==========================
-// AI STRUCTURED (ZEUS GTM)
+// AI STRUCTURED CONTENT
 // ==========================
 async function generateAIContent({ title, category, language }) {
   try {
@@ -55,38 +55,31 @@ async function generateAIContent({ title, category, language }) {
     const prompt = `
 ${langInstruction}
 
-You are a senior ecommerce conversion copywriter.
-
-Rewrite this product to maximize conversion and SEO.
+You are a senior ecommerce copywriter.
 
 INPUT:
 Title: ${title}
 Category: ${category}
 
 GOALS:
-- Make it attractive and sellable
-- Improve clarity and intent
-- Add real-life usage context
+- Improve clarity and usability
+- Add real-life context
 
-TITLE RULES:
-- Max 70 characters
-- Must be DIFFERENT from original
-- No symbols like "-" or "," at the end
-- Include main keyword + benefit
-- Natural, not robotic
+STRICT RULES:
+- DO NOT rewrite the title structure
+- DO NOT change product meaning
+- NO generic phrases like "ideal para"
+- NO emotional exaggeration
 
-DESCRIPTION RULES:
-- Start with a persuasive paragraph (2–3 lines)
-- Then 4–6 benefit-driven bullet points
-- Avoid generic phrases like "ideal para uso diario"
-- Focus on real benefits
-- Do NOT invent specs
+DESCRIPTION:
+- 1 short intro (2–3 lines)
+- 4–6 benefit bullets (real benefits, not features)
 
 RETURN STRICT JSON:
 {
-  "title": "...",
+  "title": "${title}",
   "intro": "...",
-  "bullets": ["...", "...", "...", "..."]
+  "bullets": ["...", "...", "..."]
 }
 `;
 
@@ -94,7 +87,7 @@ RETURN STRICT JSON:
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.7,
+        temperature: 0.4,
         messages: [{ role: "user", content: prompt }]
       },
       {
@@ -107,34 +100,23 @@ RETURN STRICT JSON:
     const raw = response.data.choices[0].message.content;
 
     function safeParseAIResponse(raw) {
-  try {
-    const cleaned = String(raw)
-      .replace(/```json/gi, "")
-      .replace(/```/g, "")
-      .trim();
+      try {
+        const cleaned = String(raw)
+          .replace(/```json/gi, "")
+          .replace(/```/g, "")
+          .trim();
 
-    return JSON.parse(cleaned);
-  } catch (e) {
-    console.log("AI JSON ERROR CLEANED:", e.message, {
-      rawPreview: String(raw).slice(0, 200)
-    });
-    return null;
-  }
-}
-
-parsed = safeParseAIResponse(raw);
-
-if (!parsed) {
-  return null;
-}
-
-    if (!parsed || !parsed.title || !parsed.intro || !parsed.bullets) {
-      return null;
+        return JSON.parse(cleaned);
+      } catch (e) {
+        console.log("AI JSON ERROR:", e.message);
+        return null;
+      }
     }
 
-    // 🔥 VALIDACIÓN DE TÍTULO
-    if (isBadTitle(title, parsed.title)) {
-      parsed.title = title;
+    const parsed = safeParseAIResponse(raw);
+
+    if (!parsed || !parsed.intro || !parsed.bullets) {
+      return null;
     }
 
     return parsed;
@@ -146,7 +128,7 @@ if (!parsed) {
 }
 
 // ==========================
-// TITLE IMPROVER (fallback)
+// TITLE IMPROVER (CRÍTICO)
 // ==========================
 async function improveTitleWithAI({ title, language }) {
   try {
@@ -155,25 +137,30 @@ async function improveTitleWithAI({ title, language }) {
     const prompt = `
 ${langInstruction}
 
-Improve this product title for ecommerce conversion.
+You are an ecommerce SEO optimizer.
 
-Rules:
+TASK:
+Refine the following product title WITHOUT changing its structure.
+
+RULES:
+- KEEP the same structure
+- DO NOT rewrite completely
+- DO NOT add phrases like "ideal para", "perfecto"
+- DO NOT change meaning
+- ONLY improve clarity and readability
 - Max 60 characters
-- Must be clearer and more attractive
-- Must be different from original
-- No symbols like "-" or ","
 
-Title:
+TITLE:
 ${title}
 
-Return ONLY the improved title.
+Return ONLY the refined title.
 `;
 
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.7,
+        temperature: 0.2,
         messages: [{ role: "user", content: prompt }]
       },
       {
@@ -185,6 +172,7 @@ Return ONLY the improved title.
 
     const aiTitle = response.data.choices[0].message.content.trim();
 
+    // 🔒 VALIDACIÓN FUERTE
     if (isBadTitle(title, aiTitle)) {
       return title;
     }
