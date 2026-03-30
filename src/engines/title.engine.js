@@ -23,13 +23,15 @@ function removeWeakWords(text) {
     .trim();
 }
 
-// Heurística simple (no IA)
+// 🔥 FIX REAL (SIN TRUNCAMIENTO)
 function extractComponents(title) {
   const t = normalize(title);
 
   let type = "";
   let attribute = "";
   let context = "";
+
+  const words = title.split(" ").filter(Boolean);
 
   // TYPE
   if (t.includes("bag") || t.includes("bolsa") || t.includes("mochila")) {
@@ -41,12 +43,14 @@ function extractComponents(title) {
   } else if (t.includes("chair") || t.includes("silla")) {
     type = "Silla";
   } else {
-    type = title.split(" ")[0];
+    // 🔥 fallback: primeras 2 palabras (no 1 sola)
+    type = words.slice(0, 2).join(" ");
   }
 
-  // ATTRIBUTE (buscar palabra relevante)
-  const words = title.split(" ");
-  attribute = words.slice(1, 4).join(" ");
+  // 🔥 ATTRIBUTE (SIN CORTAR A 3 PALABRAS)
+  if (words.length > 2) {
+    attribute = words.slice(2).join(" "); // ← aquí está el FIX real
+  }
 
   // CONTEXT
   if (t.includes("car") || t.includes("auto")) {
@@ -84,24 +88,17 @@ function generateTitle(rawTitle, options = {}) {
   try {
     if (!rawTitle) return "";
 
-    // 1. Limpieza base
     let clean = cleanTitle(rawTitle);
-
-    // 2. Remover palabras débiles
     clean = removeWeakWords(clean);
 
-    // 3. Extraer componentes
     const parts = extractComponents(clean);
 
-    // 4. Construir SEO
     let finalTitle = buildSEO(parts);
 
-    // 5. Fallback seguro
     if (!finalTitle || finalTitle.length < 5) {
       finalTitle = clean;
     }
 
-    // 6. Capitalización ligera
     finalTitle =
       finalTitle.charAt(0).toUpperCase() + finalTitle.slice(1);
 
@@ -113,7 +110,6 @@ function generateTitle(rawTitle, options = {}) {
   }
 }
 
-// opcional si server usa improveTitleWithContext
 function improveTitleWithContext(title) {
   return generateTitle(title);
 }
