@@ -1218,35 +1218,52 @@ function detectCategory(title) {
    TRADUCCIÓN + HTML PRESERVANDO TAGS
 ========================== */
 
-async function translateText(text) {
+async function translateText(text, options = {}) {
   if (!text || !text.trim()) return text;
+
+  const language = options.language || "es";
 
   try {
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.2,
+        temperature: 0.1,
         messages: [
           {
             role: "system",
             content: `
-Traduce al español de México.
-Optimiza ligeramente para SEO sin exagerar.
-No agregues más de 1 palabra estratégica.
-No cambies el significado original.
-No uses adjetivos vacíos como "increíble", "mejor", "premium".
-Mantén máximo 65 caracteres si es posible.
-Devuelve solo el texto final.
+Traduce el texto al idioma objetivo.
+
+REGLAS CRÍTICAS:
+- NO recortar el texto
+- NO resumir
+- NO acortar
+- NO eliminar palabras
+- Mantener TODA la información original
+- Mantener atributos del producto
+- NO optimizar para SEO
+- NO agregar palabras nuevas
+- NO cambiar el significado
+
+Idioma destino: ${language}
+
+Devuelve SOLO el texto traducido completo.
 `
           },
-          { role: "user", content: text }
+          {
+            role: "user",
+            content: text
+          }
         ]
       },
-      { headers: { Authorization: `Bearer ${OPENAI_API_KEY}` } }
+      {
+        headers: { Authorization: \`Bearer \${OPENAI_API_KEY}\` }
+      }
     );
 
     return response.data.choices?.[0]?.message?.content?.trim() ?? text;
+
   } catch (err) {
     log("Traducción omitida", err.response?.data || err.message);
     return text;
@@ -1259,12 +1276,14 @@ async function translateHtmlPreservingTags(html) {
 
   function walk(node) {
     if (!node) return;
+
     if (node.type === "text") {
       const raw = node.data;
       if (raw && raw.trim()) textNodes.push(node);
     }
+
     if (node.children) node.children.forEach(walk);
-}
+  }
 
   walk($.root()[0]);
 
