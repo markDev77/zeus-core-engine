@@ -1838,8 +1838,6 @@ for (const variant of realVariants) {
   }
 }
   
-await consumeTokenIfAvailable(normalizedShop);
-
 console.log("✅ PRODUCT UPDATED (CLEAN PIPELINE)", { productId });
 
 return { success: true };
