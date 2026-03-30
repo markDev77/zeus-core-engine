@@ -1684,10 +1684,37 @@ if (Math.random() < AI_TITLE_RATIO) {
     originalTitle: translatedTitle
   });
 
+  // 🔒 CONTROL IA (SAFE SWITCH)
+const USE_SINGLE_AI = true;
+
+let aiStructured = null;
+
+if (USE_SINGLE_AI) {
+
+  aiStructured = await generateAIContent({
+    title: translatedTitle,
+    category: detectedCat,
+    language
+  });
+
+  if (aiStructured?.title && aiStructured.title.length > 10) {
+    translatedTitle = aiStructured.title
+      .replace(/[:\-–|]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+} else {
+
   const aiTitle = await improveTitleWithAI({
-  title: translatedTitle,
-  language
-});
+    title: translatedTitle,
+    language
+  });
+
+  if (aiTitle && aiTitle.length > 10) {
+    translatedTitle = aiTitle;
+  }
+}
 
   if (aiTitle && aiTitle.length > 10) {
     console.log("✅ AI TITLE APPLIED", {
