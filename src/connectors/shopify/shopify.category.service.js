@@ -5,43 +5,14 @@ async function applyShopifyCategory({
   productCategory,
   apiVersion
 }) {
-  if (!productCategory) return;
-
-  const url = `https://${shop}/admin/api/${apiVersion}/graphql.json`;
-
-  const query = `
-    mutation {
-      productUpdate(input: {
-        id: "gid://shopify/Product/${productId}",
-        productCategory: {
-          productTaxonomyNodeId: "${productCategory}"
-        }
-      }) {
-        product {
-          id
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }
-  `;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Access-Token": accessToken
-    },
-    body: JSON.stringify({ query })
+  // 🔴 TEMPORALMENTE DESACTIVADO (Shopify no acepta productCategory)
+  console.log("⚠️ CATEGORY SKIPPED (unsupported by Shopify API)", {
+    shop,
+    productId,
+    productCategory
   });
 
-  const json = await res.json();
-
-  console.log("🧩 CATEGORY GRAPHQL RESULT:", JSON.stringify(json, null, 2));
-
-  return json;
+  return null;
 }
 
 module.exports = {
