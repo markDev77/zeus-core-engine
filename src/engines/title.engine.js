@@ -2,6 +2,7 @@
 
 function normalize(text) {
   return String(text || "")
+    .replace(/[^\w\s\-]/g, " ") // remove symbols
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -28,19 +29,18 @@ function tokenize(text) {
 }
 
 // ==========================
-// DETECT PRODUCT CORE
+// GENERIC PRODUCT DETECTION (NO LANGUAGE LOCK)
 // ==========================
 function detectProduct(tokens) {
-  const map = [
-    { keys: ["fan"], label: "ventilador" },
-    { keys: ["shoe", "shoes", "loafer"], label: "mocasines" },
-    { keys: ["bag"], label: "bolsa" },
-    { keys: ["organizer"], label: "organizador" },
-    { keys: ["lamp", "led"], label: "lámpara" },
-    { keys: ["massage"], label: "masajeador" }
+  const genericMap = [
+    { keys: ["fan"], label: { es: "ventilador", en: "fan" } },
+    { keys: ["shoe", "shoes"], label: { es: "zapatos", en: "shoes" } },
+    { keys: ["bag"], label: { es: "bolsa", en: "bag" } },
+    { keys: ["lamp", "led"], label: { es: "lámpara", en: "lamp" } },
+    { keys: ["organizer"], label: { es: "organizador", en: "organizer" } }
   ];
 
-  for (const m of map) {
+  for (const m of genericMap) {
     if (m.keys.some(k => tokens.includes(k))) {
       return m.label;
     }
@@ -50,45 +50,30 @@ function detectProduct(tokens) {
 }
 
 // ==========================
-// DETECT ATTRIBUTES
+// ATTRIBUTES (NEUTRAL)
 // ==========================
 function detectAttributes(tokens) {
   const attributes = [];
 
-  if (tokens.includes("portable")) attributes.push("portátil");
-  if (tokens.includes("mini")) attributes.push("compacto");
-  if (tokens.includes("electric")) attributes.push("eléctrico");
-  if (tokens.includes("usb")) attributes.push("USB");
+  if (tokens.includes("portable")) attributes.push({ es: "portátil", en: "portable" });
+  if (tokens.includes("mini")) attributes.push({ es: "compacto", en: "compact" });
+  if (tokens.includes("usb")) attributes.push({ es: "USB", en: "USB" });
 
   return attributes;
 }
 
 // ==========================
-// DETECT INTENT / USE
+// BUILD TITLE BY LANGUAGE
 // ==========================
-function detectUse(tokens) {
-  if (tokens.includes("kitchen")) return "para cocina";
-  if (tokens.includes("office")) return "para oficina";
-  if (tokens.includes("home")) return "para hogar";
-  if (tokens.includes("hair")) return "para cabello";
-
-  return "";
-}
-
-// ==========================
-// BUILD TITLE
-// ==========================
-function buildTitle({ product, attributes, use }) {
+function buildTitle({ product, attributes, language }) {
   if (!product) return null;
 
-  let title = product;
+  const lang = language?.startsWith("es") ? "es" : "en";
+
+  let title = product[lang];
 
   if (attributes.length) {
-    title += " " + attributes.join(" ");
-  }
-
-  if (use) {
-    title += " " + use;
+    title += " " + attributes.map(a => a[lang]).join(" ");
   }
 
   return title;
@@ -103,69 +88,31 @@ function sentenceCase(text) {
 }
 
 // ==========================
-// TRIM SMART
-// ==========================
-function trimSmart(text, max = 60) {
-  if (text.length <= max) return text;
-
-  const words = text.split(" ");
-  let out = "";
-
-  for (const w of words) {
-    const test = out ? `${out} ${w}` : w;
-    if (test.length > max) break;
-    out = test;
-  }
-
-  return out || text.slice(0, max);
-}
-
-// ==========================
 // MAIN
 // ==========================
-function generateTitle(rawTitle) {
+function generateTitle(rawTitle, context = {}) {
   if (!rawTitle) return null;
+
+  const language = context.language || "en";
 
   let clean = cleanNoise(rawTitle);
   const tokens = tokenize(clean);
 
   const product = detectProduct(tokens);
   const attributes = detectAttributes(tokens);
-  const use = detectUse(tokens);
 
-  let title = buildTitle({ product, attributes, use });
+  let title = buildTitle({ product, attributes, language });
 
-  // fallback
+  // fallback → CLEAN, NOT TRANSLATE
   if (!title) {
     title = clean;
   }
 
   title = sentenceCase(title);
-  title = trimSmart(title, 60);
 
   return normalize(title);
 }
 
-// ==========================
-// CONTEXT IMPROVER (SOFT)
-// ==========================
-function improveTitleWithContext(title) {
-  if (!title) return title;
-
-  let t = title.toLowerCase();
-
-  if (t.includes("organizador") && t.includes("a4")) {
-    return "Organizador A4 transparente para documentos";
-  }
-
-  if (t.includes("salpicadura")) {
-    return "Protector contra salpicaduras para cocina";
-  }
-
-  return title;
-}
-
 module.exports = {
-  generateTitle,
-  improveTitleWithContext
+  generateTitle
 };
