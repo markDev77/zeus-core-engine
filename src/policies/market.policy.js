@@ -90,9 +90,9 @@ function applyMarketRulesToDescription(description, rules = {}, context = {}) {
   result = removeBannedWords(result, rules.bannedWords);
 
   // ⚠️ SOLO LIMPIA HTML SUPERIOR (NO IMÁGENES)
-  result = cleanHtmlSafe(result);
+result = cleanHtmlSafe(result);
 
-  // SOLO aplicar si NO hay HTML estructural fuerte
+// SOLO aplicar formato si NO hay HTML estructural real
 if (!/<(img|table|div|section)/i.test(result)) {
   result = enforceSingleFormat(result, rules.descriptionStyle);
 }
