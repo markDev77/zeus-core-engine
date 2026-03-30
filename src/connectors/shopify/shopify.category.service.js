@@ -1,5 +1,7 @@
-async function applyShopifyCategory(params) {
-  console.log("🚨 CATEGORY FILE REAL EJECUTÁNDOSE 🚨");
-
-  return null;
+async function applyShopifyCategory() {
+  throw new Error("🚨 CATEGORY FILE EJECUTADO 🚨");
 }
+
+module.exports = {
+  applyShopifyCategory
+};
