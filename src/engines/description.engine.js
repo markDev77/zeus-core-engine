@@ -208,34 +208,72 @@ function buildMediaSection(imageTags = []) {
 // ==========================
 // 🔥 FINAL BUILDER (AJUSTADO)
 // ==========================
-function buildFinalDescription({ title, originalHtml, aiBlock, language = "en" }) {
-  const safeOriginal = stripOuterWrappers(originalHtml || "");
+function buildFinalDescription({
+  title,
+  originalHtml,
+  aiResult,
+  language = "en"
+}) {
+  // ==========================
+  // 🔹 INTRO (NO PLANTILLA)
+  // ==========================
+  let intro = "";
 
-  const hasHtml = safeOriginal.includes("<img");
-
-  const intro = buildIntro(title, language);
-
-  const aiSection = normalize(aiBlock || "")
-    ? aiBlock.trim()
-    : buildFallbackBullets(title, "", language);
-
-  if (hasHtml) {
-    return `
-${intro}
-
-${aiSection}
-
-${safeOriginal}
-`.trim();
+  if (aiResult?.intro) {
+    intro = `<p>${aiResult.intro}</p>`;
+  } else {
+    intro = language.startsWith("es")
+      ? `<p><strong>${title}</strong>. Diseñado para integrarse de forma natural en distintos contextos de uso.</p>`
+      : `<p><strong>${title}</strong>. Designed to integrate naturally across different usage scenarios.</p>`;
   }
 
+  // ==========================
+  // 🔹 BULLETS (DINÁMICOS)
+  // ==========================
+  let bullets = "";
+
+  if (Array.isArray(aiResult?.bullets) && aiResult.bullets.length) {
+    bullets = `
+<ul>
+  ${aiResult.bullets.slice(0, 5).map(b => `<li>${b}</li>`).join("")}
+</ul>
+`;
+  } else {
+    const fallbackOptions = language.startsWith("es")
+      ? [
+          "Se adapta a distintos entornos de uso",
+          "Facilita su uso en diferentes situaciones",
+          "Formato funcional enfocado en practicidad",
+          "Permite un uso cómodo y versátil"
+        ]
+      : [
+          "Adapts to different environments",
+          "Facilitates use across situations",
+          "Functional format focused on usability",
+          "Enables comfortable and versatile use"
+        ];
+
+    const index = title.length % fallbackOptions.length;
+
+    bullets = `<ul><li>${fallbackOptions[index]}</li></ul>`;
+  }
+
+  // ==========================
+  // 🔹 HTML ORIGINAL (NO TOCAR)
+  // ==========================
+  const safeOriginal = originalHtml || "";
+
+  // ==========================
+  // 🔹 OUTPUT FINAL
+  // ==========================
   return `
 ${intro}
 
-${aiSection}
+${bullets}
+
+${safeOriginal}
 `.trim();
 }
-
 module.exports = {
   buildFinalDescription
 };
