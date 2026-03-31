@@ -1347,51 +1347,7 @@ async function shopifyRequest(shop, config, attempt = 0) {
     return shopifyRequest(normalizedShop, config, attempt + 1);
   }
 }
-    // ===============================
-    // 🔴 AUTH DETECTION (NUEVO)
-    // ===============================
-    const { detectAuthError } = require("./src/infra/auth/detect-auth-error");
-    const { sendAuthAlertEmail } = require("./src/infra/alerts/email.service");
-
-    const auth = detectAuthError(err);
-
-    if (auth.isAuthError) {
-      const markResult = await markStoreAuthError({
-        shop: normalizedShop,
-        code: auth.code,
-        message:
-          err?.response?.data?.errors ||
-          err?.response?.data?.error ||
-          err?.response?.data?.message ||
-          err?.message ||
-          auth.reason,
-        source: "shopifyRequest",
-        retryAfterMinutes: 15,
-        context: {
-          status: auth.status,
-          reason: auth.reason,
-          method: config?.method,
-          url: config?.url
-        }
-      });
-
-      if (markResult?.shouldNotify) {
-        await sendAuthAlertEmail({
-          shop: normalizedShop,
-          type: "SHOPIFY_AUTH_ERROR",
-          code: auth.code,
-          message: auth.reason,
-          context: {
-            status: auth.status,
-            url: config?.url
-          }
-        });
-      }
-
-      // ❌ IMPORTANTE: no retry en errores de auth
-      throw err;
-    }
-
+    
     // ===============================
     // 🔁 LÓGICA ORIGINAL (INTOCADA)
     // ===============================
