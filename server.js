@@ -1715,6 +1715,7 @@ const aiResult = await generateAIContent({
   description: translatedHtml,
   language
 });
+console.log("🔥 AI RESULT:", aiResult);
 
 // 🔥 FINAL TITLE CONTROL
 const finalTitle = buildFinalTitle({
