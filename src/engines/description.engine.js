@@ -7,15 +7,17 @@ function buildDescription({ originalHtml, aiResult, language }) {
     const intro = buildIntro(aiResult, language);
     const benefits = buildBenefits(aiResult, language);
     const specs = buildSpecs(aiResult, language);
+    const usage = buildUsage(aiResult, language);
     const trust = buildTrust(aiResult, language);
 
     return `
-      ${intro}
-      ${benefits}
-      ${specs}
-      ${trust}
-      ${originalHtml || ""}
-    `;
+  ${intro}
+  ${benefits}
+  ${usage}
+  ${specs}
+  ${trust}
+  ${originalHtml || ""}
+`;
 
   } catch (err) {
     console.error("ZEUS DESCRIPTION ENGINE ERROR:", err);
@@ -83,6 +85,37 @@ function buildTrust(aiResult, language) {
     .join("");
 
   return `<ul>${list}</ul>`;
+}
+
+function buildUsage(aiResult, language) {
+  const items = aiResult?.bullets || [];
+
+  if (!items.length) return "";
+
+  // 🔥 filtrar bullets que expresan uso
+  const usageItems = items.filter(i =>
+    i.toLowerCase().includes("uso") ||
+    i.toLowerCase().includes("ideal") ||
+    i.toLowerCase().includes("perfect") ||
+    i.toLowerCase().includes("para") ||
+    i.toLowerCase().includes("for")
+  );
+
+  if (!usageItems.length) return "";
+
+  const title = language === "es"
+    ? "Uso y funcionalidad:"
+    : "Usage and functionality:";
+
+  const list = usageItems
+    .slice(0, 3)
+    .map(i => `<li>${i}</li>`)
+    .join("");
+
+  return `
+    <h3>${title}</h3>
+    <ul>${list}</ul>
+  `;
 }
 
 module.exports = {
