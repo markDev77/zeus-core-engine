@@ -472,37 +472,91 @@ try {
 
   const shopData = shopResp.data?.shop;
 
-  if (shopData) {
-    country = shopData.country_code || "global";
-    language = shopData.primary_locale || "en";
-    currency = shopData.currency || "USD";
-  }
+if (shopData) {
+  country = shopData.country_code || "global";
+  language = shopData.primary_locale || "en";
+  currency = shopData.currency || "USD";
+}
 
-  console.log("🌍 ZEUS STORE CONTEXT:", {
-    shop,
-    country,
-    language,
-    currency
-  });
+console.log("🌍 ZEUS STORE CONTEXT:", {
+  shop,
+  country,
+  language,
+  currency
+});
 
 } catch (err) {
   console.error("❌ STORE CONTEXT ERROR:", err.message);
 }
-    const scope = tokenResponse?.data?.scope;
 
-    if (!access_token) {
-      throw new Error("OAuth exchange sin access_token");
-    }
+const scope = tokenResponse?.data?.scope;
 
-    const store = await upsertStore({
+if (!access_token) {
+  throw new Error("OAuth exchange sin access_token");
+}
+
+// ===============================
+// CHECK FREE PLAN USAGE (SAFE)
+// ===============================
+let tokensOverride = 5;
+let shouldMarkFreeUsed = false;
+
+try {
+  const existing = await pool.query(
+    `SELECT has_used_free_plan FROM stores WHERE shop = $1 LIMIT 1`,
+    [shop]
+  );
+
+  const alreadyUsedFree =
+    existing.rows?.[0]?.has_used_free_plan === true;
+
+  if (alreadyUsedFree) {
+    tokensOverride = 0;
+    shouldMarkFreeUsed = false;
+    console.log("🚫 FREE YA USADO:", shop);
+  } else {
+    tokensOverride = 5;
+    shouldMarkFreeUsed = true;
+    console.log("🎁 PRIMER FREE:", shop);
+  }
+
+} catch (err) {
+  console.error("FREE PLAN CHECK ERROR:", err.message);
+  tokensOverride = 5;
+  shouldMarkFreeUsed = true; // fallback seguro
+}
+
+// ===============================
+// UPSERT STORE (FINAL)
+// ===============================
+const store = await upsertStore({
   shop,
   access_token,
   region: country,
   language,
   currency,
-  status: "active"
+  status: "active",
+  tokens: tokensOverride,
+  has_used_free_plan: shouldMarkFreeUsed
 });
 
+// ===============================
+// WEBHOOKS (SIN TOCAR)
+// ===============================
+await registerWebhooks(shop, access_token);
+// ===============================
+// UPSERT STORE (SIN ROMPER)
+// ===============================
+const store = await upsertStore({
+  shop,
+  access_token,
+  region: country,
+  language,
+  currency,
+  status: "active",
+  tokens: tokensOverride,
+  has_used_free_plan: shouldMarkFreeUsed
+});
   // 🔥 ACTIVA WEBHOOK
     await registerWebhooks(shop, access_token);
 
