@@ -24,6 +24,9 @@ function getLanguageInstruction(language) {
   return map[lang] || map.en;
 }
 
+// ==========================
+// HELPERS
+// ==========================
 function safeJsonParse(raw) {
   try {
     const cleaned = String(raw || "")
@@ -46,6 +49,29 @@ function cleanArray(arr, limit = 6) {
     .slice(0, limit);
 }
 
+// 🔥 LIMPIADOR FINAL DE TÍTULO (CRÍTICO)
+function cleanFinalTitle(title = "") {
+  return String(title)
+    // quitar símbolos
+    .replace(/[:\-–—,/|%&]+/g, " ")
+
+    // quitar duplicados
+    .replace(/\b(\w+)( \1\b)+/gi, "$1")
+
+    // limpiar espacios
+    .replace(/\s{2,}/g, " ")
+
+    // limpiar bordes
+    .replace(/^[\s\-]+|[\s\-]+$/g, "")
+
+    // capitalizar
+    .replace(/\b\w/g, l => l.toUpperCase())
+
+    // limitar SEO
+    .slice(0, 140)
+    .trim();
+}
+
 // ==========================
 // 🔥 MAIN AI FUNCTION
 // ==========================
@@ -63,28 +89,27 @@ Raw title: ${title || ""}
 Raw description: ${description || ""}
 
 OBJECTIVE
-Generate optimized ecommerce content ONLY using real data from input.
+Generate optimized ecommerce content ONLY using real data.
 
 CRITICAL RULES
-- DO NOT invent attributes
-- DO NOT invent brand or specs
-- DO NOT assume missing data
+- Do NOT invent attributes
+- Do NOT invent brand
+- Do NOT invent specs
 - High purchase intent
-- Clear and scannable in <40 seconds
+- Clear in under 40 seconds
 
 TITLE STRUCTURE
-[Brand if exists] + [Product Name/Model] + [Main Attribute] + [Color/Size/Qty]
-- If element doesn't exist → omit
+[Product Name] + [Main Attribute] + [Key Detail]
 - Max 140 chars
+- No symbols
 
 DESCRIPTION STRUCTURE
-1. intro → short persuasive paragraph
-2. bullets → 4–6 benefits
-3. specs → 3–8 real technical details
-4. trust → optional (only if exists)
+1. intro
+2. benefits (4–6)
+3. specs (3–8)
+4. trust (optional)
 
-RETURN STRICT JSON:
-
+RETURN JSON:
 {
   "title": "...",
   "intro": "...",
@@ -116,8 +141,10 @@ RETURN STRICT JSON:
       return null;
     }
 
+    const finalTitle = cleanFinalTitle(parsed.title);
+
     return {
-      title: String(parsed.title || "").trim(),
+      title: finalTitle,
       intro: String(parsed.intro || "").trim(),
       bullets: cleanArray(parsed.bullets, 6),
       specs: cleanArray(parsed.specs, 8),
@@ -130,8 +157,6 @@ RETURN STRICT JSON:
   }
 }
 
-// ==========================
-// OPTIONAL TITLE IMPROVER
 // ==========================
 async function improveTitleWithAI({ title }) {
   return title;
