@@ -1703,6 +1703,11 @@ async function transformProductById(shop, access_token, productId) {
     cleanTitle = ensureNonEmptyTitle(cleanTitle, realProduct.title);
 
   translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
+    console.log("DEBUG TYPES:", {
+  cleanTitle: typeof cleanTitle,
+  translatedHtml: typeof translatedHtml,
+  variant: typeof realProduct?.variants?.[0]?.title,
+});
 
 // 🔥 SINGLE AI CALL
 const aiResult = await generateAIContent({
