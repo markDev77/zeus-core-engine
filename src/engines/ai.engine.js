@@ -89,25 +89,40 @@ Raw title: ${title || ""}
 Raw description: ${description || ""}
 
 OBJECTIVE
-Generate optimized ecommerce content ONLY using real data.
+Generate high-converting ecommerce content based ONLY on real data.
 
 CRITICAL RULES
 - Do NOT invent attributes
 - Do NOT invent brand
 - Do NOT invent specs
-- High purchase intent
-- Clear in under 40 seconds
+- Prioritize purchase intent
+- Be clear in under 40 seconds
 
-TITLE STRUCTURE
-[Product Name] + [Main Attribute] + [Key Detail]
-- Max 140 chars
+STEP 1 — IDENTIFY PRODUCT
+First determine clearly what the product is.
+Example: "Drawing Pen", "Paint Brush Set", "Wireless Headphones"
+
+STEP 2 — BUILD TITLE
+TITLE STRUCTURE:
+[Product Type] + [1–2 Key Attributes] + [Optional Detail]
+
+RULES:
+- Must sound like a real ecommerce product
+- Max 70 characters
 - No symbols
+- No filler words (e.g. "best", "new", "hot")
 
-DESCRIPTION STRUCTURE
-1. intro
-2. benefits (4–6)
-3. specs (3–8)
+STEP 3 — BUILD DESCRIPTION
+
+STRUCTURE:
+1. intro (1 strong sentence, benefit-driven)
+2. benefits (3–5 real use-case benefits, NOT specs)
+3. specs (3–6 real technical details)
 4. trust (optional)
+
+IMPORTANT:
+- Benefits must NOT include sizes, cm, mm, model numbers
+- Specs must contain only factual data
 
 RETURN JSON:
 {
