@@ -25,7 +25,9 @@ const { Pool } = require("pg");
 // ZEUS INFRA (AUTH / ALERTS)
 // ==========================
 const { canProcessStore, markStoreAuthError, markStoreAuthHealthy } = require("./src/infra/auth/auth-state.service");
-
+console.log("AUTH MODULE LOADED:", {
+  canProcessStore: typeof canProcessStore
+});
 
 // ==========================
 // ENGINES (ZEUS CORE)
