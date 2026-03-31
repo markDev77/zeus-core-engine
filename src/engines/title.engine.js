@@ -12,7 +12,7 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
 
     // GO-TO-MARKET: IA manda
     if (aiText && aiText.length > 10) {
-      return sanitize(capitalize(trimLength(aiText, 70)));
+      return sanitize(fixCapitalization(trimLength(aiText, 70)));
     }
 
     // fallback
@@ -157,6 +157,14 @@ function sanitize(text) {
 function trimLength(text, max) {
   if (text.length <= max) return text;
   return text.substring(0, max).trim();
+}
+
+function fixCapitalization(text) {
+  if (!text) return "";
+
+  return text
+    .toLowerCase()
+    .replace(/\b\w/g, l => l.toUpperCase());
 }
 
 module.exports = {
