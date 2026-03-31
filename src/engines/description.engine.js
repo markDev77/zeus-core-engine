@@ -10,19 +10,11 @@ function buildDescription({
   try {
     const cleanText = extractText(originalHtml);
 
-    // 1. Hook
     const hook = buildHook(aiResult, language);
-
-    // 2. Beneficios
     const benefits = buildBenefits(aiResult, cleanText, language);
-
-    // 3. Características
     const features = buildFeatures(cleanText, language);
-
-    // 4. Cierre
     const closing = buildClosing(language);
 
-    // 5. HTML final (manteniendo original al final)
     const finalHtml = `
       ${hook}
       ${benefits}
@@ -49,33 +41,44 @@ function extractText(html) {
     .trim();
 }
 
-// -------- HOOK --------
+// 🔥 FIX: Hook basado en IA (no genérico)
 function buildHook(aiResult, language) {
-  if (aiResult && typeof aiResult === "string") {
-    return `<p><strong>${truncate(aiResult, 160)}</strong></p>`;
+  let aiText =
+    typeof aiResult === "string"
+      ? aiResult
+      : aiResult?.description || "";
+
+  if (aiText) {
+    const firstLine = aiText.split(".")[0];
+    return `<p><strong>${truncate(firstLine, 120)}</strong></p>`;
   }
 
   return language === "es"
-    ? "<p><strong>Descubre un producto diseñado para mejorar tu día a día.</strong></p>"
-    : "<p><strong>Discover a product designed to improve your daily life.</strong></p>";
+    ? "<p><strong>Diseñado para mejorar tu experiencia en el día a día con practicidad y estilo.</strong></p>"
+    : "<p><strong>Designed to enhance your daily experience with practicality and style.</strong></p>";
 }
 
-// -------- BENEFITS --------
+// 🔥 FIX: beneficios reales (no specs)
 function buildBenefits(aiResult, text, language) {
   let bullets = [];
 
   let aiText =
-  typeof aiResult === "string"
-    ? aiResult
-    : aiResult?.description || "";
+    typeof aiResult === "string"
+      ? aiResult
+      : aiResult?.description || "";
 
-if (aiText) {
-  bullets = aiText.split(".").slice(0, 4);
-} else {
-  bullets = text.split(".").slice(0, 4);
-}
+  if (aiText) {
+    bullets = aiText.split(".").slice(0, 4);
+  }
 
-  bullets = bullets.filter(b => b && b.length > 10);
+  bullets = bullets.filter(b =>
+    b &&
+    b.length > 20 &&
+    !b.toLowerCase().includes("cm") &&
+    !b.toLowerCase().includes("mm") &&
+    !b.toLowerCase().includes("weight") &&
+    !b.toLowerCase().includes("size")
+  );
 
   if (!bullets.length) return "";
 
@@ -91,7 +94,7 @@ if (aiText) {
   `;
 }
 
-// -------- FEATURES --------
+// FEATURES (sin cambios estructurales)
 function buildFeatures(text, language) {
   const items = text.split(",").slice(0, 6).filter(i => i.length > 5);
 
@@ -109,14 +112,12 @@ function buildFeatures(text, language) {
   `;
 }
 
-// -------- CLOSING --------
 function buildClosing(language) {
   return language === "es"
     ? "<p>Ideal para uso diario, combina funcionalidad y estilo en un solo producto.</p>"
     : "<p>Perfect for everyday use, combining functionality and style in one product.</p>";
 }
 
-// -------- UTIL --------
 function truncate(text, max) {
   if (text.length <= max) return text;
   return text.substring(0, max).trim();
