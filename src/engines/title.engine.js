@@ -5,32 +5,33 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
   try {
     if (!originalTitle) return "";
 
+    // 🔥 1. Tomar título desde IA (si existe)
     let aiText =
       typeof aiTitle === "string"
         ? aiTitle
         : aiTitle?.title || "";
 
+    // 🔥 2. Priorizar IA, fallback seguro
     let base = aiText && aiText.length > 10
       ? normalize(aiText)
       : normalize(originalTitle);
 
     let title = base;
 
-    // 🔥 Detectar producto
+    // 🔥 3. Detectar producto
     let detectedEntity = detectProductEntity(base);
 
     if (!detectedEntity) {
       detectedEntity = detectProductEntity(normalize(originalTitle));
     }
 
-    // limpieza
-    workingText = removeNoise(workingText);
-
-    let tokens = tokenize(workingText);
+    // 🔥 4. Tokenización
+    let tokens = tokenize(title);
     tokens = dedupe(tokens);
 
     const classified = classifyTokens(tokens);
 
+    // 🔥 5. Construcción final
     let finalTitle = buildStructuredTitle(
       classified,
       language,
