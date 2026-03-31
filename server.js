@@ -1267,10 +1267,86 @@ async function shopifyRequest(shop, config, attempt = 0) {
   await throttleShopify(normalizedShop);
 
   try {
-    return await axios(config);
+    const response = await axios(config);
+
+    // ===============================
+    // 🟢 AUTH RECOVERY (NUEVO)
+    // ===============================
+    await markStoreAuthHealthy(normalizedShop, {
+      source: "shopifyRequest.success"
+    });
+
+    return response;
+
   } catch (err) {
     const status = err?.response?.status;
 
+    // ===============================
+    // 🔴 AUTH DETECTION (NUEVO)
+    // ===============================
+    const { detectAuthError } = require("./src/infra/auth/detect-auth-error");
+    const { sendAuthAlertEmail } = require("./src/infra/alerts/email.service");
+
+    const auth = detectAuthError(err);
+
+    if (auth.isAuthError) {
+      const markResult = await markStoreAuthError({
+        shop: normalizedShop,
+        code: auth.code,
+        message:
+          err?.response?.data?.errors ||
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          auth.reason,
+        source: "shopifyRequest",
+        retryAfterMinutes: 15,
+        context: {
+          status: auth.status,
+          reason: auth.reason,
+          method: config?.method,
+          url: config?.url
+        }
+      });
+
+      if (markResult?.shouldNotify) {
+        await sendAuthAlertEmail({
+          shop: normalizedShop,
+          type: "SHOPIFY_AUTH_ERROR",
+          code: auth.code,
+          message: auth.reason,
+          context: {
+            status: auth.status,
+            url: config?.url
+          }
+        });
+      }
+
+      // ❌ NO retry para auth
+      throw err;
+    }
+
+    // ===============================
+    // 🔁 LÓGICA ORIGINAL (INTOCADA)
+    // ===============================
+    const retriable = status === 429 || (status >= 500 && status <= 599);
+
+    if (!retriable || attempt >= MAX_RETRIES) throw err;
+
+    const retryAfter = getRetryAfterMs(err);
+    const backoff = retryAfter ?? BASE_BACKOFF_MS * Math.pow(2, attempt);
+
+    log("Shopify retry", {
+      shop: normalizedShop,
+      status,
+      attempt: attempt + 1,
+      wait_ms: backoff
+    });
+
+    await sleep(backoff);
+    return shopifyRequest(normalizedShop, config, attempt + 1);
+  }
+}
     // ===============================
     // 🔴 AUTH DETECTION (NUEVO)
     // ===============================
