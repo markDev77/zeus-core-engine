@@ -13,17 +13,20 @@ function normalizeLanguage(lang) {
 }
 
 function getLanguageInstruction(language) {
-  const lang = normalizeLanguage(language);
+  if (!language) {
+    return "Write ALL output strictly in English.";
+  }
+  const lang = String(language).toLowerCase();
 
-  const map = {
-    es: "Responde en español.",
-    en: "Respond in English.",
-    pt: "Responda em português."
-  };
+  // Idiomas críticos validados (los que ya probaste)
+  if (lang.startsWith("es")) return "Responde TODO en español.";
+  if (lang.startsWith("pt")) return "Responda TODO em português.";
+  if (lang.startsWith("en")) return "Write ALL output strictly in English.";
 
-  return map[lang] || map.en;
+  // 🔥 NUEVO: soporte dinámico
+  return `Write ALL output strictly in ${lang}. Do NOT use any other language.`;
 }
-
+ 
 // ==========================
 // HELPERS
 // ==========================
