@@ -988,11 +988,7 @@ async function getToken(shop) {
 
   try {
     const store = await getStore(normalizedShop);
-  const language = normalizeLanguage(store?.language);
-  .toLowerCase()
-  .split("-")[0]
-  .split("_")[0];
-    
+       
     const token = store.access_token;
 
     console.log("ZEUS GETTOKEN DEBUG:", {
@@ -1330,7 +1326,7 @@ function detectCategory(title) {
 async function translateText(text, options = {}) {
   if (!text || !text.trim()) return text;
 
-  const language = normalizeLanguage(store?.language);
+  const language = normalizeLanguage(options.language);
 
   try {
     const response = await axios.post(
@@ -1765,9 +1761,6 @@ async function transformProductById(shop, access_token, productId) {
     const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
     const language = normalizeLanguage(store?.language);
-      .toLowerCase()
-      .split("-")[0]
-      .split("_")[0];
 
     // 🔹 TRANSLATION
     const translatedTitleRaw = await translateText(realProduct.title || "", { language });
