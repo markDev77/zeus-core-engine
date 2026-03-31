@@ -25,6 +25,8 @@ const { Pool } = require("pg");
 // ZEUS INFRA (AUTH / ALERTS)
 // ==========================
 const { canProcessStore, markStoreAuthError, markStoreAuthHealthy } = require("./src/infra/auth/auth-state.service");
+const zeusLogger = require("./src/infra/logging/zeus-logger");
+
 console.log("AUTH MODULE LOADED:", {
   canProcessStore: typeof canProcessStore
 });
