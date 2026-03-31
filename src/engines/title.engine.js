@@ -7,28 +7,36 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
 
     let title = normalize(originalTitle);
 
-    // 1. Limpieza agresiva de ruido
+    // 🔥 Detectar entidad desde original
+    let detectedEntity = detectProductEntity(title);
+
+    // 🔥 EXTRA: usar IA para reforzar entidad (SIN depender)
+    let aiText =
+      typeof aiTitle === "string"
+        ? aiTitle
+        : aiTitle?.description || "";
+
+    if (!detectedEntity && aiText) {
+      const aiEntity = detectProductEntity(aiText.toLowerCase());
+      if (aiEntity) detectedEntity = aiEntity;
+    }
+
+    // Limpieza normal
     title = removeNoise(title);
 
-    // 2. Tokenización
     let tokens = tokenize(title);
-
-    // 3. Dedupe
     tokens = dedupe(tokens);
 
-    // 4. Clasificación semántica mejorada
     const classified = classifyTokens(tokens);
 
-    // 5. Construcción estructurada
-    let finalTitle = buildStructuredTitle(classified, language);
+    let finalTitle = buildStructuredTitle(
+      classified,
+      language,
+      detectedEntity
+    );
 
-    // 6. Capitalización
-    finalTitle = capitalize(finalTitle, language);
-
-    // 7. Sanitizar caracteres prohibidos
+    finalTitle = capitalize(finalTitle);
     finalTitle = sanitize(finalTitle);
-
-    // 8. Limitar longitud (~70)
     finalTitle = trimLength(finalTitle, 70);
 
     return finalTitle;
