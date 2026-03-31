@@ -125,25 +125,29 @@ RULES:
 
 STEP 3 — BUILD DESCRIPTION
 
-STRUCTURE:
-1. intro (3–4 sentences storytelling + 6–10 SEO keywords naturally integrated)
-RULES FOR INTRO:
-- Must start with a real-life use case or scenario
-- Must include 6–10 relevant SEO keywords naturally (not forced)
-- Must feel human and persuasive, not robotic
+STRUCTURE (MANDATORY):
+
+1. intro (STORYTELLING)
+- 3–4 sentences
+- Must start with a real-life scenario
 - Must describe how the product improves the user's situation
-2. benefits (3–5 real use-case benefits, NOT specs)
-RULES:
+- Must include 6–10 relevant SEO keywords naturally integrated
+
+2. benefits (BENEFITS + USAGE AND FUNCTIONALITY)
+- 3–5 bullet points
 - Each bullet MUST explain:
   → what it does
   → how it is used
   → why it matters
-3. specs (3–6 real technical details)
-4. trust (optional)
+
+3. specs (FEATURES / CHARACTERISTICS)
+- 3–6 real technical details
+- Only factual attributes
 
 IMPORTANT:
-- Benefits must NOT include sizes, cm, mm, model numbers
-- Specs must contain only factual data
+- Write ALL content in the target language
+- Do NOT use English unless the language is English
+- Keep structure consistent across all languages
 
 RETURN JSON:
 {
