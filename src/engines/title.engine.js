@@ -5,24 +5,22 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
   try {
     if (!originalTitle) return "";
 
-    let base = normalize(originalTitle);
-
-    // 🔥 IA COMO FUENTE PRINCIPAL (GO-TO-MARKET)
     let aiText =
       typeof aiTitle === "string"
         ? aiTitle
-        : aiTitle?.description || "";
+        : aiTitle?.title || "";
 
-    let workingText = aiText && aiText.length > 40
-      ? aiText.toLowerCase()
-      : base;
+    let base = aiText && aiText.length > 10
+      ? normalize(aiText)
+      : normalize(originalTitle);
 
-    // 🔥 Detectar producto desde IA primero
-    let detectedEntity = detectProductEntity(workingText);
+    let title = base;
 
-    // fallback
+    // 🔥 Detectar producto
+    let detectedEntity = detectProductEntity(base);
+
     if (!detectedEntity) {
-      detectedEntity = detectProductEntity(base);
+      detectedEntity = detectProductEntity(normalize(originalTitle));
     }
 
     // limpieza
