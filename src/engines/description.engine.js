@@ -22,61 +22,30 @@ function buildDescription({ originalHtml, aiResult, language }) {
     return originalHtml || "";
   }
 }
-// ---------------- HELPERS ----------------
 
-function extractText(html) {
-  if (!html) return "";
-  return html
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+// ---------------- HELPERS (IA-FIRST) ----------------
 
-// 🔥 FIX: Hook basado en IA (no genérico)
-function buildHook(aiResult, language) {
-  let aiText =
-    typeof aiResult === "string"
-      ? aiResult
-      : aiResult?.description || "";
+// 🔥 Intro desde IA (storytelling)
+function buildIntro(aiResult, language) {
+  const text = aiResult?.intro;
 
-  if (aiText) {
-    const firstLine = aiText.split(".")[0];
-    return `<p><strong>${truncate(firstLine, 120)}</strong></p>`;
+  if (text && text.length > 20) {
+    return `<p><strong>${text}</strong></p>`;
   }
 
-  return language === "es"
-    ? "<p><strong>Diseñado para mejorar tu experiencia en el día a día con practicidad y estilo.</strong></p>"
-    : "<p><strong>Designed to enhance your daily experience with practicality and style.</strong></p>";
+  return "";
 }
 
-// 🔥 FIX: beneficios reales (no specs)
-function buildBenefits(aiResult, text, language) {
-  let bullets = [];
+// 🔥 Beneficios desde IA
+function buildBenefits(aiResult, language) {
+  const items = aiResult?.bullets || [];
 
-  let aiText =
-    typeof aiResult === "string"
-      ? aiResult
-      : aiResult?.description || "";
-
-  if (aiText) {
-    bullets = aiText.split(".").slice(0, 4);
-  }
-
-  bullets = bullets.filter(b =>
-    b &&
-    b.length > 20 &&
-    !b.toLowerCase().includes("cm") &&
-    !b.toLowerCase().includes("mm") &&
-    !b.toLowerCase().includes("weight") &&
-    !b.toLowerCase().includes("size")
-  );
-
-  if (!bullets.length) return "";
+  if (!items.length) return "";
 
   const title = language === "es" ? "Beneficios clave:" : "Key benefits:";
 
-  const list = bullets
-    .map(b => `<li>${b.trim()}</li>`)
+  const list = items
+    .map(i => `<li>${i}</li>`)
     .join("");
 
   return `
@@ -85,16 +54,16 @@ function buildBenefits(aiResult, text, language) {
   `;
 }
 
-// FEATURES (sin cambios estructurales)
-function buildFeatures(text, language) {
-  const items = text.split(",").slice(0, 6).filter(i => i.length > 5);
+// 🔥 Specs desde IA
+function buildSpecs(aiResult, language) {
+  const items = aiResult?.specs || [];
 
   if (!items.length) return "";
 
   const title = language === "es" ? "Características:" : "Features:";
 
   const list = items
-    .map(i => `<li>${i.trim()}</li>`)
+    .map(i => `<li>${i}</li>`)
     .join("");
 
   return `
@@ -103,15 +72,17 @@ function buildFeatures(text, language) {
   `;
 }
 
-function buildClosing(language) {
-  return language === "es"
-    ? "<p>Ideal para uso diario, combina funcionalidad y estilo en un solo producto.</p>"
-    : "<p>Perfect for everyday use, combining functionality and style in one product.</p>";
-}
+// 🔥 Trust opcional
+function buildTrust(aiResult, language) {
+  const items = aiResult?.trust || [];
 
-function truncate(text, max) {
-  if (text.length <= max) return text;
-  return text.substring(0, max).trim();
+  if (!items.length) return "";
+
+  const list = items
+    .map(i => `<li>${i}</li>`)
+    .join("");
+
+  return `<ul>${list}</ul>`;
 }
 
 module.exports = {
