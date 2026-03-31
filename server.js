@@ -544,24 +544,8 @@ const store = await upsertStore({
 // WEBHOOKS (SIN TOCAR)
 // ===============================
 await registerWebhooks(shop, access_token);
-// ===============================
-// UPSERT STORE (SIN ROMPER)
-// ===============================
-const store = await upsertStore({
-  shop,
-  access_token,
-  region: country,
-  language,
-  currency,
-  status: "active",
-  tokens: tokensOverride,
-  has_used_free_plan: shouldMarkFreeUsed
-});
-  // 🔥 ACTIVA WEBHOOK
-    await registerWebhooks(shop, access_token);
 
-
-    log("OAUTH SUCCESS", {
+      log("OAUTH SUCCESS", {
       shop,
       token_prefix: String(access_token).slice(0, 8),
       scope
