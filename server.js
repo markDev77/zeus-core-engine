@@ -280,6 +280,36 @@ function verifyShopifyHmac(query) {
   return safeEqual(generatedHmac, receivedHmac);
 }
 
+async function registerWebhooks(shop, access_token) {
+  const url = `https://${shop}/admin/api/2026-01/webhooks.json`;
+
+  const webhookUrl = "https://zeus-core-engine.onrender.com/webhook/products-create";
+
+  try {
+    await axios.post(
+      url,
+      {
+        webhook: {
+          topic: "products/create",
+          address: webhookUrl,
+          format: "json"
+        }
+      },
+      {
+        headers: {
+          "X-Shopify-Access-Token": access_token,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    console.log("✅ Webhook registered:", webhookUrl);
+
+  } catch (err) {
+    console.error("❌ Webhook error:", err.response?.data || err.message);
+  }
+}
+
 /* ==========================
    SHOPIFY OAUTH
 ========================== */
@@ -456,7 +486,9 @@ try {
   status: "active"
 });
 
-  // registerWebhooks eliminado temporalmente (no crítico para onboarding)
+  // 🔥 ACTIVA WEBHOOK
+    await registerWebhooks(shop, access_token);
+
 
     log("OAUTH SUCCESS", {
       shop,
