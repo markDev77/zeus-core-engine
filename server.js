@@ -1702,9 +1702,16 @@ async function transformProductById(shop, access_token, productId) {
     let cleanTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
     cleanTitle = ensureNonEmptyTitle(cleanTitle, realProduct.title);
 
-    translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
+  translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
-      // 🔥 FINAL TITLE CONTROL (ZEUS)
+// 🔥 SINGLE AI CALL
+const aiResult = await generateAIContent({
+  title: cleanTitle,
+  description: translatedHtml,
+  language
+});
+
+// 🔥 FINAL TITLE CONTROL
 const finalTitle = buildFinalTitle({
   aiTitle: aiResult?.title || "",
   originalTitle: cleanTitle,
