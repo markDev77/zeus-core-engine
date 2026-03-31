@@ -81,6 +81,36 @@ function dedupe(tokens) {
   return [...new Set(tokens)];
 }
 
+// 🔥 AQUÍ VA (JUSTO AQUÍ)
+function detectProductEntity(text) {
+  if (!text) return null;
+
+  const normalized = text.toLowerCase();
+
+  const entities = [
+    "paint brush set",
+    "brush set",
+    "paint brushes",
+    "drawing tablet",
+    "graphic tablet",
+    "wireless headphones",
+    "smart watch",
+    "notebook",
+    "sketchbook",
+    "cuaderno",
+    "libro",
+    "tablet grafica",
+    "pinceles",
+    "set de pinceles"
+  ];
+
+  for (let e of entities) {
+    if (normalized.includes(e)) return e;
+  }
+
+  return null;
+}
+
 // 🔥 FIX: mejor clasificación (tipo producto real)
 function classifyTokens(tokens) {
   const materials = ["steel", "leather", "cotton", "silicone", "plastic", "wood", "glass", "acero", "cuero", "algodon"];
