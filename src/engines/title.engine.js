@@ -5,17 +5,17 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
   try {
     if (!originalTitle) return "";
 
-    let aiText =
+    const aiText =
       typeof aiTitle === "string"
         ? aiTitle
         : aiTitle?.title || "";
 
-    // 🔥 GO-TO-MARKET: usar IA directamente
+    // GO-TO-MARKET: IA manda
     if (aiText && aiText.length > 10) {
       return sanitize(capitalize(trimLength(aiText, 70)));
     }
 
-    // 🔁 fallback (si IA falla)
+    // fallback
     return sanitize(capitalize(trimLength(originalTitle, 70)));
 
   } catch (err) {
