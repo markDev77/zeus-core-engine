@@ -1,54 +1,78 @@
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
-const cheerio = require("cheerio");
+
+// ==========================
+// ENV
+// ==========================
 const {
   SHOPIFY_API_KEY,
   SHOPIFY_API_SECRET,
   SHOPIFY_SCOPES,
   OPENAI_API_KEY
 } = process.env;
+
+// ==========================
+// CORE LIBS
+// ==========================
 const express = require("express");
-const { generateAIContent } = require("./src/engines/ai.engine");
-
-console.log("🤖 AI TITLE READY");
-console.log("🔥 ZEUS DB URL:", process.env.DATABASE_URL);
-
-const { Pool } = require("pg");
-const crypto = require("crypto");
+const cheerio = require("cheerio");
 const axios = require("axios");
+const crypto = require("crypto");
+const { Pool } = require("pg");
 
-const { buildShopifyPayload } = require("./src/connectors/shopify/shopify.payload.builder");
-const { applyShopifyCategory } = require("./src/connectors/shopify/shopify.category.service");
-
-const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
+// ==========================
+// ENGINES (ZEUS CORE)
+// ==========================
+const { generateAIContent } = require("./src/engines/ai.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
-
-const { resolvePolicy } = require("./src/policies/policy.engine");
+const { buildFinalTitle } = require("./src/engines/title.engine");
+const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
 
+// ==========================
+// POLICIES
+// ==========================
+const { resolvePolicy } = require("./src/policies/policy.engine");
 const {
   getMarketRules,
   applyMarketRulesToTitle,
   applyMarketRulesToDescription
 } = require("./src/policies/market.policy");
 
+// ==========================
+// CONNECTORS (SHOPIFY)
+// ==========================
+const { buildShopifyPayload } = require("./src/connectors/shopify/shopify.payload.builder");
+const { applyShopifyCategory } = require("./src/connectors/shopify/shopify.category.service");
 
 // ==========================
-// STRIPE INIT
+// LOGS
 // ==========================
-const Stripe = require('stripe');
+console.log("🤖 AI TITLE READY");
+console.log("🔥 ZEUS DB URL:", process.env.DATABASE_URL);
+
+// ==========================
+// STRIPE
+// ==========================
+const Stripe = require("stripe");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// ==========================
+// APP INIT
+// ==========================
 const app = express();
+
 app.use((req, res, next) => {
-  // 🔒 Shopify embed (lo que ya tienes)
   res.removeHeader("X-Frame-Options");
 
   res.setHeader(
     "Content-Security-Policy",
     "frame-ancestors https://admin.shopify.com https://*.myshopify.com https://admin.shopify.com/store/*;"
   );
+
+  next();
+});
 
   // 🌐 CORS (FIX dashboard)
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -1675,18 +1699,28 @@ async function transformProductById(shop, access_token, productId) {
 
     translatedHtml = sanitizeHtmlForMarketplace(translatedHtml, materialHint);
 
-    // 🔹 SINGLE AI CALL
-    const aiResult = await generateAIContent({
-      title: cleanTitle,
-      description: translatedHtml,
-      language
-    });
+      // 🔥 FINAL TITLE CONTROL (ZEUS)
+const finalTitle = buildFinalTitle({
+  aiTitle: aiResult?.title || "",
+  originalTitle: cleanTitle,
+  description: translatedHtml,
+  variant: realProduct?.variants?.[0]?.title
+});
 
-    if (aiResult?.title && aiResult.title.length > 10) {
-      cleanTitle = aiResult.title;
-    }
+cleanTitle = finalTitle;
 
-    const finalDescription = buildFinalDescription({
+// 🔥 MARKET POLICY
+const marketRules = getMarketRules({
+  shop,
+  language
+});
+
+cleanTitle = applyMarketRulesToTitle({
+  title: cleanTitle,
+  rules: marketRules
+});
+
+ const finalDescription = buildFinalDescription({
       title: cleanTitle,
       originalHtml: translatedHtml,
       aiResult,
