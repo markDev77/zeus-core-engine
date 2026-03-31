@@ -1732,10 +1732,11 @@ const marketRules = getMarketRules({
   language
 });
 
-cleanTitle = applyMarketRulesToTitle({
-  title: cleanTitle,
-  rules: marketRules
-});
+cleanTitle = applyMarketRulesToTitle(
+  cleanTitle,
+  marketRules,
+  { aiTitle: "" }
+);
 
  const finalDescription = buildFinalDescription({
       title: cleanTitle,
