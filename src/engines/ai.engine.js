@@ -130,6 +130,11 @@ RULES FOR INTRO:
 - Must feel human and persuasive, not robotic
 - Must describe how the product improves the user's situation
 2. benefits (3–5 real use-case benefits, NOT specs)
+RULES:
+- Each bullet MUST explain:
+  → what it does
+  → how it is used
+  → why it matters
 3. specs (3–6 real technical details)
 4. trust (optional)
 
