@@ -28,7 +28,6 @@ function htmlToPlainText(html = "") {
 function removeGenericNoise(text = "") {
   return text
     .replace(/free shipping/gi, "")
-    .replace(/fast shipping/gi, "")
     .replace(/dropshipping/gi, "")
     .replace(/wholesale/gi, "")
     .replace(/contact us/gi, "")
@@ -46,7 +45,7 @@ function splitLines(text = "") {
 
 function extractSpecLines(lines = []) {
   return lines.filter((l) =>
-    /\b(cm|mm|kg|g|ml|l|size|dimension|material|capacity|weight)\b/i.test(l)
+    /\b(cm|mm|kg|g|ml|l|material|capacity|weight|color)\b/i.test(l)
   );
 }
 
@@ -72,7 +71,7 @@ function buildListSection(title, items = []) {
 
   return `
 <div style="margin-top:16px;">
-  <h3 style="margin:0 0 8px 0;">${title}</h3>
+  <h3>${title}</h3>
   <ul>
     ${cleanItems.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}
   </ul>
@@ -81,7 +80,7 @@ function buildListSection(title, items = []) {
 }
 
 // ==========================
-// 🔥 MAIN DESCRIPTION BUILDER
+// 🔥 MAIN DESCRIPTION
 // ==========================
 function buildFinalDescription({
   title,
@@ -95,15 +94,16 @@ function buildFinalDescription({
   const lines = splitLines(cleanedText);
 
   const specLines = extractSpecLines(lines).slice(0, 8);
-  const narrativeLines = extractNarrativeLines(lines).slice(0, 2);
 
   const isES = language.startsWith("es");
 
   const intro = aiResult?.intro
-    ? `<p>${escapeHtml(aiResult.intro)}</p>`
-    : isES
-      ? `<p><strong>${escapeHtml(title)}</strong>. Información clara y fácil de revisar.</p>`
-      : `<p><strong>${escapeHtml(title)}</strong>. Clear product information.</p>`;
+    ? `<p><strong>${escapeHtml(title)}</strong> — ${escapeHtml(aiResult.intro)}</p>`
+    : `<p><strong>${escapeHtml(title)}</strong> producto diseñado para uso práctico y eficiente.</p>`;
+
+  const storytelling = isES
+    ? `<p>Un producto pensado para quienes buscan funcionalidad y estilo en su día a día. Diseñado para adaptarse a distintas situaciones con comodidad y confianza.</p>`
+    : `<p>Designed for everyday use with a balance of functionality and style.</p>`;
 
   const benefits = buildListSection(
     isES ? "Beneficios clave" : "Key benefits",
@@ -122,6 +122,7 @@ function buildFinalDescription({
 
   return `
 ${intro}
+${storytelling}
 ${benefits}
 ${specs}
 ${trust}
