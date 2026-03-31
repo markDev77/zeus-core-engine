@@ -2,35 +2,26 @@
 // Usa aiResult existente (NO genera IA nueva)
 // Mantiene HTML original intacto al final
 
-function buildDescription({
-  originalHtml,
-  aiResult,
-  language
-}) {
+function buildDescription({ originalHtml, aiResult, language }) {
   try {
-    const cleanText = extractText(originalHtml);
+    const intro = buildIntro(aiResult, language);
+    const benefits = buildBenefits(aiResult, language);
+    const specs = buildSpecs(aiResult, language);
+    const trust = buildTrust(aiResult, language);
 
-    const hook = buildHook(aiResult, language);
-    const benefits = buildBenefits(aiResult, cleanText, language);
-    const features = buildFeatures(cleanText, language);
-    const closing = buildClosing(language);
-
-    const finalHtml = `
-      ${hook}
+    return `
+      ${intro}
       ${benefits}
-      ${features}
-      ${closing}
+      ${specs}
+      ${trust}
       ${originalHtml || ""}
     `;
-
-    return finalHtml;
 
   } catch (err) {
     console.error("ZEUS DESCRIPTION ENGINE ERROR:", err);
     return originalHtml || "";
   }
 }
-
 // ---------------- HELPERS ----------------
 
 function extractText(html) {
