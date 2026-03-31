@@ -64,11 +64,16 @@ function buildHook(aiResult, language) {
 function buildBenefits(aiResult, text, language) {
   let bullets = [];
 
-  if (aiResult) {
-    bullets = aiResult.split(".").slice(0, 4);
-  } else {
-    bullets = text.split(".").slice(0, 4);
-  }
+  let aiText =
+  typeof aiResult === "string"
+    ? aiResult
+    : aiResult?.description || "";
+
+if (aiText) {
+  bullets = aiText.split(".").slice(0, 4);
+} else {
+  bullets = text.split(".").slice(0, 4);
+}
 
   bullets = bullets.filter(b => b && b.length > 10);
 
