@@ -47,7 +47,10 @@ function buildBenefits(aiResult, language) {
   const title = language === "es" ? "Beneficios clave:" : "Key benefits:";
 
   const list = items
-    .map(i => `<li>${i}</li>`)
+  .map(i => {
+  const short = i.split(",")[0]; // 🔥 recorta frase
+  return `<li>${short.trim()}</li>`;
+})
     .join("");
 
   return `
