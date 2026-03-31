@@ -2,7 +2,7 @@
 // Usa aiResult existente (NO genera IA nueva)
 // Mantiene HTML original intacto al final
 
-function buildDescription({ translatedHtml, aiResult }) {
+function buildDescription({ originalHtml, aiResult }) {
   try {
     return `
       <p>${aiResult.intro || ""}</p>
@@ -19,7 +19,7 @@ function buildDescription({ translatedHtml, aiResult }) {
           .join("")}
       </ul>
 
-      ${translatedHtml || ""}
+      ${originalHtml || ""}
     `;
 
   } catch (err) {
