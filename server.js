@@ -22,6 +22,13 @@ const crypto = require("crypto");
 const { Pool } = require("pg");
 
 // ==========================
+// ZEUS INFRA (AUTH / ALERTS)
+// ==========================
+const { canProcessStore, markStoreAuthError, markStoreAuthHealthy } = require("./src/infra/auth/auth-state.service");
+const { sendAuthAlertEmail } = require("./src/infra/alerts/email.service");
+const zeusLogger = require("./src/infra/logging/zeus-logger");
+
+// ==========================
 // ENGINES (ZEUS CORE)
 // ==========================
 const { generateAIContent } = require("./src/engines/ai.engine");
@@ -1148,6 +1155,28 @@ async function processShopQueue(shop) {
       });
 
       try {
+        // ===============================
+        // ZEUS AUTH GATE (CRÍTICO)
+        // ===============================
+        const { canProcessStore } = require("./src/infra/auth/auth-state.service");
+        const zeusLogger = require("./src/infra/logging/zeus-logger");
+
+        const authCheck = await canProcessStore(normalizedShop);
+
+        if (!authCheck.allowed) {
+          zeusLogger.warning("QUEUE_SKIPPED_BY_AUTH", {
+            shop: normalizedShop,
+            reason: authCheck.reason,
+            jobName: item.jobName,
+            jobId: item.jobId
+          });
+
+          continue; // 🔴 SOLO salta este job (NO rompe la cola)
+        }
+
+        // ===============================
+        // EJECUCIÓN NORMAL (SIN CAMBIOS)
+        // ===============================
         await item.fn();
 
         log("QUEUE: done", {
