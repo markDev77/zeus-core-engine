@@ -1157,11 +1157,8 @@ async function processShopQueue(shop) {
 
       try {
         // ===============================
-        // ZEUS AUTH GATE (CRÍTICO)
+        // ZEUS AUTH GATE (SEGURO)
         // ===============================
-        const { canProcessStore } = require("./src/infra/auth/auth-state.service");
-        const zeusLogger = require("./src/infra/logging/zeus-logger");
-
         const authCheck = await canProcessStore(normalizedShop);
 
         if (!authCheck.allowed) {
@@ -1172,11 +1169,11 @@ async function processShopQueue(shop) {
             jobId: item.jobId
           });
 
-          continue; // 🔴 SOLO salta este job (NO rompe la cola)
+          continue; // 🔴 CLAVE: no usar return
         }
 
         // ===============================
-        // EJECUCIÓN NORMAL (SIN CAMBIOS)
+        // EJECUCIÓN NORMAL
         // ===============================
         await item.fn();
 
