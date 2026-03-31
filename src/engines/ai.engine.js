@@ -91,8 +91,16 @@ Raw description: ${description || ""}
 OBJECTIVE
 Generate high-converting ecommerce content based ONLY on real data.
 
+PRIORITY RULE
+Always prioritize:
+1. What the product is used for
+2. Then what the product is
+3. Then key attributes
+
 CRITICAL RULES
 - Do NOT invent attributes
+- You CAN reorganize and prioritize information to improve purchase intent
+- You MUST infer the main use case when obvious (e.g. fitness, drawing, office)
 - Do NOT invent brand
 - Do NOT invent specs
 - Prioritize purchase intent
@@ -115,7 +123,12 @@ RULES:
 STEP 3 — BUILD DESCRIPTION
 
 STRUCTURE:
-1. intro (1 strong sentence, benefit-driven)
+1. intro (3–4 sentences storytelling + 6–10 SEO keywords naturally integrated)
+RULES FOR INTRO:
+- Must start with a real-life use case or scenario
+- Must include 6–10 relevant SEO keywords naturally (not forced)
+- Must feel human and persuasive, not robotic
+- Must describe how the product improves the user's situation
 2. benefits (3–5 real use-case benefits, NOT specs)
 3. specs (3–6 real technical details)
 4. trust (optional)
