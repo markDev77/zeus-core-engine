@@ -118,5 +118,5 @@ function truncate(text, max) {
 }
 
 module.exports = {
-  buildDescription
+  buildFinalDescription: buildDescription
 };
