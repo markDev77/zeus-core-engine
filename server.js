@@ -25,8 +25,7 @@ const { Pool } = require("pg");
 // ZEUS INFRA (AUTH / ALERTS)
 // ==========================
 const { canProcessStore, markStoreAuthError, markStoreAuthHealthy } = require("./src/infra/auth/auth-state.service");
-const { sendAuthAlertEmail } = require("./src/infra/alerts/email.service");
-const zeusLogger = require("./src/infra/logging/zeus-logger");
+
 
 // ==========================
 // ENGINES (ZEUS CORE)
