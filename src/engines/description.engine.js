@@ -2,26 +2,29 @@
 // Usa aiResult existente (NO genera IA nueva)
 // Mantiene HTML original intacto al final
 
-function buildDescription({ originalHtml, aiResult, language }) {
+function buildDescription({ translatedHtml, aiResult }) {
   try {
-    const intro = buildIntro(aiResult, language);
-    const benefits = buildBenefits(aiResult, language);
-    const specs = buildSpecs(aiResult, language);
-    const usage = buildUsage(aiResult, language);
-    const trust = buildTrust(aiResult, language);
-
     return `
-  ${intro}
-  ${benefits}
-  ${usage}
-  ${specs}
-  ${trust}
-  ${originalHtml || ""}
-`;
+      <p>${aiResult.intro || ""}</p>
+
+      <ul>
+        ${(aiResult.bullets || [])
+          .map(b => `<li>${b}</li>`)
+          .join("")}
+      </ul>
+
+      <ul>
+        ${(aiResult.specs || [])
+          .map(s => `<li>${s}</li>`)
+          .join("")}
+      </ul>
+
+      ${translatedHtml || ""}
+    `;
 
   } catch (err) {
     console.error("ZEUS DESCRIPTION ENGINE ERROR:", err);
-    return originalHtml || "";
+    return translatedHtml || "";
   }
 }
 
