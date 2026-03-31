@@ -408,6 +408,39 @@ app.get("/auth/callback", async (req, res) => {
     );
 
     const access_token = tokenResponse?.data?.access_token;
+    // 🔥 GET STORE CONTEXT
+let country = "global";
+let language = "en";
+let currency = "USD";
+
+try {
+  const shopResp = await axios.get(
+    `https://${shop}/admin/api/2026-01/shop.json`,
+    {
+      headers: {
+        "X-Shopify-Access-Token": access_token
+      }
+    }
+  );
+
+  const shopData = shopResp.data?.shop;
+
+  if (shopData) {
+    country = shopData.country_code || "global";
+    language = shopData.primary_locale || "en";
+    currency = shopData.currency || "USD";
+  }
+
+  console.log("🌍 ZEUS STORE CONTEXT:", {
+    shop,
+    country,
+    language,
+    currency
+  });
+
+} catch (err) {
+  console.error("❌ STORE CONTEXT ERROR:", err.message);
+}
     const scope = tokenResponse?.data?.scope;
 
     if (!access_token) {
@@ -415,10 +448,13 @@ app.get("/auth/callback", async (req, res) => {
     }
 
     const store = await upsertStore({
-      shop,
-      access_token,
-      status: "active"
-    });
+  shop,
+  access_token,
+  region: country,
+  language,
+  currency,
+  status: "active"
+});
 
   // registerWebhooks eliminado temporalmente (no crítico para onboarding)
 
