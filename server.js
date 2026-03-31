@@ -1327,7 +1327,7 @@ async function shopifyRequest(shop, config, attempt = 0) {
     }
 
     // ===============================
-    // 🔁 LÓGICA ORIGINAL (INTOCADA)
+    // 🔁 LÓGICA ORIGINAL (AQUÍ VA, NO AFUERA)
     // ===============================
     const retriable = status === 429 || (status >= 500 && status <= 599);
 
