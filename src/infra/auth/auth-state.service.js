@@ -47,14 +47,23 @@ async function canProcessStore(shop) {
     return { allowed: false, reason: "store_inactive", state };
   }
 
+  // ==========================
+  // FIX CRÍTICO (tipo de dato)
+  // ==========================
+  const hasAuthError =
+    state.auth_error === true ||
+    state.auth_error === "t" ||
+    state.auth_error === 1;
+
   // bloqueo por auth
-  if (state.auth_error && state.auth_retry_after) {
+  if (hasAuthError && state.auth_retry_after) {
     const retryAfter = new Date(state.auth_retry_after).getTime();
 
     if (Date.now() < retryAfter) {
       logger.warning("STORE_BLOCKED_BY_AUTH_RETRY", {
         shop,
-        retry_after: state.auth_retry_after
+        retry_after: state.auth_retry_after,
+        raw_auth_error: state.auth_error
       });
 
       return {
