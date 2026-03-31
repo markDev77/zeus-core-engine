@@ -1713,7 +1713,7 @@ const aiResult = await generateAIContent({
 
 // 🔥 FINAL TITLE CONTROL
 const finalTitle = buildFinalTitle({
-  aiTitle: aiResult?.title || "",
+  aiTitle: typeof aiResult?.title === "string" ? aiResult.title : "",
   originalTitle: cleanTitle,
   description: translatedHtml,
   variant: realProduct?.variants?.[0]?.title
