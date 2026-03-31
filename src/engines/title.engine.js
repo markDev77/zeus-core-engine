@@ -16,7 +16,7 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
     // 3. Dedupe
     tokens = dedupe(tokens);
 
-    // 4. Clasificación semántica simple (NO AI)
+    // 4. Clasificación semántica mejorada
     const classified = classifyTokens(tokens);
 
     // 5. Construcción estructurada
@@ -73,11 +73,24 @@ function dedupe(tokens) {
   return [...new Set(tokens)];
 }
 
-// Clasificación heurística (simple pero efectiva)
+// 🔥 FIX: mejor clasificación (tipo producto real)
 function classifyTokens(tokens) {
   const materials = ["steel", "leather", "cotton", "silicone", "plastic", "wood", "glass", "acero", "cuero", "algodon"];
   const colors = ["black", "white", "red", "blue", "green", "negro", "blanco", "rojo", "azul"];
   const functions = ["waterproof", "digital", "wireless", "smart", "recargable"];
+
+  const productTypes = [
+    "reloj", "watch",
+    "libro", "book",
+    "tablet", "pad",
+    "laptop",
+    "audifonos", "headphones",
+    "camara", "camera",
+    "soporte", "stand",
+    "lampara", "lamp",
+    "mochila", "backpack",
+    "cuaderno", "notebook"
+  ];
 
   let type = [];
   let attributes = [];
@@ -88,7 +101,8 @@ function classifyTokens(tokens) {
     if (materials.includes(t)) material.push(t);
     else if (colors.includes(t)) color.push(t);
     else if (functions.includes(t)) attributes.push(t);
-    else type.push(t);
+    else if (productTypes.includes(t)) type.push(t);
+    else attributes.push(t); // fallback inteligente
   });
 
   return {
@@ -100,10 +114,10 @@ function classifyTokens(tokens) {
 }
 
 function buildStructuredTitle(parts, language) {
-  const type = parts.type.slice(0, 3).join(" ");
-  const attr = parts.attributes.slice(0, 2).join(" ");
+  const type = parts.type.slice(0, 2).join(" ");
+  const attr = parts.attributes.slice(0, 3).join(" ");
   const material = parts.material.slice(0, 2).join(" ");
-  const color = parts.color.slice(0, 2).join(" ");
+  const color = parts.color.slice(0, 1).join(" ");
 
   let segments = [];
 
@@ -115,7 +129,7 @@ function buildStructuredTitle(parts, language) {
   return segments.join(" ").trim();
 }
 
-function capitalize(text, language) {
+function capitalize(text) {
   return text.replace(/\b\w/g, l => l.toUpperCase());
 }
 
