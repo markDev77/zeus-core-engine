@@ -1,127 +1,83 @@
-function normalize(text) {
+function normalize(text = "") {
   return String(text || "")
     .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
-function cleanTitle(raw) {
-  return String(raw || "")
-    .replace(/[\[\]\(\)\{\}]/g, "")
-    .replace(/\b\d+\s?(pcs|piece|set|lot)\b/gi, "")
-    .replace(/\b(free shipping|hot sale|new|202\d)\b/gi, "")
-    .replace(/\b(sexy|hot|fashion)\b/gi, "")
+    .replace(/[^a-z0-9\s]/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function removeWeakWords(text) {
-  return text
-    .replace(/\b(ideal para|perfecto para|perfecta para)\b/gi, "")
-    .replace(/\b(increible|premium|alta calidad|mejor)\b/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+function capitalize(text = "") {
+  return text.replace(/\b\w/g, l => l.toUpperCase());
 }
 
-// 🔥 INTELIGENCIA CONTROLADA (SIN IA)
-function interpretAttributes(title) {
-  const t = normalize(title);
+// 🔥 EXTRAER ATRIBUTOS CLAVE DEL HTML
+function extractAttributes(description = "") {
+  const text = normalize(description);
+
   const attributes = [];
 
-  if (t.includes("round") || t.includes("hole")) {
-    attributes.push("con abertura frontal");
-  }
+  if (text.includes("quartz")) attributes.push("Cuarzo");
+  if (text.includes("stainless")) attributes.push("Acero Inoxidable");
+  if (text.includes("bluetooth")) attributes.push("Bluetooth");
+  if (text.includes("sport")) attributes.push("Deportivo");
+  if (text.includes("waterproof")) attributes.push("Resistente al Agua");
 
-  if (t.includes("necktie") || t.includes("halter")) {
-    attributes.push("y tirantes tipo halter");
-  }
-
-  if (t.includes("open") || t.includes("string")) {
-    attributes.push("ajustable");
-  }
-
-  return attributes.join(" ");
+  return attributes;
 }
 
-function detectType(title) {
-  const t = normalize(title);
+// 🔥 EXTRAER COLOR
+function extractVariant(variant = "") {
+  if (!variant) return "";
 
-  if (t.includes("swimming") || t.includes("swimsuit") || t.includes("ban")) {
-    return "Traje de baño";
-  }
-
-  if (t.includes("bag") || t.includes("bolsa")) {
-    return "Bolsa";
-  }
-
-  if (t.includes("lamp") || t.includes("lampara")) {
-    return "Lámpara";
-  }
-
-  return title.split(" ").slice(0, 2).join(" ");
+  return capitalize(
+    String(variant)
+      .replace(/[^a-zA-Z\s]/g, "")
+      .trim()
+  );
 }
 
-function detectContext(title) {
-  const t = normalize(title);
-
-  if (t.includes("swimming") || t.includes("pool")) {
-    return "para playa o piscina";
-  }
-
-  if (t.includes("car")) return "para auto";
-  if (t.includes("home")) return "para hogar";
-
-  return "";
+// 🔥 LIMPIEZA FINAL
+function cleanTitle(title = "") {
+  return String(title)
+    .replace(/[:\-–—,/|%&]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
-function generateTitle(rawTitle) {
-  try {
-    if (!rawTitle) return "";
+// 🔥 CORE
+function buildFinalTitle({
+  aiTitle = "",
+  originalTitle = "",
+  description = "",
+  variant = ""
+}) {
 
-    let clean = cleanTitle(rawTitle);
-    clean = removeWeakWords(clean);
+  const base = aiTitle || originalTitle;
 
-    const type = detectType(clean);
-    const attributeDetected = interpretAttributes(clean);
-    const context = detectContext(clean);
+  const cleanBase = normalize(base);
 
-    // 🔥 FORZAR ATRIBUTO SI NO EXISTE
-    let attribute = attributeDetected;
+  let productName = "";
 
-    if (!attribute) {
-      const words = clean.split(" ").filter(Boolean);
-      attribute = words.slice(2, 6).join(" ");
-    }
+  if (cleanBase.includes("watch")) productName = "Reloj";
+  else if (cleanBase.includes("grip")) productName = "Fortalecedor de Agarre";
+  else productName = capitalize(base.split(" ").slice(0, 3).join(" "));
 
-    // 🔥 CONSTRUCCIÓN ZEUS
-    let finalTitle = type;
+  const attributes = extractAttributes(description);
+  const variantText = extractVariant(variant);
 
-    if (attribute) finalTitle += ` ${attribute}`;
-    if (context) finalTitle += ` ${context}`;
+  const parts = [
+    productName,
+    ...attributes,
+    variantText
+  ].filter(Boolean);
 
-    // 🔥 FALLBACK INTELIGENTE
-    if (!finalTitle || finalTitle.length < 10) {
-      finalTitle = clean;
-    }
+  const finalTitle = capitalize(
+    cleanTitle(parts.join(" "))
+  );
 
-    // Capitalización
-    finalTitle =
-      finalTitle.charAt(0).toUpperCase() + finalTitle.slice(1);
-
-    return finalTitle;
-
-  } catch (err) {
-    console.error("TITLE ENGINE ERROR:", err.message);
-    return rawTitle;
-  }
-}
-
-function improveTitleWithContext(title) {
-  return generateTitle(title);
+  return finalTitle.slice(0, 140);
 }
 
 module.exports = {
-  generateTitle,
-  improveTitleWithContext
+  buildFinalTitle
 };
