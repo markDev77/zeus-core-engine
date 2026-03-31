@@ -5,26 +5,30 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
   try {
     if (!originalTitle) return "";
 
-    let title = normalize(originalTitle);
+    let base = normalize(originalTitle);
 
-    // 🔥 Detectar entidad desde original
-    let detectedEntity = detectProductEntity(title);
-
-    // 🔥 EXTRA: usar IA para reforzar entidad (SIN depender)
+    // 🔥 IA COMO FUENTE PRINCIPAL (GO-TO-MARKET)
     let aiText =
       typeof aiTitle === "string"
         ? aiTitle
         : aiTitle?.description || "";
 
-    if (!detectedEntity && aiText) {
-      const aiEntity = detectProductEntity(aiText.toLowerCase());
-      if (aiEntity) detectedEntity = aiEntity;
+    let workingText = aiText && aiText.length > 40
+      ? aiText.toLowerCase()
+      : base;
+
+    // 🔥 Detectar producto desde IA primero
+    let detectedEntity = detectProductEntity(workingText);
+
+    // fallback
+    if (!detectedEntity) {
+      detectedEntity = detectProductEntity(base);
     }
 
-    // Limpieza normal
-    title = removeNoise(title);
+    // limpieza
+    workingText = removeNoise(workingText);
 
-    let tokens = tokenize(title);
+    let tokens = tokenize(workingText);
     tokens = dedupe(tokens);
 
     const classified = classifyTokens(tokens);
@@ -46,7 +50,6 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
     return originalTitle || "";
   }
 }
-
 // ---------------- HELPERS ----------------
 
 function normalize(text) {
