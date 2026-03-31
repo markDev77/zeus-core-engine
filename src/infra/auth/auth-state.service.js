@@ -1,8 +1,17 @@
 const logger = require("../logging/zeus-logger");
+const { Pool } = require("pg");
 
-// AJUSTA ESTA RUTA a tu conexión real
-const pool = require("../../db");
+// ==========================
+// DB CONNECTION (LOCAL POOL)
+// ==========================
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
+// ==========================
+// GET STATE
+// ==========================
 async function getStoreAuthState(shop) {
   const query = `
     SELECT
@@ -21,6 +30,9 @@ async function getStoreAuthState(shop) {
   return rows[0] || null;
 }
 
+// ==========================
+// CAN PROCESS (QUEUE GATE)
+// ==========================
 async function canProcessStore(shop) {
   const state = await getStoreAuthState(shop);
 
@@ -56,7 +68,85 @@ async function canProcessStore(shop) {
   return { allowed: true, reason: null, state };
 }
 
+// ==========================
+// MARK AUTH ERROR
+// ==========================
+async function markStoreAuthError({
+  shop,
+  code,
+  message,
+  source,
+  retryAfterMinutes = 15,
+  context = {}
+}) {
+  try {
+    const query = `
+      UPDATE stores
+      SET
+        auth_error = TRUE,
+        auth_error_code = $2,
+        auth_error_at = NOW(),
+        auth_error_count = COALESCE(auth_error_count, 0) + 1,
+        auth_retry_after = NOW() + ($3 || ' minutes')::interval
+      WHERE shop = $1
+    `;
+
+    await pool.query(query, [
+      shop,
+      code || "AUTH_ERROR",
+      String(retryAfterMinutes)
+    ]);
+
+    logger.error("STORE_AUTH_ERROR_MARKED", {
+      shop,
+      code,
+      message,
+      source,
+      context
+    });
+
+  } catch (err) {
+    logger.error("STORE_AUTH_ERROR_FAILED", {
+      shop,
+      error: err.message
+    });
+  }
+}
+
+// ==========================
+// MARK AUTH HEALTHY
+// ==========================
+async function markStoreAuthHealthy(shop) {
+  try {
+    const query = `
+      UPDATE stores
+      SET
+        auth_error = FALSE,
+        auth_error_code = NULL,
+        auth_error_at = NULL,
+        auth_retry_after = NULL,
+        auth_last_ok_at = NOW()
+      WHERE shop = $1
+    `;
+
+    await pool.query(query, [shop]);
+
+    logger.info("STORE_AUTH_HEALTHY", { shop });
+
+  } catch (err) {
+    logger.error("STORE_AUTH_HEALTHY_FAILED", {
+      shop,
+      error: err.message
+    });
+  }
+}
+
+// ==========================
+// EXPORTS
+// ==========================
 module.exports = {
   getStoreAuthState,
-  canProcessStore
+  canProcessStore,
+  markStoreAuthError,
+  markStoreAuthHealthy
 };
