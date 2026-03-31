@@ -24,65 +24,73 @@ function getLanguageInstruction(language) {
   return map[lang] || map.en;
 }
 
+function safeJsonParse(raw) {
+  try {
+    const cleaned = String(raw || "")
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .trim();
+
+    return JSON.parse(cleaned);
+  } catch (e) {
+    console.log("AI JSON ERROR:", e.message);
+    return null;
+  }
+}
+
+function cleanArray(arr, limit = 6) {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((x) => String(x || "").trim())
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
 // ==========================
-// 🔥 SINGLE AI CORE (CONTROL SEMÁNTICO)
+// 🔥 MAIN AI FUNCTION
 // ==========================
-async function generateAIContent({ title, category, language }) {
+async function generateAIContent({ title, description, language }) {
   try {
     const langInstruction = getLanguageInstruction(language);
 
     const prompt = `
 ${langInstruction}
 
-You are ZEUS, an ecommerce optimizer.
+You are ZEUS, a senior ecommerce catalog optimizer.
 
-INPUT:
-Raw title: ${title}
-Category: ${category}
+INPUT
+Raw title: ${title || ""}
+Raw description: ${description || ""}
 
-TASK:
-1. Translate the title correctly (DO NOT cut or shorten)
-2. Identify ONLY explicit attributes from the original text
-3. Build a SEO title using ONLY real information
+OBJECTIVE
+Generate optimized ecommerce content ONLY using real data from input.
 
-CRITICAL RULES (MANDATORY):
-
+CRITICAL RULES
 - DO NOT invent attributes
-- DO NOT assume features
-- DO NOT guess product type beyond text
-- DO NOT add context not present in title
-- DO NOT use generic words:
-  moderno, cómodo, elegante, premium
+- DO NOT invent brand or specs
+- DO NOT assume missing data
+- High purchase intent
+- Clear and scannable in <40 seconds
 
-- ONLY use what is explicitly written in the original title
-- If information is unclear → KEEP IT SIMPLE, DO NOT GUESS
+TITLE STRUCTURE
+[Brand if exists] + [Product Name/Model] + [Main Attribute] + [Color/Size/Qty]
+- If element doesn't exist → omit
+- Max 140 chars
 
-TITLE STRUCTURE:
-[product type] + [real attribute] + [optional context if explicitly present]
-
-BAD:
-"Traje de baño tropical para piscina" (if "tropical" is not in input)
-
-GOOD:
-"Traje de baño con tirantes y abertura frontal"
-
----
-
-DESCRIPTION RULES:
-- 1 short intro (natural, not generic)
-- 4–6 benefit bullets
-- NO repetition
-- NO generic phrases
-- DO NOT invent specs
-
----
+DESCRIPTION STRUCTURE
+1. intro → short persuasive paragraph
+2. bullets → 4–6 benefits
+3. specs → 3–8 real technical details
+4. trust → optional (only if exists)
 
 RETURN STRICT JSON:
 
 {
   "title": "...",
   "intro": "...",
-  "bullets": ["...", "...", "..."]
+  "bullets": ["..."],
+  "specs": ["..."],
+  "trust": ["..."]
 }
 `;
 
@@ -90,7 +98,7 @@ RETURN STRICT JSON:
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
-        temperature: 0.1,
+        temperature: 0.15,
         messages: [{ role: "user", content: prompt }]
       },
       {
@@ -100,31 +108,21 @@ RETURN STRICT JSON:
       }
     );
 
-    const raw = response.data.choices[0].message.content;
+    const raw = response?.data?.choices?.[0]?.message?.content || "";
+    const parsed = safeJsonParse(raw);
 
-    function safeParse(raw) {
-      try {
-        const cleaned = String(raw)
-          .replace(/```json/gi, "")
-          .replace(/```/g, "")
-          .trim();
-
-        return JSON.parse(cleaned);
-      } catch (e) {
-        console.log("AI JSON ERROR:", e.message);
-        return null;
-      }
-    }
-
-    const parsed = safeParse(raw);
-
-    if (!parsed) return null;
-
-    if (!parsed.title || !parsed.intro || !parsed.bullets) {
+    if (!parsed || !parsed.title || !parsed.intro) {
+      console.log("AI FALLBACK TRIGGERED");
       return null;
     }
 
-    return parsed;
+    return {
+      title: String(parsed.title || "").trim(),
+      intro: String(parsed.intro || "").trim(),
+      bullets: cleanArray(parsed.bullets, 6),
+      specs: cleanArray(parsed.specs, 8),
+      trust: cleanArray(parsed.trust, 3)
+    };
 
   } catch (err) {
     console.log("AI ENGINE ERROR:", err.message);
@@ -133,15 +131,12 @@ RETURN STRICT JSON:
 }
 
 // ==========================
-// TITLE IMPROVER (OFF)
+// OPTIONAL TITLE IMPROVER
 // ==========================
 async function improveTitleWithAI({ title }) {
   return title;
 }
 
-// ==========================
-// EXPORTS
-// ==========================
 module.exports = {
   generateAIContent,
   improveTitleWithAI
