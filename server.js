@@ -224,6 +224,13 @@ function safeEqual(a, b) {
   if (aBuf.length !== bBuf.length) return false;
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
+function normalizeLanguage(lang) {
+  if (!lang) return "en";
+
+  return lang
+    .toLowerCase()
+    .split("-")[0]; // en-US → en
+}
 
 function buildShopifyCallbackUrl() {
   return "https://zeus-core-engine.onrender.com/auth/callback";
@@ -981,7 +988,7 @@ async function getToken(shop) {
 
   try {
     const store = await getStore(normalizedShop);
-    const language = (store.language || "es")
+  const language = normalizeLanguage(store?.language);
   .toLowerCase()
   .split("-")[0]
   .split("_")[0];
@@ -1323,7 +1330,7 @@ function detectCategory(title) {
 async function translateText(text, options = {}) {
   if (!text || !text.trim()) return text;
 
-  const language = options.language || "es";
+  const language = normalizeLanguage(store?.language);
 
   try {
     const response = await axios.post(
@@ -1757,7 +1764,7 @@ async function transformProductById(shop, access_token, productId) {
 
     const materialHint = detectMaterialHint(realProduct.title, realProduct.body_html);
 
-    const language = (store?.language || "es")
+    const language = normalizeLanguage(store?.language);
       .toLowerCase()
       .split("-")[0]
       .split("_")[0];
