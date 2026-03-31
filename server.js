@@ -1813,10 +1813,8 @@ for (const variant of realVariants) {
 
   try {
     const basePrice = Number(variant.price || 0);
-    if (!basePrice) continue;
-
-    const finalPrice = basePrice;
-
+    const finalPrice = calculateZeusPriceUSD(basePrice);
+    
     await shopifyRequest(normalizedShop, {
       method: "PUT",
       url: `https://${normalizedShop}/admin/api/${PRODUCT_API_VERSION}/variants/${variant.id}.json`,
