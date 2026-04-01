@@ -9,57 +9,82 @@ const pool = new Pool({
 const WORKER_INTERVAL = 3000; // cada 3 seg
 const MAX_JOBS_PER_CYCLE = 2; // ultra conservador
 
+// ==========================
+// FETCH JOBS (SAFE)
+// ==========================
 async function fetchQueuedJobs() {
-  const res = await pool.query(`
+  const res = await pool.query(
+    `
     SELECT *
     FROM zeus_jobs
     WHERE status = 'queued'
     ORDER BY created_at ASC
     LIMIT $1
-  `, [MAX_JOBS_PER_CYCLE]);
+    `,
+    [MAX_JOBS_PER_CYCLE]
+  );
 
   return res.rows;
 }
 
+// ==========================
+// STATE MANAGEMENT
+// ==========================
 async function markProcessing(id) {
-  await pool.query(`
+  await pool.query(
+    `
     UPDATE zeus_jobs
     SET status = 'processing'
     WHERE id = $1
-  `, [id]);
+    `,
+    [id]
+  );
 }
 
 async function markDone(id) {
-  await pool.query(`
+  await pool.query(
+    `
     UPDATE zeus_jobs
     SET status = 'done'
     WHERE id = $1
-  `, [id]);
+    `,
+    [id]
+  );
 }
 
+// ==========================
+// SAFE PROCESSOR (NO BUSINESS LOGIC)
+// ==========================
 async function processJob(job) {
   const { id, shop, payload } = job;
 
-  console.log("🧠 WORKER PROCESSING", { id, shop, payload });
+  console.log("🧠 WORKER (SAFE) PROCESSING", { id, shop, payload });
 
   try {
     await markProcessing(id);
 
-    // 🔥 SAFE MODE:
-    // NO ejecutamos lógica real todavía
-    // solo simulamos procesamiento
+    // 🔒 SAFE MODE REAL
+    // NO ejecutar:
+    // - transformProductById
+    // - generateAIContent
+    // - shopifyRequest
+    // - consumeToken
 
-    await new Promise(res => setTimeout(res, 500));
+    // solo simulación controlada
+    await new Promise((res) => setTimeout(res, 300));
 
     await markDone(id);
 
-    console.log("✅ WORKER DONE", { id });
+    console.log("✅ WORKER (SAFE) DONE", { id });
 
   } catch (err) {
     console.error("❌ WORKER ERROR", err.message);
   }
 }
 
+// ==========================
+// WORKER LOOP
+// ==========================
 async function runWorkerCycle() {
   try {
     const jobs = await fetchQueuedJobs();
@@ -77,7 +102,7 @@ async function runWorkerCycle() {
   }
 }
 
-// 🔁 LOOP
+// 🔁 LOOP (NO BLOQUEANTE)
 setInterval(runWorkerCycle, WORKER_INTERVAL);
 
 console.log("🚀 ZEUS WORKER STARTED (SAFE MODE)");
