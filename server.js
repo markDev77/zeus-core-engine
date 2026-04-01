@@ -1348,28 +1348,7 @@ async function shopifyRequest(shop, config, attempt = 0) {
   }
 }
     
-    // ===============================
-    // 🔁 LÓGICA ORIGINAL (INTOCADA)
-    // ===============================
-    const retriable = status === 429 || (status >= 500 && status <= 599);
-
-    if (!retriable || attempt >= MAX_RETRIES) throw err;
-
-    const retryAfter = getRetryAfterMs(err);
-    const backoff = retryAfter ?? BASE_BACKOFF_MS * Math.pow(2, attempt);
-
-    log("Shopify retry", {
-      shop: normalizedShop,
-      status,
-      attempt: attempt + 1,
-      wait_ms: backoff
-    });
-
-    await sleep(backoff);
-    return shopifyRequest(normalizedShop, config, attempt + 1);
-  }
-}
-async function upsertProductMetafield({
+  async function upsertProductMetafield({
   shop,
   access_token,
   productId,
