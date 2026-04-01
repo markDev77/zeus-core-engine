@@ -2,29 +2,88 @@
 // Usa aiResult existente (NO genera IA nueva)
 // Mantiene HTML original intacto al final
 
-function buildDescription({ originalHtml, aiResult }) {
+function buildDescription({ originalHtml, aiResult, language }) {
   try {
+    // ==========================
+    // 🌍 LANGUAGE TITLES
+    // ==========================
+    const titles = {
+      es: {
+        benefits: "Beneficios y uso",
+        features: "Características"
+      },
+      en: {
+        benefits: "Benefits & Usage",
+        features: "Features"
+      },
+      fr: {
+        benefits: "Avantages et utilisation",
+        features: "Caractéristiques"
+      },
+      de: {
+        benefits: "Vorteile und Nutzung",
+        features: "Eigenschaften"
+      }
+    };
+
+    const lang = (language || "en").toLowerCase();
+    const t = titles[lang] || titles["en"];
+
+    // ==========================
+    // 🔹 INTRO
+    // ==========================
+    const intro = aiResult?.intro
+      ? `<p>${aiResult.intro}</p>`
+      : "";
+
+    // ==========================
+    // 🔹 BENEFITS (NO DUPLICATION LOGIC LIGHT)
+    // ==========================
+    const bullets = (aiResult?.bullets || [])
+      .slice(0, 5)
+      .map(b => `<li>${b}</li>`)
+      .join("");
+
+    const benefitsBlock = bullets
+      ? `
+<h3>${t.benefits}</h3>
+<ul>
+${bullets}
+</ul>`
+      : "";
+
+    // ==========================
+    // 🔹 SPECS (CONTROLADO)
+    // ==========================
+    const specs = (aiResult?.specs || [])
+      .slice(0, 4)
+      .map(s => `<li>${s}</li>`)
+      .join("");
+
+    const specsBlock = specs
+      ? `
+<h3>${t.features}</h3>
+<ul>
+${specs}
+</ul>`
+      : "";
+
+    // ==========================
+    // 🔥 FINAL OUTPUT
+    // ==========================
     return `
-      <p>${aiResult.intro || ""}</p>
+${intro}
 
-      <ul>
-        ${(aiResult.bullets || [])
-          .map(b => `<li>${b}</li>`)
-          .join("")}
-      </ul>
+${benefitsBlock}
 
-      <ul>
-        ${(aiResult.specs || [])
-          .map(s => `<li>${s}</li>`)
-          .join("")}
-      </ul>
+${specsBlock}
 
-      ${originalHtml || ""}
-    `;
+${originalHtml || ""}
+`;
 
   } catch (err) {
     console.error("ZEUS DESCRIPTION ENGINE ERROR:", err);
-    return translatedHtml || "";
+    return originalHtml || "";
   }
 }
 
