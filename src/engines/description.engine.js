@@ -77,13 +77,8 @@ ${specs}
     // ==========================
     // 🔥 FINAL OUTPUT (FIXED)
     // ==========================
-    return `${intro}
 
-${benefitsBlock}
-
-${specsBlock}
-
-${originalHtml || ""}`;
+  return `${intro}${benefitsBlock}${specsBlock}${originalHtml || ""}`;
 
   } catch (err) {
     console.error("ZEUS DESCRIPTION ENGINE ERROR:", err);
