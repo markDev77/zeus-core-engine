@@ -2481,7 +2481,11 @@ app.get("/api/store/status", async (req, res) => {
         status,
         tokens,
         tokens_used,
-        (tokens - tokens_used) AS tokens_balance
+        (tokens - tokens_used) AS tokens_balance,
+        auth_error,
+        auth_error_code,
+        auth_error_count,
+        auth_retry_after
       FROM stores
       WHERE shop = $1
       LIMIT 1
@@ -2501,18 +2505,47 @@ app.get("/api/store/status", async (req, res) => {
       status: row.status,
       tokens: row.tokens,
       tokens_used: row.tokens_used,
-      tokens_balance: row.tokens_balance
+      tokens_balance: row.tokens_balance,
+
+      // 🔴 AUTH VISIBILITY
+      auth_error: row.auth_error,
+      auth_error_code: row.auth_error_code,
+      auth_error_count: row.auth_error_count,
+      auth_retry_after: row.auth_retry_after
     });
 
   } catch (err) {
-    console.error("STORE STATUS ERROR:", err.message);
-
-    return res.status(500).json({
-      error: "internal_error"
-    });
+    console.error("❌ STORE STATUS ERROR:", err);
+    return res.status(500).json({ error: "internal_error" });
   }
 });
 
+
+/* ==========================
+   TEST AUTH EMAIL (TEMPORAL)
+========================== */
+
+app.get("/test/auth-email", async (req, res) => {
+  try {
+    const { sendAuthAlertEmail } = require("./src/infra/alerts/email.service");
+
+    console.log("📧 TEST EMAIL TRIGGER");
+
+    await sendAuthAlertEmail({
+      shop: "test-shop.myshopify.com",
+      type: "SHOPIFY_AUTH_ERROR",
+      code: "TEST_401",
+      message: "Test auth error",
+      context: { test: true }
+    });
+
+    return res.json({ ok: true, message: "Email enviado" });
+
+  } catch (err) {
+    console.error("❌ EMAIL TEST ERROR:", err);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
 /* ==========================
    ACTIVATION PAGE
 ========================== */
