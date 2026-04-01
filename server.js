@@ -2520,32 +2520,6 @@ app.get("/api/store/status", async (req, res) => {
   }
 });
 
-
-/* ==========================
-   TEST AUTH EMAIL (TEMPORAL)
-========================== */
-
-app.get("/test/auth-email", async (req, res) => {
-  try {
-    const { sendAuthAlertEmail } = require("./src/infra/alerts/email.service");
-
-    console.log("📧 TEST EMAIL TRIGGER");
-
-    await sendAuthAlertEmail({
-      shop: "test-shop.myshopify.com",
-      type: "SHOPIFY_AUTH_ERROR",
-      code: "TEST_401",
-      message: "Test auth error",
-      context: { test: true }
-    });
-
-    return res.json({ ok: true, message: "Email enviado" });
-
-  } catch (err) {
-    console.error("❌ EMAIL TEST ERROR:", err);
-    return res.status(500).json({ ok: false, error: err.message });
-  }
-});
 /* ==========================
    ACTIVATION PAGE
 ========================== */
