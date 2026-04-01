@@ -6,34 +6,27 @@ async function localizeUsadropText({
   try {
     if (!rawHtml || !rawHtml.trim()) return rawHtml;
 
-    const splitIndex = rawHtml.search(/<[^>]+>/);
-
-    let textBlock = "";
-    let htmlBlock = "";
-
-    if (splitIndex === -1) {
-      textBlock = rawHtml;
-    } else {
-      textBlock = rawHtml.substring(0, splitIndex);
-      htmlBlock = rawHtml.substring(splitIndex);
-    }
-
-    textBlock = textBlock
+    // 🔥 NUEVO: eliminar imágenes primero
+    const textOnly = rawHtml
+      .replace(/<img[^>]*>/gi, "")
       .replace(/&nbsp;/g, " ")
       .trim();
 
-    // 🔒 evitar consumo IA innecesario
-    if (!textBlock || textBlock.replace(/\s/g, "").length < 10) {
+    // 🔒 si no hay texto útil → no consumir IA
+    if (!textOnly || textOnly.replace(/\s/g, "").length < 10) {
       return rawHtml;
     }
 
-    const translatedText = await translateText(textBlock, { language });
+    const translatedText = await translateText(textOnly, { language });
 
     if (!translatedText || !translatedText.trim()) {
       return rawHtml;
     }
 
-    return `${translatedText}\n\n${htmlBlock}`;
+    // 🔥 mantener imágenes intactas
+    const images = rawHtml.match(/<img[^>]*>/gi)?.join("") || "";
+
+    return `${translatedText}\n\n${images}`;
 
   } catch (err) {
     console.error("❌ USADROP LOCALIZER ERROR:", err.message);
