@@ -22,6 +22,11 @@ const crypto = require("crypto");
 const { Pool } = require("pg");
 
 // ==========================
+// 🔥 ZEUS DB QUEUE (NUEVO)
+// ==========================
+const { enqueueJobDB } = require("./src/infra/queue/db-queue");
+
+// ==========================
 // ZEUS INFRA (AUTH / ALERTS)
 // ==========================
 const { canProcessStore, markStoreAuthError, markStoreAuthHealthy } = require("./src/infra/auth/auth-state.service");
