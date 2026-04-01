@@ -2261,6 +2261,24 @@ app.post("/webhook/products-create", async (req, res) => {
   const productId = Number(req.body?.id);
   if (!productId) return;
 
+  // ===============================
+  // 🔥 ZEUS DB QUEUE (SHADOW MODE)
+  // ===============================
+  try {
+    await enqueueJobDB({
+      shop,
+      productId
+    });
+
+    console.log("📦 DB QUEUE ENQUEUED", {
+      shop,
+      productId
+    });
+
+  } catch (err) {
+    console.error("❌ DB QUEUE ERROR:", err.message);
+  }
+
   let store;
 
   try {
@@ -2293,6 +2311,7 @@ app.post("/webhook/products-create", async (req, res) => {
 
     return;
   }
+
   enqueueShopJob(shop, "products-create(FULL)", async () => {
     let jobStore;
 
@@ -2343,30 +2362,30 @@ app.post("/webhook/products-create", async (req, res) => {
 
     const transformResult = await transformProductById(shop, access_token, productId);
 
-console.log("🔥 BEFORE TOKEN CONSUME", {
-  shop,
-  productId,
-  transformResult
-});
+    console.log("🔥 BEFORE TOKEN CONSUME", {
+      shop,
+      productId,
+      transformResult
+    });
 
-const shouldCharge =
-  transformResult?.success === true ||
-  transformResult?.chargeable === true;
+    const shouldCharge =
+      transformResult?.success === true ||
+      transformResult?.chargeable === true;
 
-if (!shouldCharge) {
-  log("WEBHOOK TOKEN SKIPPED", {
-    shop,
-    productId,
-    reason: transformResult?.reason || "no_charge_condition"
+    if (!shouldCharge) {
+      log("WEBHOOK TOKEN SKIPPED", {
+        shop,
+        productId,
+        reason: transformResult?.reason || "no_charge_condition"
+      });
+      return;
+    }
+
+    await consumeTokenIfAvailable(shop, {
+      source: "webhook",
+      productId
+    });
   });
-  return;
-}
-
-await consumeTokenIfAvailable(shop, {
-  source: "webhook",
-  productId
-});
-});
 });
   
 /* ==========================
