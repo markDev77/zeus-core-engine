@@ -1,11 +1,10 @@
-function extractUsadropContent(rawHtml) {
+async function localizeUsadropText({
+  rawHtml,
+  language,
+  translateText
+}) {
   try {
-    if (!rawHtml || !rawHtml.trim()) {
-      return {
-        textBlock: "",
-        htmlBlock: rawHtml
-      };
-    }
+    if (!rawHtml || !rawHtml.trim()) return rawHtml;
 
     const splitIndex = rawHtml.search(/<[^>]+>/);
 
@@ -23,22 +22,27 @@ function extractUsadropContent(rawHtml) {
       .replace(/&nbsp;/g, " ")
       .trim();
 
-    return {
-      textBlock,
-      htmlBlock
-    };
+    // 🔒 evitar consumo IA innecesario
+    if (!textBlock || textBlock.replace(/\s/g, "").length < 10) {
+      return rawHtml;
+    }
+
+    const translatedText = await translateText(textBlock, { language });
+
+    if (!translatedText || !translatedText.trim()) {
+      return rawHtml;
+    }
+
+    return `${translatedText}\n\n${htmlBlock}`;
 
   } catch (err) {
-    console.error("❌ USADROP EXTRACT ERROR:", err.message);
-    return {
-      textBlock: "",
-      htmlBlock: rawHtml
-    };
+    console.error("❌ USADROP LOCALIZER ERROR:", err.message);
+    return rawHtml;
   }
 }
 
 module.exports = {
   description: {
-    extractUsadropContent
+    localizeUsadropText
   }
 };
