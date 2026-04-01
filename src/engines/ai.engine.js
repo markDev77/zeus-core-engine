@@ -153,6 +153,31 @@ IMPORTANT:
 - Do NOT use English unless the language is English
 - Keep structure consistent across all languages
 
+OUTPUT FORMAT (CRITICAL):
+The description MUST be structured in clean HTML.
+Structure EXACTLY like this:
+<p>[intro]</p>
+
+<h3>[Section title translated to store language]</h3>
+<ul>
+<li>...</li>
+</ul>
+
+<h3>[Section title translated to store language]</h3>
+<ul>
+<li>...</li>
+</ul>
+
+RULES:
+- DO NOT repeat information already present in the raw description
+- DO NOT duplicate specs, materials, or attributes already provided
+- Avoid redundancy completely
+- Use ONLY 2 sections:
+  1. Benefits / Usage
+  2. Features / Specifications
+- Section titles MUST be in the store language
+- Keep bullets concise and non-repetitive
+
 RETURN JSON:
 {
   "title": "...",
