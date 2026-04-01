@@ -129,11 +129,15 @@ STRUCTURE (MANDATORY):
 
 1. intro (STORYTELLING)
 - 3–4 sentences
-- Must start with a real-life scenario
+- Start naturally, DO NOT always use the same opening phrase
+- Avoid repetitive patterns like "Imagina", "Imagine", "Stell dir vor"
+- Vary the introduction across products
 - Must describe how the product improves the user's situation
+- Must include relevant keywords naturally integrated
 - Must include 6–10 relevant SEO keywords naturally integrated
 
 2. benefits (BENEFITS + USAGE AND FUNCTIONALITY)
+- Use a section title translated to the store language (e.g. Benefits / Beneficios / Vorteile)
 - 3–5 bullet points
 - Each bullet MUST explain:
   → what it does
@@ -141,8 +145,8 @@ STRUCTURE (MANDATORY):
   → why it matters
 
 3. specs (FEATURES / CHARACTERISTICS)
+- Use a section title translated to the store language (e.g. Features / Características / Eigenschaften)
 - 3–6 real technical details
-- Only factual attributes
 
 IMPORTANT:
 - Write ALL content in the target language
