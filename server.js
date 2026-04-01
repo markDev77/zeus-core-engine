@@ -20,6 +20,8 @@ const cheerio = require("cheerio");
 const axios = require("axios");
 const crypto = require("crypto");
 const { Pool } = require("pg");
+const usadropPolicy = require("./src/policies/shopify/usadrop/usadropDescriptionLocalizer.policy");
+
 
 // ==========================
 // ZEUS INFRA (AUTH / ALERTS)
@@ -1926,7 +1928,12 @@ async function transformProductById(shop, access_token, productId) {
 
     // 🔹 TRANSLATION
     const translatedTitleRaw = await translateText(realProduct.title || "", { language });
-    let translatedHtml = await translateHtmlPreservingTags(realProduct.body_html || "", { language });
+   
+let translatedHtml = await usadropPolicy.description.localizeUsadropText({
+  rawHtml: realProduct.body_html || "",
+  language,
+  translateText
+});
 
     // 🔹 SANITIZE
     let cleanTitle = sanitizeTextForMarketplace(translatedTitleRaw, materialHint);
