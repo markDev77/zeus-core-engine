@@ -840,15 +840,35 @@ const pool = new Pool({
 });
 
 async function initDB() {
+  // ==========================
+  // TOKENS
+  // ==========================
   await pool.query(`
     CREATE TABLE IF NOT EXISTS shop_tokens (
       shop TEXT PRIMARY KEY,
       access_token TEXT NOT NULL
     );
   `);
-  console.log("shop_tokens table ready");
-}
 
+  console.log("shop_tokens table ready");
+
+  // ==========================
+  // 🔥 ZEUS JOB QUEUE (NUEVO)
+  // ==========================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS zeus_jobs (
+      id BIGSERIAL PRIMARY KEY,
+      job_type TEXT,
+      shop TEXT NOT NULL,
+      payload JSONB,
+      status TEXT DEFAULT 'queued',
+      attempts INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+
+  console.log("zeus_jobs table ready");
+}
 /* ==========================
    LOGS
 ========================== */
