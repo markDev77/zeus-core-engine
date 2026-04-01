@@ -2875,7 +2875,6 @@ app.post("/stripe/webhook", async (req, res) => {
   }
 });
 
-
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
@@ -2892,5 +2891,15 @@ app.listen(PORT, async () => {
     }
   } catch (err) {
     console.error("❌ DB init error:", err.message);
+  }
+
+  // ==========================
+  // 🔥 ZEUS WORKER (SAFE MODE)
+  // ==========================
+  try {
+    require("./src/infra/worker/zeus-worker");
+    console.log("🧠 ZEUS WORKER LOADED (SAFE MODE)");
+  } catch (err) {
+    console.error("❌ WORKER LOAD ERROR:", err.message);
   }
 });
