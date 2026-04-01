@@ -45,6 +45,9 @@ const { buildFinalTitle } = require("./src/engines/title.engine");
 const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
 
+// 🧠 ZEUS ADMIN ENGINE (SAFE)
+const { registerAdminRoutes } = require("./engines/admin.engine");
+
 // ==========================
 // POLICIES
 // ==========================
@@ -2563,6 +2566,17 @@ app.get("/api/store/status", async (req, res) => {
     return res.status(500).json({ error: "internal_error" });
   }
 });
+
+/* ==========================
+   ZEUS ADMIN ENGINE (SAFE)
+   Read-only layer (no impact)
+========================== */
+try {
+  registerAdminRoutes(app, pool);
+  console.log("🧠 ZEUS ADMIN ENGINE LOADED");
+} catch (err) {
+  console.error("❌ ADMIN ENGINE LOAD ERROR:", err.message);
+}
 
 /* ==========================
    ACTIVATION PAGE
