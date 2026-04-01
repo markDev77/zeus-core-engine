@@ -37,7 +37,7 @@ function buildDescription({ originalHtml, aiResult, language }) {
       : "";
 
     // ==========================
-    // 🔹 BENEFITS (NO DUPLICATION LOGIC LIGHT)
+    // 🔹 BENEFITS
     // ==========================
     const bullets = (aiResult?.bullets || [])
       .slice(0, 5)
@@ -53,37 +53,37 @@ ${bullets}
       : "";
 
     // ==========================
-// 🔹 SPECS (CONTROLADO)
-// ==========================
-const originalText = (originalHtml || "").toLowerCase();
+    // 🔹 SPECS (CONTROLADO)
+    // ==========================
+    const originalText = (originalHtml || "").toLowerCase();
 
-const specs = (aiResult?.specs || [])
-  .filter(s => {
-    const clean = s.toLowerCase().slice(0, 40);
-    return !originalText.includes(clean);
-  })
-  .slice(0, 4)
-  .map(s => `<li>${s}</li>`)
-  .join("");
+    const specs = (aiResult?.specs || [])
+      .filter(s => {
+        const clean = s.toLowerCase().slice(0, 40);
+        return !originalText.includes(clean);
+      })
+      .slice(0, 4)
+      .map(s => `<li>${s}</li>`)
+      .join("");
 
-const specsBlock = specs
-  ? `
+    const specsBlock = specs
+      ? `
 <h3>${t.features}</h3>
 <ul>
 ${specs}
 </ul>`
-  : "";
-    
+      : "";
+
     // ==========================
-    // 🔥 FINAL OUTPUT
+    // 🔥 FINAL OUTPUT (FIXED)
     // ==========================
+    return `${intro}
 
 ${benefitsBlock}
 
 ${specsBlock}
 
-${originalHtml || ""}
-`;
+${originalHtml || ""}`;
 
   } catch (err) {
     console.error("ZEUS DESCRIPTION ENGINE ERROR:", err);
@@ -113,10 +113,10 @@ function buildBenefits(aiResult, language) {
   const title = language === "es" ? "Beneficios clave:" : "Key benefits:";
 
   const list = items
-  .map(i => {
-  const short = i.split(",")[0]; // 🔥 recorta frase
-  return `<li>${short.trim()}</li>`;
-})
+    .map(i => {
+      const short = i.split(",")[0];
+      return `<li>${short.trim()}</li>`;
+    })
     .join("");
 
   return `
@@ -161,7 +161,6 @@ function buildUsage(aiResult, language) {
 
   if (!items.length) return "";
 
-  // 🔥 filtrar bullets que expresan uso
   const usageItems = items.filter(i =>
     i.toLowerCase().includes("uso") ||
     i.toLowerCase().includes("ideal") ||
