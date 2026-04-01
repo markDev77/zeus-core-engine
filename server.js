@@ -22,11 +22,6 @@ const crypto = require("crypto");
 const { Pool } = require("pg");
 
 // ==========================
-// 🔥 ZEUS DB QUEUE (NUEVO)
-// ==========================
-const { enqueueJobDB } = require("./engines/admin.engine");
-
-// ==========================
 // ZEUS INFRA (AUTH / ALERTS)
 // ==========================
 const { canProcessStore, markStoreAuthError, markStoreAuthHealthy } = require("./src/infra/auth/auth-state.service");
@@ -45,8 +40,15 @@ const { buildFinalTitle } = require("./src/engines/title.engine");
 const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
 
+// ==========================
+// 🔥 ZEUS DB QUEUE (NUEVO)
+// ==========================
+const { enqueueJobDB } = require("./src/infra/queue/db-queue");
+
+// ==========================
 // 🧠 ZEUS ADMIN ENGINE (SAFE)
-const { registerAdminRoutes } = require("./engines/admin.engine");
+// ==========================
+const { registerAdminRoutes } = require("./src/engines/admin.engine");
 
 // ==========================
 // POLICIES
