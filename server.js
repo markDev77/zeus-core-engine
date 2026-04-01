@@ -24,7 +24,7 @@ const { Pool } = require("pg");
 // ==========================
 // 🔥 ZEUS DB QUEUE (NUEVO)
 // ==========================
-const { enqueueJobDB } = require("./src/infra/queue/db-queue");
+const { enqueueJobDB } = require("./engines/admin.engine");
 
 // ==========================
 // ZEUS INFRA (AUTH / ALERTS)
