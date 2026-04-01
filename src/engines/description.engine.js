@@ -53,26 +53,30 @@ ${bullets}
       : "";
 
     // ==========================
-    // 🔹 SPECS (CONTROLADO)
-    // ==========================
-    const specs = (aiResult?.specs || [])
-      .slice(0, 4)
-      .map(s => `<li>${s}</li>`)
-      .join("");
+// 🔹 SPECS (CONTROLADO)
+// ==========================
+const originalText = (originalHtml || "").toLowerCase();
 
-    const specsBlock = specs
-      ? `
+const specs = (aiResult?.specs || [])
+  .filter(s => {
+    const clean = s.toLowerCase().slice(0, 40);
+    return !originalText.includes(clean);
+  })
+  .slice(0, 4)
+  .map(s => `<li>${s}</li>`)
+  .join("");
+
+const specsBlock = specs
+  ? `
 <h3>${t.features}</h3>
 <ul>
 ${specs}
 </ul>`
-      : "";
-
+  : "";
+    
     // ==========================
     // 🔥 FINAL OUTPUT
     // ==========================
-    return `
-${intro}
 
 ${benefitsBlock}
 
