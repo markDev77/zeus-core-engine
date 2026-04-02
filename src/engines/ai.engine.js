@@ -441,17 +441,36 @@ async function generateAIContent({
     const parsed = safeJsonParse(raw);
 
     if (resolvedMode === "structured") {
-      const structured = normalizeStructuredOutput(parsed, {
-        title
-      });
+  const structured = normalizeStructuredOutput(parsed, {
+    title
+  });
 
-      if (!structured) {
-        console.log("AI STRUCTURED FALLBACK TRIGGERED");
-        return null;
-      }
+  if (!structured) {
+    console.log("AI STRUCTURED FALLBACK TRIGGERED");
+    return null;
+  }
 
-      return structured;
+  // ==========================
+  // 🔥 STORYTELLING FIX (SOLO STRUCTURED)
+  // ==========================
+  if (structured.intro) {
+    const intro = String(structured.intro).trim();
+
+    const sentences = intro.split(/\. +/).filter(Boolean);
+
+    if (sentences.length < 3) {
+      const intent = structured.intent?.purchase_driver || "";
+
+      const extra = intent
+        ? `Ideal para quienes buscan ${intent.toLowerCase()}, este producto destaca por su funcionalidad y diseño pensado para el uso diario.`
+        : `Este producto destaca por su funcionalidad y diseño pensado para el uso diario.`;
+
+      structured.intro = (intro + " " + extra).trim();
     }
+  }
+
+  return structured;
+}
 
     const legacy = normalizeLegacyOutput(parsed);
 
