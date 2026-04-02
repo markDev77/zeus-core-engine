@@ -125,7 +125,6 @@ function cleanIntent(intent) {
   };
 }
 
-// 🔥 LIMPIADOR FINAL DE TÍTULO LEGACY (CRÍTICO)
 function cleanFinalTitle(title = "") {
   return String(title)
     .replace(/[:\-–—,/|%&]+/g, " ")
@@ -137,7 +136,6 @@ function cleanFinalTitle(title = "") {
     .trim();
 }
 
-// 🔥 LIMPIADOR BASE TITLE STRUCTURED
 function cleanStructuredTitleBase(title = "") {
   return String(title)
     .replace(/[:\-–—,/|%&]+/g, " ")
@@ -438,64 +436,76 @@ async function generateAIContent({
           });
 
     const raw = await callOpenAI(prompt);
-const parsed = safeJsonParse(raw);
+    const parsed = safeJsonParse(raw);
 
-if (resolvedMode === "structured") {
-  const structured = normalizeStructuredOutput(parsed, {
-    title
-  });
+    if (resolvedMode === "structured") {
+      const structured = normalizeStructuredOutput(parsed, {
+        title
+      });
 
-  if (!structured) {
-    console.log("AI STRUCTURED FALLBACK TRIGGERED");
+      if (!structured) {
+        console.log("AI STRUCTURED FALLBACK TRIGGERED");
+        return null;
+      }
+
+      // ==========================
+      // 🔥 STORYTELLING FIX (SOLO STRUCTURED)
+      // ==========================
+      if (structured.intro) {
+        const intro = String(structured.intro).trim();
+        const sentences = intro.split(/\. +/).filter(Boolean);
+
+        if (sentences.length < 3) {
+          const intent = structured.intent?.purchase_driver || "";
+
+          const variations = [
+            (intentValue) =>
+              `Pensado para quienes buscan ${intentValue.toLowerCase()}, ofrece una solución práctica y funcional para el día a día.`,
+            (intentValue) =>
+              `Ideal para quienes valoran ${intentValue.toLowerCase()}, combinando comodidad con un diseño pensado para su uso continuo.`,
+            (intentValue) =>
+              `Diseñado para aportar ${intentValue.toLowerCase()}, facilitando su uso en diferentes situaciones cotidianas.`,
+            (intentValue) =>
+              `Una opción práctica para quienes necesitan ${intentValue.toLowerCase()}, destacando por su funcionalidad y facilidad de uso.`,
+            (intentValue) =>
+              `Perfecto si buscas ${intentValue.toLowerCase()}, integrando características que lo hacen útil en el uso diario.`,
+            (intentValue) =>
+              `Pensado para mejorar ${intentValue.toLowerCase()}, ofreciendo una experiencia cómoda y funcional.`,
+            (intentValue) =>
+              `Una solución funcional para quienes requieren ${intentValue.toLowerCase()}, adaptándose a distintas necesidades.`,
+            (intentValue) =>
+              `Diseñado para brindar ${intentValue.toLowerCase()}, con un enfoque práctico y fácil de usar.`,
+            (intentValue) =>
+              `Ideal para facilitar ${intentValue.toLowerCase()}, aportando funcionalidad sin complicaciones.`,
+            () =>
+              `Este producto destaca por su funcionalidad y un diseño pensado para facilitar su uso cotidiano.`
+          ];
+
+          const index = Math.floor(Math.random() * variations.length);
+          const pick = variations[index];
+          const extra = intent ? pick(intent) : pick();
+
+          structured.intro = `${intro} ${extra}`.trim();
+        }
+      }
+
+      return structured;
+    }
+
+    const legacy = normalizeLegacyOutput(parsed);
+
+    if (!legacy) {
+      console.log("AI LEGACY FALLBACK TRIGGERED");
+      return null;
+    }
+
+    return legacy;
+  } catch (err) {
+    console.log("AI ENGINE ERROR:", err.message);
     return null;
   }
-
-  // ==========================
-  // 🔥 STORYTELLING FIX (SOLO STRUCTURED)
-  // ==========================
-  if (structured.intro) {
-    const intro = String(structured.intro).trim();
-    const sentences = intro.split(/\. +/).filter(Boolean);
-
-    if (sentences.length < 3) {
-      const intent = structured.intent?.purchase_driver || "";
-
-      const variations = [
-        (intent) => `Pensado para quienes buscan ${intent.toLowerCase()}, ofrece una solución práctica y funcional para el día a día.`,
-        (intent) => `Ideal para quienes valoran ${intent.toLowerCase()}, combinando comodidad con un diseño pensado para su uso continuo.`,
-        (intent) => `Diseñado para aportar ${intent.toLowerCase()}, facilitando su uso en diferentes situaciones cotidianas.`,
-        (intent) => `Una opción práctica para quienes necesitan ${intent.toLowerCase()}, destacando por su funcionalidad y facilidad de uso.`,
-        (intent) => `Perfecto si buscas ${intent.toLowerCase()}, integrando características que lo hacen útil en el uso diario.`,
-        (intent) => `Pensado para mejorar ${intent.toLowerCase()}, ofreciendo una experiencia cómoda y funcional.`,
-        (intent) => `Una solución funcional para quienes requieren ${intent.toLowerCase()}, adaptándose a distintas necesidades.`,
-        (intent) => `Diseñado para brindar ${intent.toLowerCase()}, con un enfoque práctico y fácil de usar.`,
-        (intent) => `Ideal para facilitar ${intent.toLowerCase()}, aportando funcionalidad sin complicaciones.`,
-        () => `Este producto destaca por su funcionalidad y un diseño pensado para facilitar su uso cotidiano.`
-      ];
-
-      const index = Math.floor(Math.random() * variations.length);
-      const pick = variations[index];
-
-      const extra = intent ? pick(intent) : pick();
-
-      structured.intro = (intro + " " + extra).trim();
-    }
-  }
-
-  return structured;
 }
 
-// 🔥 IMPORTANTE: ESTO DEBE EXISTIR
-const legacy = normalizeLegacyOutput(parsed);
-
-if (!legacy) {
-  console.log("AI LEGACY FALLBACK TRIGGERED");
-  return null;
-}
-
-return legacy;
-
-    
 // ==========================
 async function improveTitleWithAI({ title }) {
   return title;
