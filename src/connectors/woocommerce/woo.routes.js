@@ -47,12 +47,23 @@ function buildTitleFromStructured(aiResult, fallbackTitle = "") {
     let title = base;
 
     if (intent && intent.length > 5) {
-      const intentLower = intent.toLowerCase();
+  const cleanedIntent = intent
+    .toLowerCase()
+    .replace(/^necesidad de\s+/i, "para ")
+    .replace(/^uso de\s+/i, "para ")
+    .replace(/^mejorar\s+/i, "para mejorar ")
+    .replace(/^solución para\s+/i, "para ")
+    .replace(/^producto para\s+/i, "para ")
+    .trim();
 
-      if (!title.toLowerCase().includes(intentLower)) {
-        title += " " + intentLower;
-      }
-    }
+  if (
+    cleanedIntent &&
+    cleanedIntent.length > 5 &&
+    !title.toLowerCase().includes(cleanedIntent)
+  ) {
+    title += " " + cleanedIntent;
+  }
+}
 
     if (
       differentiator &&
