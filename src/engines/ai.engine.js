@@ -16,17 +16,16 @@ function getLanguageInstruction(language) {
   if (!language) {
     return "Write ALL output strictly in English.";
   }
+
   const lang = String(language).toLowerCase();
 
-  // Idiomas críticos validados (los que ya probaste)
   if (lang.startsWith("es")) return "Responde TODO en español.";
   if (lang.startsWith("pt")) return "Responda TODO em português.";
   if (lang.startsWith("en")) return "Write ALL output strictly in English.";
 
-  // 🔥 NUEVO: soporte dinámico
   return `Write ALL output strictly in ${lang}. Do NOT use any other language.`;
 }
- 
+
 // ==========================
 // HELPERS
 // ==========================
@@ -52,37 +51,107 @@ function cleanArray(arr, limit = 6) {
     .slice(0, limit);
 }
 
-// 🔥 LIMPIADOR FINAL DE TÍTULO (CRÍTICO)
+function cleanKeywordArray(arr, min = 8, max = 12) {
+  if (!Array.isArray(arr)) return [];
+
+  const seen = new Set();
+  const out = [];
+
+  for (const item of arr) {
+    const clean = String(item || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!clean) continue;
+
+    const key = clean.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    out.push(clean);
+
+    if (out.length >= max) break;
+  }
+
+  return out.slice(0, Math.max(min, out.length));
+}
+
+function cleanCategoryHints(arr, limit = 3) {
+  if (!Array.isArray(arr)) return [];
+
+  const seen = new Set();
+  const out = [];
+
+  for (const item of arr) {
+    const clean = String(item || "")
+      .replace(/\s+/g, " ")
+      .replace(/\s*>\s*/g, " > ")
+      .trim();
+
+    if (!clean) continue;
+
+    const key = clean.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    out.push(clean);
+
+    if (out.length >= limit) break;
+  }
+
+  return out;
+}
+
+function cleanScalar(value, maxLen = 220) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
+}
+
+function cleanIntent(intent) {
+  if (!intent || typeof intent !== "object") {
+    return {
+      primary: "",
+      secondary: "",
+      purchase_driver: ""
+    };
+  }
+
+  return {
+    primary: cleanScalar(intent.primary, 120),
+    secondary: cleanScalar(intent.secondary, 120),
+    purchase_driver: cleanScalar(intent.purchase_driver, 140)
+  };
+}
+
+// 🔥 LIMPIADOR FINAL DE TÍTULO LEGACY (CRÍTICO)
 function cleanFinalTitle(title = "") {
   return String(title)
-    // quitar símbolos
     .replace(/[:\-–—,/|%&]+/g, " ")
-
-    // quitar duplicados
     .replace(/\b(\w+)( \1\b)+/gi, "$1")
-
-    // limpiar espacios
     .replace(/\s{2,}/g, " ")
-
-    // limpiar bordes
     .replace(/^[\s\-]+|[\s\-]+$/g, "")
-
-    // capitalizar
-    .replace(/\b\w/g, l => l.toUpperCase())
-
-    // limitar SEO
+    .replace(/\b\w/g, (l) => l.toUpperCase())
     .slice(0, 140)
     .trim();
 }
 
-// ==========================
-// 🔥 MAIN AI FUNCTION
-// ==========================
-async function generateAIContent({ title, description, language }) {
-  try {
-    const langInstruction = getLanguageInstruction(language);
+// 🔥 LIMPIADOR BASE TITLE STRUCTURED
+function cleanStructuredTitleBase(title = "") {
+  return String(title)
+    .replace(/[:\-–—,/|%&]+/g, " ")
+    .replace(/\b(\w+)( \1\b)+/gi, "$1")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s\-]+|[\s\-]+$/g, "")
+    .trim()
+    .slice(0, 160);
+}
 
-    const prompt = `
+function buildLegacyPrompt({ title, description, language }) {
+  const langInstruction = getLanguageInstruction(language);
+
+  return `
 ${langInstruction}
 
 You are ZEUS, a senior ecommerce catalog optimizer.
@@ -187,39 +256,211 @@ RETURN JSON:
   "trust": ["..."]
 }
 `;
+}
 
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o-mini",
-        temperature: 0.15,
-        messages: [{ role: "user", content: prompt }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-        }
+function buildStructuredPrompt({ title, description, language, country, locale }) {
+  const langInstruction = getLanguageInstruction(language);
+
+  const normalizedCountry = String(country || "").trim().toUpperCase();
+  const normalizedLocale = String(locale || "").trim().toLowerCase();
+
+  return `
+${langInstruction}
+
+You are ZEUS, a senior ecommerce optimization intelligence engine.
+
+TASK
+Analyze the product and return ONLY valid JSON.
+Do NOT return HTML.
+Do NOT return markdown.
+Do NOT add explanations.
+
+INPUT
+Raw title: ${title || ""}
+Raw description: ${description || ""}
+Target language: ${normalizeLanguage(language)}
+Country context: ${normalizedCountry || "not_provided"}
+Locale context: ${normalizedLocale || "not_provided"}
+
+OBJECTIVE
+Generate structured ecommerce intelligence optimized for:
+1. SEO visibility
+2. Conversational AI discoverability
+3. Purchase intent
+4. Real product clarity
+
+CRITICAL RULES
+- Use ONLY real information supported by the input
+- Do NOT invent brand, specs, materials, guarantees or certifications
+- Do NOT make false promises
+- Do NOT use repetitive templates
+- Benefits must sound natural and varied, not formulaic
+- Adapt wording naturally to country/locale when relevant
+- Keep the tone commercial, clear and credible
+- If differentiator is not clear from the input, return an empty string
+- Category hints must be taxonomic paths, top 3 maximum
+- Keywords must be semantically strong, useful for search and conversational discovery
+- Features should be expressed as concise factual statements, ideally "Key: Value" when possible
+- Intro should feel natural, persuasive and non-repetitive
+- Intro should be around 4 lines max in normal ecommerce length
+- Benefits must explain value and usage naturally, but with varied sentence structures
+- Avoid starting all bullets the same way
+- Return 8 to 12 keywords
+- Return exactly 3 category hints when possible
+- Write in the target language only
+
+RETURN JSON WITH THIS EXACT SHAPE:
+{
+  "title_base": "",
+  "intro": "",
+  "benefits": ["", "", ""],
+  "features": ["", "", ""],
+  "differentiator": "",
+  "keywords": ["", "", "", "", "", "", "", ""],
+  "category_hints": ["", "", ""],
+  "intent": {
+    "primary": "",
+    "secondary": "",
+    "purchase_driver": ""
+  },
+  "audience": "",
+  "tone": ""
+}
+`;
+}
+
+async function callOpenAI(prompt) {
+  const response = await axios.post(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      model: "gpt-4o-mini",
+      temperature: 0.15,
+      messages: [{ role: "user", content: prompt }]
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
       }
-    );
+    }
+  );
 
-    const raw = response?.data?.choices?.[0]?.message?.content || "";
+  return response?.data?.choices?.[0]?.message?.content || "";
+}
+
+function normalizeLegacyOutput(parsed) {
+  if (!parsed || !parsed.title || !parsed.intro) {
+    return null;
+  }
+
+  const finalTitle = cleanFinalTitle(parsed.title);
+
+  return {
+    title: finalTitle,
+    intro: String(parsed.intro || "").trim(),
+    bullets: cleanArray(parsed.bullets, 6),
+    specs: cleanArray(parsed.specs, 8),
+    trust: cleanArray(parsed.trust, 3)
+  };
+}
+
+function normalizeStructuredOutput(parsed, fallback = {}) {
+  if (!parsed || typeof parsed !== "object") {
+    return null;
+  }
+
+  const benefits = cleanArray(parsed.benefits, 6);
+  const features = cleanArray(parsed.features, 8);
+  const keywords = cleanKeywordArray(parsed.keywords, 8, 12);
+  const categoryHints = cleanCategoryHints(parsed.category_hints, 3);
+
+  const normalized = {
+    title_base: cleanStructuredTitleBase(parsed.title_base || fallback.title || ""),
+    intro: cleanScalar(parsed.intro, 900),
+    benefits,
+    features,
+    differentiator: cleanScalar(parsed.differentiator, 220),
+    keywords,
+    category_hints: categoryHints,
+    intent: cleanIntent(parsed.intent),
+    audience: cleanScalar(parsed.audience, 140),
+    tone: cleanScalar(parsed.tone, 80)
+  };
+
+  if (!normalized.title_base || !normalized.intro) {
+    return null;
+  }
+
+  if (normalized.benefits.length < 3) {
+    return null;
+  }
+
+  if (normalized.features.length < 3) {
+    return null;
+  }
+
+  if (normalized.keywords.length < 8) {
+    return null;
+  }
+
+  return normalized;
+}
+
+// ==========================
+// 🔥 MAIN AI FUNCTION
+// ==========================
+async function generateAIContent({
+  title,
+  description,
+  language,
+  mode = "legacy",
+  country = "",
+  locale = ""
+}) {
+  try {
+    const resolvedMode =
+      String(mode || "legacy").toLowerCase() === "structured"
+        ? "structured"
+        : "legacy";
+
+    const prompt =
+      resolvedMode === "structured"
+        ? buildStructuredPrompt({
+            title,
+            description,
+            language,
+            country,
+            locale
+          })
+        : buildLegacyPrompt({
+            title,
+            description,
+            language
+          });
+
+    const raw = await callOpenAI(prompt);
     const parsed = safeJsonParse(raw);
 
-    if (!parsed || !parsed.title || !parsed.intro) {
-      console.log("AI FALLBACK TRIGGERED");
+    if (resolvedMode === "structured") {
+      const structured = normalizeStructuredOutput(parsed, {
+        title
+      });
+
+      if (!structured) {
+        console.log("AI STRUCTURED FALLBACK TRIGGERED");
+        return null;
+      }
+
+      return structured;
+    }
+
+    const legacy = normalizeLegacyOutput(parsed);
+
+    if (!legacy) {
+      console.log("AI LEGACY FALLBACK TRIGGERED");
       return null;
     }
 
-    const finalTitle = cleanFinalTitle(parsed.title);
-
-    return {
-      title: finalTitle,
-      intro: String(parsed.intro || "").trim(),
-      bullets: cleanArray(parsed.bullets, 6),
-      specs: cleanArray(parsed.specs, 8),
-      trust: cleanArray(parsed.trust, 3)
-    };
-
+    return legacy;
   } catch (err) {
     console.log("AI ENGINE ERROR:", err.message);
     return null;
@@ -233,5 +474,6 @@ async function improveTitleWithAI({ title }) {
 
 module.exports = {
   generateAIContent,
-  improveTitleWithAI
+  improveTitleWithAI,
+  normalizeLanguage
 };
