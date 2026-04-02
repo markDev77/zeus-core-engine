@@ -90,37 +90,33 @@ router.post("/woocommerce/optimize-inline", async (req, res) => {
 
     console.log("🤖 AI RAW:", typeof aiRaw);
 
+    // 🔥 FIX CORRECTO (SIN DUPLICADOS)
     let finalTitle = title;
-let finalDescription = description || "";
+    let finalDescription = description || "";
 
-if (typeof aiRaw === "string") {
-  finalTitle = aiRaw;
+    if (typeof aiRaw === "string") {
+      finalTitle = aiRaw;
 
-} else if (typeof aiRaw === "object" && aiRaw !== null) {
-  finalTitle = aiRaw.title || title;
-  finalDescription = aiRaw.description || description;
-}
+    } else if (typeof aiRaw === "object" && aiRaw !== null) {
+      finalTitle = aiRaw.title || title;
+      finalDescription = aiRaw.description || description;
+    }
 
-let finalTitle = title;
-let finalDescription = description || "";
+    // limpieza básica
+    finalTitle = String(finalTitle || "")
+      .replace(/\s+/g, " ")
+      .trim();
 
-if (typeof aiRaw === "string") {
-  finalTitle = aiRaw;
+    if (!finalTitle) {
+      finalTitle = title;
+    }
 
-} else if (typeof aiRaw === "object" && aiRaw !== null) {
-  finalTitle = aiRaw.title || title;
-  finalDescription = aiRaw.description || description;
-}
+    const result = {
+      title: finalTitle,
+      description: finalDescription
+    };
 
-// limpieza básica
-finalTitle = finalTitle.replace(/\s+/g, " ").trim();
-
-const result = {
-  title: finalTitle,
-  description: finalDescription
-};
-
-    console.log("📤 RESULT READY");
+    console.log("📤 RESULT READY:", result.title);
 
     return res.json(result);
 
