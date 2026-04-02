@@ -101,6 +101,20 @@ if (typeof aiRaw === "string") {
   finalDescription = aiRaw.description || description;
 }
 
+let finalTitle = title;
+let finalDescription = description || "";
+
+if (typeof aiRaw === "string") {
+  finalTitle = aiRaw;
+
+} else if (typeof aiRaw === "object" && aiRaw !== null) {
+  finalTitle = aiRaw.title || title;
+  finalDescription = aiRaw.description || description;
+}
+
+// limpieza básica
+finalTitle = finalTitle.replace(/\s+/g, " ").trim();
+
 const result = {
   title: finalTitle,
   description: finalDescription
