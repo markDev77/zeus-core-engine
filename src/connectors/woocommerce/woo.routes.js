@@ -3,20 +3,23 @@ const router = express.Router();
 
 console.log("🔥 WOO ROUTES FILE LOADED");
 
-const { getProduct } = require("./woo.client");
+// 🔥 IMPORT DIRECTO Y VERIFICADO
+const wooClient = require("./woo.client");
+console.log("🔥 WOO CLIENT:", wooClient);
+
 const { mapWooToZeus, mapZeusToWoo } = require("./woo.mapper");
 const { writeWooProduct } = require("./woo.writer");
 const { generateAIContent } = require("../../engines/ai.engine");
 
 // ==========================
-// TEST ROUTE (DEBUG)
+// TEST ROUTE
 // ==========================
 router.get("/woocommerce/test", (req, res) => {
   return res.send("WOO ROUTES OK");
 });
 
 // ==========================
-// MAIN ENDPOINT
+// MAIN
 // ==========================
 router.post("/woocommerce/trigger-optimize", async (req, res) => {
   try {
@@ -28,32 +31,26 @@ router.post("/woocommerce/trigger-optimize", async (req, res) => {
       return res.status(400).json({ error: "productId required" });
     }
 
-    // 1. Leer producto
-    const product = await getProduct(productId);
+    // 🔥 LLAMADA DIRECTA (SIN DESTRUCTURING)
+    const product = await wooClient.getProduct(productId);
 
-    console.log("📦 PRODUCT LOADED:", product.id);
+    console.log("📦 PRODUCT FULL:", product);
 
-    // 2. Mapear
     const zeusInput = mapWooToZeus(product);
 
-    // 3. AI
-    const aiResult = await generateAIContent({
+    const aiRaw = await generateAIContent({
       title: zeusInput.input.title,
       description: zeusInput.input.description,
       language: "es"
     });
 
-    console.log("🤖 AI RESULT OK");
-
-    // 4. Map regreso
-    const wooPayload = mapZeusToWoo({
-      title: aiResult,
+    const aiResult = {
+      title: typeof aiRaw === "string" ? aiRaw : zeusInput.input.title,
       description: zeusInput.input.description
-    }, product);
+    };
 
-    console.log("📤 PAYLOAD READY");
+    const wooPayload = mapZeusToWoo(aiResult, product);
 
-    // 5. Write back
     await writeWooProduct(productId, wooPayload);
 
     console.log("✅ WOO UPDATED");
@@ -62,9 +59,7 @@ router.post("/woocommerce/trigger-optimize", async (req, res) => {
 
   } catch (err) {
     console.error("❌ WOO OPT ERROR FULL:", err);
-    return res.status(500).json({
-      error: err.message || "unknown error"
-    });
+    return res.status(500).json({ error: err.message });
   }
 });
 
