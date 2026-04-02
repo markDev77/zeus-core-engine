@@ -69,6 +69,11 @@ const { buildShopifyPayload } = require("./src/connectors/shopify/shopify.payloa
 const { applyShopifyCategory } = require("./src/connectors/shopify/shopify.category.service");
 
 // ==========================
+// CONNECTORS (WOOCOMMERCE)
+// ==========================
+const wooRoutes = require("./src/connectors/woocommerce/woo.routes");
+
+// ==========================
 // LOGS
 // ==========================
 console.log("🤖 AI TITLE READY");
@@ -128,6 +133,11 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
+
+// ==========================
+// WOOCOMMERCE ROUTES
+// ==========================
+app.use("/", wooRoutes);
 
 /*
 ========================================
