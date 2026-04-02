@@ -298,16 +298,54 @@ CRITICAL RULES
 - If differentiator is not clear from the input, return an empty string
 - Category hints must be taxonomic paths, top 3 maximum
 - Keywords must be semantically strong, useful for search and conversational discovery
-- Features should be expressed as concise factual statements, ideally "Key: Value" when possible
+- Features should be concise factual statements, ideally "Key: Value"
 - Intro should feel natural, persuasive and non-repetitive
-- Intro should be around 4 lines max in normal ecommerce length
-- Benefits must explain value and usage naturally, but with varied sentence structures
-- Avoid starting all bullets the same way
+- Intro should be around 5–7 lines max (natural ecommerce length)
+- Benefits must explain value and usage with varied phrasing
+- Avoid repeating sentence structures
 - Return 8 to 12 keywords
 - Return exactly 3 category hints when possible
 - Write in the target language only
 
-RETURN JSON WITH THIS EXACT SHAPE:
+--------------------------------------
+🧠 PURCHASE INTENT (CRITICAL)
+--------------------------------------
+
+The field "intent.purchase_driver" must:
+
+• represent a REAL user need
+• be specific and contextual
+• be usable in a purchase decision
+• NOT be generic or filler text
+
+✅ VALID examples:
+- "proteger los ojos del sol"
+- "evitar el ingreso de insectos"
+- "mejorar la seguridad del hogar"
+- "organizar espacios pequeños"
+
+❌ FORBIDDEN:
+- "alta calidad"
+- "uso diario"
+- "en un solo producto"
+- "diseño funcional"
+- "gran estilo"
+- "producto ideal"
+
+--------------------------------------
+✍️ WRITING STYLE
+--------------------------------------
+
+• Natural, human, non-template language
+• Vary sentence structures
+• Avoid predictable phrasing
+• Do NOT start all sentences the same way
+• Do NOT sound repetitive across outputs
+
+--------------------------------------
+📦 OUTPUT STRUCTURE (STRICT JSON)
+--------------------------------------
+
 {
   "title_base": "",
   "intro": "",
