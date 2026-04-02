@@ -32,31 +32,65 @@ function cleanText(value) {
 }
 
 function buildTitleFromStructured(aiResult, fallbackTitle = "") {
-  if (!aiResult || typeof aiResult !== "object") {
+  try {
+    if (!aiResult || typeof aiResult !== "object") {
+      return cleanText(fallbackTitle);
+    }
+
+    const base = cleanText(aiResult.title_base || fallbackTitle);
+    const intent = cleanText(aiResult.intent?.purchase_driver || "");
+    const differentiator = cleanText(aiResult.differentiator || "");
+
+    // ==========================
+    // 🔹 CONSTRUCCIÓN NATURAL
+    // ==========================
+    let title = base;
+
+    if (intent && intent.length > 5) {
+      const intentLower = intent.toLowerCase();
+
+      if (!title.toLowerCase().includes(intentLower)) {
+        title += " " + intentLower;
+      }
+    }
+
+    if (
+      differentiator &&
+      differentiator.length > 8
+    ) {
+      const diffLower = differentiator.toLowerCase();
+
+      if (!title.toLowerCase().includes(diffLower)) {
+        title += " " + diffLower;
+      }
+    }
+
+    // ==========================
+    // 🔹 LIMPIEZA
+    // ==========================
+    title = title
+      .replace(/[-–—]/g, "") // 🔥 elimina separadores
+      .replace(/\s+/g, " ")
+      .trim();
+
+    // ==========================
+    // 🔹 CAPITALIZACIÓN
+    // ==========================
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+
+    // ==========================
+    // 🔹 POLICY LENGTH
+    // ==========================
+    if (title.length > 110) {
+      title = title.slice(0, 110).trim();
+    }
+
+    return title || cleanText(fallbackTitle);
+
+  } catch (err) {
+    console.error("ZEUS TITLE BUILD ERROR:", err);
     return cleanText(fallbackTitle);
   }
-
-  const parts = [
-    aiResult.title_base || "",
-    aiResult.intent?.purchase_driver || "",
-    aiResult.differentiator || ""
-  ]
-    .map(cleanText)
-    .filter(Boolean);
-
-  const seen = new Set();
-  const unique = [];
-
-  for (const part of parts) {
-    const key = part.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(part);
-  }
-
-  const finalTitle = unique.join(" - ").slice(0, 140).trim();
-
-  return finalTitle || cleanText(fallbackTitle);
 }
 
 // ==========================
