@@ -163,7 +163,9 @@ router.post("/woocommerce/trigger-optimize", async (req, res) => {
 // =======================================================
 router.post("/woocommerce/optimize-inline", async (req, res) => {
   try {
-    console.log("🚀 WOO INLINE OPT HIT");
+    const requestId = Date.now();
+
+    console.log("🚀 WOO INLINE OPT HIT", { requestId });
 
     const {
       title,
@@ -181,12 +183,16 @@ router.post("/woocommerce/optimize-inline", async (req, res) => {
     const safeLanguage = normalizeLanguage(language || "es");
 
     console.log("📥 INPUT:", {
+      requestId,
       title: String(title).slice(0, 80),
       hasDescription: !!description,
       language: safeLanguage,
       hasCategories: Array.isArray(categories) && categories.length > 0
     });
 
+    // ==========================
+    // 🧠 AI
+    // ==========================
     const aiResult = await generateAIContent({
       title,
       description: description || "",
@@ -196,8 +202,20 @@ router.post("/woocommerce/optimize-inline", async (req, res) => {
       mode: "structured"
     });
 
+    console.log("🧠 AI RESULT:", {
+      requestId,
+      ok: !!aiResult,
+      hasTitleBase: !!aiResult?.title_base,
+      benefits: aiResult?.benefits?.length || 0,
+      features: aiResult?.features?.length || 0
+    });
+
+    // ==========================
+    // ⚠️ FALLBACK
+    // ==========================
     if (!aiResult) {
-      console.log("⚠️ WOO STRUCTURED AI FALLBACK");
+      console.log("⚠️ WOO STRUCTURED AI FALLBACK", { requestId });
+
       return res.json({
         ok: true,
         mode: "fallback",
@@ -212,6 +230,9 @@ router.post("/woocommerce/optimize-inline", async (req, res) => {
       });
     }
 
+    // ==========================
+    // ⚙️ ENGINES
+    // ==========================
     const finalTitle = buildTitleFromStructured(aiResult, title);
 
     const finalDescription = buildFinalDescription({
@@ -230,12 +251,23 @@ router.post("/woocommerce/optimize-inline", async (req, res) => {
       threshold: 1
     });
 
+    console.log("⚙️ ENGINES:", {
+      requestId,
+      titleLength: finalTitle.length,
+      tags: finalTags.length,
+      hasCategory: !!categoryResult?.best_match
+    });
+
     console.log("📤 RESULT READY:", {
+      requestId,
       title: finalTitle.slice(0, 100),
       tags: finalTags.length,
       hasCategory: !!categoryResult?.best_match
     });
 
+    // ==========================
+    // 📤 RESPONSE (MISMO FORMATO)
+    // ==========================
     return res.json({
       ok: true,
       mode: "structured",
@@ -252,7 +284,10 @@ router.post("/woocommerce/optimize-inline", async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ INLINE OPT ERROR:", err.message);
+    console.error("❌ INLINE OPT ERROR:", {
+      message: err.message,
+      stack: err.stack
+    });
 
     return res.json({
       ok: true,
