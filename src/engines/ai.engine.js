@@ -451,26 +451,41 @@ async function generateAIContent({
   }
 
   // ==========================
-  // 🔥 STORYTELLING FIX (SOLO STRUCTURED)
-  // ==========================
-  if (structured.intro) {
-    const intro = String(structured.intro).trim();
+// 🔥 STORYTELLING FIX (SOLO STRUCTURED)
+// ==========================
+if (structured.intro) {
+  const intro = String(structured.intro).trim();
 
-    const sentences = intro.split(/\. +/).filter(Boolean);
+  const sentences = intro.split(/\. +/).filter(Boolean);
 
-    if (sentences.length < 3) {
-      const intent = structured.intent?.purchase_driver || "";
+  if (sentences.length < 3) {
+    const intent = structured.intent?.purchase_driver || "";
 
-      const extra = intent
-        ? `Ideal para quienes buscan ${intent.toLowerCase()}, este producto destaca por su funcionalidad y diseño pensado para el uso diario.`
-        : `Este producto destaca por su funcionalidad y diseño pensado para el uso diario.`;
+    // 🔥 VARIACIONES CONTROLADAS
+    const variations = [
+      (intent) => `Pensado para quienes buscan ${intent.toLowerCase()}, ofrece una solución práctica y funcional para el día a día.`,
+      (intent) => `Ideal para quienes valoran ${intent.toLowerCase()}, combinando comodidad con un diseño pensado para su uso continuo.`,
+      (intent) => `Diseñado para aportar ${intent.toLowerCase()}, facilitando su uso en diferentes situaciones cotidianas.`,
+      (intent) => `Una opción práctica para quienes necesitan ${intent.toLowerCase()}, destacando por su funcionalidad y facilidad de uso.`,
+      (intent) => `Perfecto si buscas ${intent.toLowerCase()}, integrando características que lo hacen útil en el uso diario.`,
+      (intent) => `Pensado para mejorar ${intent.toLowerCase()}, ofreciendo una experiencia cómoda y funcional.`,
+      (intent) => `Una solución funcional para quienes requieren ${intent.toLowerCase()}, adaptándose a distintas necesidades.`,
+      (intent) => `Diseñado para brindar ${intent.toLowerCase()}, con un enfoque práctico y fácil de usar.`,
+      (intent) => `Ideal para facilitar ${intent.toLowerCase()}, aportando funcionalidad sin complicaciones.`,
+      () => `Este producto destaca por su funcionalidad y un diseño pensado para facilitar su uso cotidiano.`
+    ];
 
-      structured.intro = (intro + " " + extra).trim();
-    }
+    // 🔥 ALEATORIEDAD CONTROLADA
+    const index = Math.floor(Math.random() * variations.length);
+    const pick = variations[index];
+
+    const extra = intent ? pick(intent) : pick();
+
+    structured.intro = (intro + " " + extra).trim();
   }
-
-  return structured;
 }
+
+return structured;
 
     const legacy = normalizeLegacyOutput(parsed);
 
