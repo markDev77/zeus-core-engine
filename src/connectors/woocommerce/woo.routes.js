@@ -18,9 +18,10 @@ router.get("/woocommerce/test", (req, res) => {
   return res.send("WOO ROUTES OK");
 });
 
-// ==========================
-// MAIN
-// ==========================
+
+// =======================================================
+// 🔴 MODELO ANTIGUO (ZEUS → Woo) [NO USAR EN LTM]
+// =======================================================
 router.post("/woocommerce/trigger-optimize", async (req, res) => {
   try {
     console.log("🚀 WOO TRIGGER HIT");
@@ -31,7 +32,6 @@ router.post("/woocommerce/trigger-optimize", async (req, res) => {
       return res.status(400).json({ error: "productId required" });
     }
 
-    // 🔥 LLAMADA DIRECTA (SIN DESTRUCTURING)
     const product = await wooClient.getProduct(productId);
 
     console.log("📦 PRODUCT FULL:", product);
@@ -63,4 +63,55 @@ router.post("/woocommerce/trigger-optimize", async (req, res) => {
   }
 });
 
+
+// =======================================================
+// 🟢 MODELO NUEVO (Woo → ZEUS → Woo) ✔ ESTE ES EL BUENO
+// =======================================================
+router.post("/woocommerce/optimize-inline", async (req, res) => {
+  try {
+    console.log("🚀 WOO INLINE OPT HIT");
+
+    const { title, description, language } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: "title required" });
+    }
+
+    console.log("📥 INPUT:", {
+      title: title.slice(0, 60),
+      hasDescription: !!description
+    });
+
+    const aiRaw = await generateAIContent({
+      title,
+      description,
+      language: language || "es"
+    });
+
+    console.log("🤖 AI RAW:", typeof aiRaw);
+
+    const result = {
+      title: typeof aiRaw === "string" ? aiRaw : title,
+      description: description || ""
+    };
+
+    console.log("📤 RESULT READY");
+
+    return res.json(result);
+
+  } catch (err) {
+    console.error("❌ INLINE OPT ERROR:", err.message);
+
+    // 🔥 FALLBACK SEGURO (NUNCA ROMPE)
+    return res.json({
+      title: req.body.title,
+      description: req.body.description || ""
+    });
+  }
+});
+
+
+// ==========================
+// EXPORT
+// ==========================
 module.exports = router;
