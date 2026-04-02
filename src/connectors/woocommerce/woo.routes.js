@@ -3,13 +3,61 @@ const router = express.Router();
 
 console.log("🔥 WOO ROUTES FILE LOADED");
 
-// 🔥 IMPORT DIRECTO Y VERIFICADO
 const wooClient = require("./woo.client");
 console.log("🔥 WOO CLIENT:", wooClient);
 
 const { mapWooToZeus, mapZeusToWoo } = require("./woo.mapper");
 const { writeWooProduct } = require("./woo.writer");
 const { generateAIContent } = require("../../engines/ai.engine");
+const { buildFinalDescription } = require("../../engines/description.engine");
+const { buildTags } = require("../../engines/tags.engine");
+const { resolveCategory } = require("../../engines/category.resolver");
+
+// ==========================
+// SAFE HELPERS
+// ==========================
+function normalizeLanguage(lang) {
+  if (!lang) return "en";
+
+  return String(lang)
+    .toLowerCase()
+    .split("-")[0]
+    .split("_")[0];
+}
+
+function cleanText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildTitleFromStructured(aiResult, fallbackTitle = "") {
+  if (!aiResult || typeof aiResult !== "object") {
+    return cleanText(fallbackTitle);
+  }
+
+  const parts = [
+    aiResult.title_base || "",
+    aiResult.intent?.purchase_driver || "",
+    aiResult.differentiator || ""
+  ]
+    .map(cleanText)
+    .filter(Boolean);
+
+  const seen = new Set();
+  const unique = [];
+
+  for (const part of parts) {
+    const key = part.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(part);
+  }
+
+  const finalTitle = unique.join(" - ").slice(0, 140).trim();
+
+  return finalTitle || cleanText(fallbackTitle);
+}
 
 // ==========================
 // TEST ROUTE
@@ -18,9 +66,8 @@ router.get("/woocommerce/test", (req, res) => {
   return res.send("WOO ROUTES OK");
 });
 
-
 // =======================================================
-// 🔴 MODELO ANTIGUO (ZEUS → Woo) [NO USAR EN LTM]
+// 🔴 MODELO ANTIGUO (ZEUS → Woo) [LEGACY / NO PRIORIDAD]
 // =======================================================
 router.post("/woocommerce/trigger-optimize", async (req, res) => {
   try {
@@ -41,11 +88,14 @@ router.post("/woocommerce/trigger-optimize", async (req, res) => {
     const aiRaw = await generateAIContent({
       title: zeusInput.input.title,
       description: zeusInput.input.description,
-      language: "es"
+      language: "es",
+      mode: "legacy"
     });
 
     const aiResult = {
-      title: typeof aiRaw === "string" ? aiRaw : zeusInput.input.title,
+      title: typeof aiRaw === "string"
+        ? aiRaw
+        : (aiRaw?.title || zeusInput.input.title),
       description: zeusInput.input.description
     };
 
@@ -63,74 +113,116 @@ router.post("/woocommerce/trigger-optimize", async (req, res) => {
   }
 });
 
-
 // =======================================================
-// 🟢 MODELO NUEVO (Woo → ZEUS → Woo) ✔ ESTE ES EL BUENO
+// 🟢 LTM MODELO NUEVO (Woo → ZEUS v2 → Woo)
 // =======================================================
 router.post("/woocommerce/optimize-inline", async (req, res) => {
   try {
     console.log("🚀 WOO INLINE OPT HIT");
 
-    const { title, description, language } = req.body;
+    const {
+      title,
+      description,
+      language,
+      country,
+      locale,
+      categories = []
+    } = req.body || {};
 
     if (!title) {
       return res.status(400).json({ error: "title required" });
     }
 
+    const safeLanguage = normalizeLanguage(language || "es");
+
     console.log("📥 INPUT:", {
-      title: title.slice(0, 60),
-      hasDescription: !!description
+      title: String(title).slice(0, 80),
+      hasDescription: !!description,
+      language: safeLanguage,
+      hasCategories: Array.isArray(categories) && categories.length > 0
     });
 
-    const aiRaw = await generateAIContent({
+    const aiResult = await generateAIContent({
       title,
-      description,
-      language: language || "es"
+      description: description || "",
+      language: safeLanguage,
+      country: country || "",
+      locale: locale || "",
+      mode: "structured"
     });
 
-    console.log("🤖 AI RAW:", typeof aiRaw);
-
-    // 🔥 FIX CORRECTO (SIN DUPLICADOS)
-    let finalTitle = title;
-    let finalDescription = description || "";
-
-    if (typeof aiRaw === "string") {
-      finalTitle = aiRaw;
-
-    } else if (typeof aiRaw === "object" && aiRaw !== null) {
-      finalTitle = aiRaw.title || title;
-      finalDescription = aiRaw.description || description;
+    if (!aiResult) {
+      console.log("⚠️ WOO STRUCTURED AI FALLBACK");
+      return res.json({
+        ok: true,
+        mode: "fallback",
+        title: cleanText(title),
+        description: description || "",
+        tags: [],
+        category: {
+          best_match: null,
+          alternatives: [],
+          confidence: 0
+        }
+      });
     }
 
-    // limpieza básica
-    finalTitle = String(finalTitle || "")
-      .replace(/\s+/g, " ")
-      .trim();
+    const finalTitle = buildTitleFromStructured(aiResult, title);
 
-    if (!finalTitle) {
-      finalTitle = title;
-    }
-
-    const result = {
+    const finalDescription = buildFinalDescription({
       title: finalTitle,
-      description: finalDescription
-    };
+      originalHtml: description || "",
+      aiResult,
+      language: safeLanguage
+    });
 
-    console.log("📤 RESULT READY:", result.title);
+    const finalTags = buildTags({ aiResult });
 
-    return res.json(result);
+    const categoryResult = resolveCategory({
+      aiResult,
+      categories: Array.isArray(categories) ? categories : [],
+      mode: "adaptive",
+      threshold: 1
+    });
+
+    console.log("📤 RESULT READY:", {
+      title: finalTitle.slice(0, 100),
+      tags: finalTags.length,
+      hasCategory: !!categoryResult?.best_match
+    });
+
+    return res.json({
+      ok: true,
+      mode: "structured",
+      title: finalTitle,
+      description: finalDescription,
+      tags: finalTags,
+      category: categoryResult,
+      ai_meta: {
+        audience: aiResult.audience || "",
+        tone: aiResult.tone || "",
+        intent: aiResult.intent || null,
+        category_hints: aiResult.category_hints || []
+      }
+    });
 
   } catch (err) {
     console.error("❌ INLINE OPT ERROR:", err.message);
 
-    // 🔥 FALLBACK SEGURO (NUNCA ROMPE)
     return res.json({
-      title: req.body.title,
-      description: req.body.description || ""
+      ok: true,
+      mode: "fallback",
+      title: req.body?.title || "",
+      description: req.body?.description || "",
+      tags: [],
+      category: {
+        best_match: null,
+        alternatives: [],
+        confidence: 0
+      }
     });
   }
 });
-
 
 // ==========================
 // EXPORT
