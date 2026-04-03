@@ -10,6 +10,50 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
         ? aiTitle
         : aiTitle?.title || "";
 
+// ==========================
+// 🔥 ZEUS FIX (CAP + CLEAN)
+// ==========================
+let title = aiText && aiText.length > 10 ? aiText : originalTitle;
+
+// 1. NORMALIZAR
+title = String(title)
+  .replace(/\s+/g, " ")
+  .trim();
+
+// 2. MINÚSCULAS BASE
+title = title.toLowerCase();
+
+// 3. CAPITALIZACIÓN LIMPIA
+title = title.replace(/\b\w/g, l => l.toUpperCase());
+
+// 4. FIX SIGLAS
+title = title
+  .replace(/\bPu\b/g, "PU")
+  .replace(/\bLed\b/g, "LED")
+  .replace(/\bUsb\b/g, "USB");
+
+// 5. ELIMINAR DUPLICADOS
+const words = title.split(" ");
+const seen = new Set();
+
+title = words
+  .filter(w => {
+    const key = w.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  })
+  .join(" ");
+
+// 6. LIMPIEZA FINAL
+title = title
+  .replace(/\s{2,}/g, " ")
+  .trim()
+  .slice(0, 120);
+
+return title;
+    
+
     // GO-TO-MARKET: IA manda
 if (aiText && aiText.length > 10) {
   let title = aiText;
