@@ -29,6 +29,7 @@ function getLanguageInstruction(language) {
 // ==========================
 // HELPERS
 // ==========================
+
 function safeJsonParse(raw) {
   try {
     const cleaned = String(raw || "")
@@ -37,9 +38,18 @@ function safeJsonParse(raw) {
       .trim();
 
     return JSON.parse(cleaned);
-  } catch (e) {
-    console.log("AI JSON ERROR:", e.message);
-    return null;
+
+  } catch (err) {
+    console.error("❌ AI JSON PARSE ERROR:", raw);
+
+    // 🔥 FALLBACK SI JSON FALLA
+    return {
+      title: extractTitleFromText(raw || ""),
+      intro: "",
+      bullets: [],
+      specs: [],
+      trust: []
+    };
   }
 }
 
@@ -144,6 +154,20 @@ function cleanStructuredTitleBase(title = "") {
     .replace(/^[\s\-]+|[\s\-]+$/g, "")
     .trim()
     .slice(0, 160);
+}
+
+function extractTitleFromText(text) {
+  if (!text) return "";
+
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  let candidate = lines[0] || "";
+
+  candidate = candidate
+    .replace(/^[\{\[\"]+/, "")
+    .replace(/[\}\]\"]+$/, "")
+    .trim();
+
+  return candidate;
 }
 
 function buildLegacyPrompt({ title, description, language }) {
