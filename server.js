@@ -2000,6 +2000,13 @@ const finalTitle = buildFinalTitle({
 });    
 
 cleanTitle = finalTitle;
+    
+    console.log("🧠 ZEUS TITLE FINAL:", {
+  original: realProduct.title,
+  clean_input: cleanTitle,
+  ai: aiResult?.title,
+  final: finalTitle
+});
 
 // 🔥 MARKET POLICY
 const marketRules = getMarketRules({
