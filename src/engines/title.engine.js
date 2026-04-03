@@ -20,13 +20,22 @@ title = String(title)
   .replace(/\s+/g, " ")
   .trim();
 
-// 2. MINÚSCULAS BASE
-title = title.toLowerCase();
+// 2. NORMALIZAR Y LIMPIAR ENCODING
+title = title
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase();
 
-// 3. CAPITALIZACIÓN LIMPIA
+// 3. RECONSTRUIR PALABRAS CLAVE (mínimo viable)
+title = title
+  .replace(/calcomanias/g, "calcomanías")
+  .replace(/diseno/g, "diseño")
+  .replace(/decoracion/g, "decoración");
+
+// 4. CAPITALIZACIÓN LIMPIA
 title = title.replace(/\b\w/g, l => l.toUpperCase());
 
-// 4. FIX SIGLAS
+// 4.1 FIX SIGLAS
 title = title
   .replace(/\bPu\b/g, "PU")
   .replace(/\bLed\b/g, "LED")
