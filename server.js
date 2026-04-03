@@ -2304,8 +2304,6 @@ log("ZEUS TOKEN CONSUMED", {
   };
 }
 
-console.log("REGISTERING /webhook/products-create");
-
 app.post("/webhook/products-create", async (req, res) => {
   console.log("🔥 PRODUCT WEBHOOK BODY:", JSON.stringify(req.body, null, 2));
   res.status(200).send("ok");
