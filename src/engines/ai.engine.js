@@ -190,17 +190,52 @@ Example: "Drawing Pen", "Paint Brush Set", "Wireless Headphones"
 
 STEP 2 — BUILD TITLE
 
-TITLE STRUCTURE:
-[Product Type] + [Key Attribute] + [Optional Functional Context]
+TITLE STRUCTURE (STRICT):
 
-RULES:
-- Must sound like a real ecommerce product
+1. Start with the PRODUCT TYPE (clear and specific)
+2. Then add 1–2 KEY ATTRIBUTES (material, function, technology)
+3. Then OPTIONAL USE CONTEXT only if it improves clarity
+
+EXAMPLES:
+- "Lámpara LED Recargable con Luz Regulable"
+- "Bolso Crossbody de Cuero PU con Diseño Compacto"
+- "Ventilador Portátil USB Recargable de Mano"
+
+TITLE RULES (CRITICAL):
+
+- The title MUST start by clearly identifying what the product is
+- Do NOT start with generic words like:
+  "Producto", "Artículo", "Accesorio"
+
+- Avoid vague or weak adjectives:
+  ❌ moderno
+  ❌ práctico
+  ❌ funcional
+  ❌ elegante
+  (unless combined with real attributes)
+
+- Use only attributes that impact purchase decision:
+  ✔ material (cuero, acero, silicona)
+  ✔ function (recargable, plegable, inalámbrico)
+  ✔ technology (LED, USB, táctil)
+
+- Avoid repeating connectors (especially "para")
+- Use maximum ONE "para" if needed
+
+- Must sound natural and human, not templated
 - Max 70 characters
 - No symbols
 - No filler words (e.g. "best", "new", "hot")
-- Must be natural, not robotic
-- Avoid repetitive connectors (especially "para")
-- Each title must vary in structure across products
+
+BAD EXAMPLES:
+- "Accesorio moderno para uso diario"
+- "Producto funcional para el hogar"
+- "Herramienta práctica para múltiples usos"
+
+GOOD EXAMPLES:
+- "Lámpara LED de Escritorio con Control Táctil"
+- "Bolso de Mano en Cuero PU con Cierre Seguro"
+- "Organizador Plegable de Tela para Ropa"
 
 STEP 3 — BUILD DESCRIPTION
 
