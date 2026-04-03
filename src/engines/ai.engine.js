@@ -176,74 +176,92 @@ CRITICAL RULES
 - Prioritize purchase intent
 - Be clear in under 40 seconds
 
+// 🔥 NUEVO — CONTROL DE CALIDAD
+- Title must be fully rewritten, not a variation of the original
+- Avoid repeating patterns like "para..." across products
+- Avoid predictable or formulaic constructions
+- Each product must feel unique and natural
+- Do NOT concatenate phrases artificially
+- Do NOT reuse the same sentence structure across outputs
+
 STEP 1 — IDENTIFY PRODUCT
 First determine clearly what the product is.
 Example: "Drawing Pen", "Paint Brush Set", "Wireless Headphones"
 
 STEP 2 — BUILD TITLE
+
 TITLE STRUCTURE:
-[Product Type] + [1–2 Key Attributes] + [Optional Detail]
+[Product Type] + [Key Attribute] + [Optional Functional Context]
 
 RULES:
 - Must sound like a real ecommerce product
 - Max 70 characters
 - No symbols
 - No filler words (e.g. "best", "new", "hot")
+- Must be natural, not robotic
+- Avoid repetitive connectors (especially "para")
+- Each title must vary in structure across products
 
 STEP 3 — BUILD DESCRIPTION
 
 STRUCTURE (MANDATORY):
 
 1. intro (STORYTELLING)
-- 3–4 sentences
-- Start naturally, DO NOT always use the same opening phrase
-- Avoid repetitive patterns like "Imagina", "Imagine", "Stell dir vor"
-- Vary the introduction across products
-- Must describe how the product improves the user's situation
-- Must include relevant keywords naturally integrated
-- Must include 6–10 relevant SEO keywords naturally integrated
+- 3–4 FULL sentences (NOT short phrases)
+- Must feel natural and human
+- Avoid repetitive openings
+- Must clearly describe:
+  → context of use
+  → benefit
+  → why it matters
+- Must integrate relevant keywords naturally
+- Must NOT feel generic or templated
+
+// 🔥 NUEVO — CONTROL DE PROFUNDIDAD
+- Intro must NOT be short or superficial
+- Must expand value perception of the product
+- Must feel like real ecommerce copy
 
 2. benefits (BENEFITS + USAGE AND FUNCTIONALITY)
-- Use a section title translated to the store language (e.g. Benefits / Beneficios / Vorteile)
+- Section title translated to store language
 - 3–5 bullet points
 - Each bullet MUST explain:
   → what it does
   → how it is used
   → why it matters
+- Vary sentence structure (no repetition)
 
 3. specs (FEATURES / CHARACTERISTICS)
-- Use a section title translated to the store language (e.g. Features / Características / Eigenschaften)
+- Section title translated
 - 3–6 real technical details
+- Prefer "Key: Value" when possible
 
 IMPORTANT:
 - Write ALL content in the target language
-- Do NOT use English unless the language is English
-- Keep structure consistent across all languages
+- Keep structure consistent
+- Avoid redundancy completely
 
 OUTPUT FORMAT (CRITICAL):
-The description MUST be structured in clean HTML.
-Structure EXACTLY like this:
+
 <p>[intro]</p>
 
-<h3>[Section title translated to store language]</h3>
+<h3>[Section title]</h3>
 <ul>
 <li>...</li>
 </ul>
 
-<h3>[Section title translated to store language]</h3>
+<h3>[Section title]</h3>
 <ul>
 <li>...</li>
 </ul>
 
 RULES:
-- DO NOT repeat information already present in the raw description
-- DO NOT duplicate specs, materials, or attributes already provided
-- Avoid redundancy completely
-- Use ONLY 2 sections:
+- DO NOT repeat information
+- DO NOT duplicate attributes
+- Only 2 sections:
   1. Benefits / Usage
   2. Features / Specifications
-- Section titles MUST be in the store language
-- Keep bullets concise and non-repetitive
+- Clean, readable HTML
 
 RETURN JSON:
 {
