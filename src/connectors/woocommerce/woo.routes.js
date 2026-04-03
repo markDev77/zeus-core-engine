@@ -47,29 +47,6 @@ function buildTitleFromStructured(aiResult, fallbackTitle = "") {
     // ==========================
     let title = base;
 
-    if (intent && intent.length > 5) {
-      const cleanedIntent = intent
-        .toLowerCase()
-        .replace(/^necesidad de\s+/i, "para ")
-        .replace(/^uso de\s+/i, "para ")
-        .replace(/^mejorar\s+/i, "para mejorar ")
-        .replace(/^solución para\s+/i, "para ")
-        .replace(/^producto para\s+/i, "para ")
-        .trim();
-
-      if (
-        cleanedIntent &&
-        cleanedIntent.length > 5 &&
-        !title.toLowerCase().includes(cleanedIntent)
-      ) {
-        if (cleanedIntent.startsWith("para ")) {
-          title += " " + cleanedIntent;
-        } else {
-          title += " para " + cleanedIntent;
-        }
-      }
-    } // ✅ ESTA LLAVE ES LA QUE FALTABA
-
     // ==========================
     // 🔹 DIFFERENTIATOR
     // ==========================
