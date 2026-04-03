@@ -1,7 +1,23 @@
-// /engines/title-v2/title.ai.js
+// /src/engines/title-v2/title.ai.js
 
 const { normalizeTitleContract } = require("./title.contract");
-const { generateAIContent } = require("../ai.engine"); // usa tu engine actual
+const { generateAIContent } = require("../ai.engine");
+
+function safeJSONParse(text) {
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    // intento de limpieza básica si la IA mete texto extra
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+    } catch (_) {}
+
+    return null;
+  }
+}
 
 async function generateStructuredTitle(input) {
   try {
@@ -12,28 +28,103 @@ async function generateStructuredTitle(input) {
       country = "GLOBAL"
     } = input;
 
-    // PROMPT BASE (temporal, luego lo mejoramos)
     const prompt = `
-You are an ecommerce semantic extraction engine.
+You are a high-level ecommerce semantic engine specialized in product title optimization.
 
-Analyze the product and return a JSON object with:
+Your task is NOT to write marketing text.
 
-- product_type
-- key_modifiers (max 3)
-- primary_intent
-- variant_signal
-- candidate_titles (2 options)
+Your task is to EXTRACT and STRUCTURE the product into a clean semantic model.
 
-RULES:
-- No marketing words
+OUTPUT STRICTLY JSON.
+
+-------------------------
+OBJECTIVE
+-------------------------
+Build a structured representation that allows generating high-converting product titles.
+
+-------------------------
+RULES
+-------------------------
+- Be precise, not verbose
+- No marketing adjectives (premium, luxury, amazing, etc.)
 - No repetition
-- Be precise and short
-- Output ONLY JSON
+- Max 3 key modifiers
+- Prioritize purchase decision attributes
+- Use natural ecommerce wording
+- Avoid repeated "for"
+- Titles must feel like real listings, not AI
 
-Product title: ${title}
-Product description: ${description || ""}
+-------------------------
+FIELDS
+-------------------------
+
+product_type:
+- What the product is (clear and specific)
+
+primary_intent:
+- Main use or context (e.g. "for travel", "for office")
+
+key_modifiers:
+- Max 3
+- Must influence purchase decision
+
+secondary_modifiers:
+- Optional
+
+compatibility:
+- Only if critical
+
+variant_signal:
+- Only if relevant
+
+candidate_titles:
+- Generate 2 clean, natural, high-quality options
+- No repetition
+- No filler words
+
+-------------------------
+OUTPUT FORMAT (STRICT JSON)
+-------------------------
+{
+  "product_type": { "value": "", "confidence": 0.9 },
+  "brand": { "value": null, "priority": "none" },
+  "primary_intent": { "value": "", "type": "contextual", "confidence": 0.8 },
+  "key_modifiers": [],
+  "secondary_modifiers": [],
+  "compatibility": [],
+  "variant_signal": { "value": null, "type": null, "priority": "low" },
+  "semantic_priority_order": [],
+  "candidate_titles": [
+    {
+      "value": "",
+      "structure_type": "A",
+      "clarity_score": 0.9,
+      "semantic_score": 0.9,
+      "natural_score": 0.9
+    }
+  ],
+  "risk_flags": {
+    "missing_product_type": false,
+    "low_confidence": false,
+    "overloaded_modifiers": false,
+    "ambiguous_product": false
+  },
+  "anti_patterns": {
+    "repetition_risk": false,
+    "keyword_stuffing_risk": false,
+    "empty_adjectives": false
+  }
+}
+
+-------------------------
+INPUT
+-------------------------
+Title: ${title}
+Description: ${description || ""}
 Language: ${language}
 Country: ${country}
+
+RETURN ONLY JSON.
 `;
 
     const aiRaw = await generateAIContent({
@@ -41,11 +132,9 @@ Country: ${country}
       temperature: 0.2
     });
 
-    let parsed;
+    const parsed = safeJSONParse(aiRaw);
 
-    try {
-      parsed = JSON.parse(aiRaw);
-    } catch (e) {
+    if (!parsed) {
       console.error("❌ AI JSON PARSE ERROR:", aiRaw);
       return normalizeTitleContract({});
     }
