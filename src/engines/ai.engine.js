@@ -383,24 +383,47 @@ The field "intent.purchase_driver" must:
 `;
 }
 
-async function callOpenAI(prompt) {
-  const response = await axios.post(
-    "https://api.openai.com/v1/chat/completions",
-    {
-      model: "gpt-4o-mini",
-      temperature: 0.15,
-      messages: [{ role: "user", content: prompt }]
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+async function callOpenAI(input) {
+  try {
+    // 🔥 BACKWARD COMPATIBILITY
+    const prompt = typeof input === "string" ? input : input.prompt;
+    const temperature = typeof input === "object" ? input.temperature || 0.15 : 0.15;
+    const mode = typeof input === "object" ? input.mode || "text" : "text";
+
+    const isJsonMode = mode === "json";
+
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o-mini",
+        temperature,
+        messages: [
+          {
+            role: "system",
+            content: isJsonMode
+              ? "You ONLY return valid JSON. No text, no explanation, no markdown."
+              : "You are an ecommerce optimization assistant."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        }
       }
-    }
-  );
+    );
 
-  return response?.data?.choices?.[0]?.message?.content || "";
+    return response?.data?.choices?.[0]?.message?.content || "";
+
+  } catch (err) {
+    console.error("❌ OPENAI CALL ERROR:", err.message);
+    return "";
+  }
 }
-
 function normalizeLegacyOutput(parsed) {
   if (!parsed || !parsed.title || !parsed.intro) {
     return null;
