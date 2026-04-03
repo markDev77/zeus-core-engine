@@ -1975,11 +1975,11 @@ let structuredTitle = null;
 
 try {
   structuredTitle = await generateStructuredTitle({
-    title: cleanTitle,
-    description: translatedHtml,
-    language,
-    country
-  });
+  title: cleanTitle,
+  description: translatedHtml,
+  language,
+  country: store?.country || "GLOBAL"
+});
 
   console.log("🔵 ZEUS TITLE V2 (SHADOW):", {
     product_type: structuredTitle?.product_type?.value,
