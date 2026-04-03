@@ -2342,24 +2342,8 @@ app.post("/webhook/products-create", async (req, res) => {
   const productId = Number(req.body?.id);
   if (!productId) return;
 
-  // ===============================
-  // 🔥 ZEUS DB QUEUE (SHADOW MODE)
-  // ===============================
-  try {
-    await enqueueJobDB({
-      shop,
-      productId
-    });
-
-    console.log("📦 DB QUEUE ENQUEUED", {
-      shop,
-      productId
-    });
-
-  } catch (err) {
-    console.error("❌ DB QUEUE ERROR:", err.message);
-  }
-
+  // 🔴 DB QUEUE TEMPORALMENTE DESACTIVADA
+  
   let store;
 
   try {
