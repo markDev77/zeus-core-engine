@@ -128,10 +128,10 @@ RETURN ONLY JSON.
 `;
 
     const aiRaw = await generateAIContent({
-      prompt,
-      temperature: 0.2
-    });
-
+  prompt,
+  temperature: 0.2,
+  force_json: true
+});
     const parsed = safeJSONParse(aiRaw);
 
     if (!parsed) {
