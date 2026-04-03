@@ -11,9 +11,50 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
         : aiTitle?.title || "";
 
     // GO-TO-MARKET: IA manda
-    if (aiText && aiText.length > 10) {
-      return sanitize(fixCapitalization(trimLength(aiText, 70)));
-    }
+if (aiText && aiText.length > 10) {
+  let title = aiText;
+
+  // ==========================
+  // 🔥 ZEUS HARDENING V3
+  // ==========================
+
+  // 1. NORMALIZAR ESPACIOS
+  title = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // 2. ELIMINAR BASURA COMÚN
+  title = title
+    .replace(/\b(1\s?(pieza|piece|pc|unit|set))\b/gi, "")
+    .replace(/\b(producto|artículo|accesorio)\b/gi, "")
+    .trim();
+
+  // 3. EVITAR REPETICIÓN DE CONECTORES
+  const connectors = ["para", "for", "pour", "für"];
+  connectors.forEach(conn => {
+    const regex = new RegExp(`(${conn}\\s+){2,}`, "gi");
+    title = title.replace(regex, conn + " ");
+  });
+
+  // 4. ELIMINAR ADJETIVOS DÉBILES AISLADOS
+  title = title.replace(/\b(moderno|practico|práctico|funcional|elegante)\b/gi, "");
+
+  // 5. LIMPIEZA FINAL
+  title = title
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s\-]+|[\s\-]+$/g, "")
+    .trim();
+
+  // 6. CONTROL DE LONGITUD (SMART TRIM)
+  if (title.length > 110) {
+    title = title.substring(0, 110).replace(/\s+\S*$/, "").trim();
+  }
+
+  // 7. CAPITALIZACIÓN FINAL
+  title = fixCapitalization(title);
+
+  return sanitize(title);
+}
 
     // fallback
     return sanitize(capitalize(trimLength(originalTitle, 70)));
