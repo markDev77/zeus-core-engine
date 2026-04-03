@@ -516,7 +516,7 @@ async function generateAIContent({
 
     const raw = await callOpenAI({
   prompt,
-  temperature,
+  temperature: 0.2,
   mode: resolvedMode === "structured" ? "json" : "text"
 });
     const parsed = safeJsonParse(raw);
