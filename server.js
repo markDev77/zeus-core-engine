@@ -22,7 +22,6 @@ const crypto = require("crypto");
 const { Pool } = require("pg");
 const usadropPolicy = require("./src/policies/shopify/usadrop/usadropDescriptionLocalizer.policy");
 
-
 // ==========================
 // ZEUS INFRA (AUTH / ALERTS)
 // ==========================
@@ -39,6 +38,7 @@ console.log("AUTH MODULE LOADED:", {
 const { generateAIContent } = require("./src/engines/ai.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
 const { buildFinalTitle } = require("./src/engines/title.engine");
+const { generateStructuredTitle } = require("./src/engines/title-v2/title.ai");
 const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
 
@@ -1963,6 +1963,29 @@ const aiResult = await generateAIContent({
   language
 });
 console.log("🔥 AI RESULT:", aiResult);
+
+// ==========================
+// ZEUS TITLE V2 (SHADOW MODE)
+// ==========================
+let structuredTitle = null;
+
+try {
+  structuredTitle = await generateStructuredTitle({
+    title: cleanTitle,
+    description: translatedHtml,
+    language,
+    country
+  });
+
+  console.log("🔵 ZEUS TITLE V2 (SHADOW):", {
+    product_type: structuredTitle?.product_type?.value,
+    intent: structuredTitle?.primary_intent?.value,
+    modifiers: structuredTitle?.key_modifiers?.map(m => m.value)
+  });
+
+} catch (err) {
+  console.error("❌ ZEUS TITLE V2 ERROR:", err.message);
+}
 
 // 🔥 FINAL TITLE CONTROL
 const finalTitle = buildFinalTitle({
