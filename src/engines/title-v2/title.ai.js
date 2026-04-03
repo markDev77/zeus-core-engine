@@ -29,12 +29,43 @@ async function generateStructuredTitle(input) {
     } = input;
 
     const prompt = `
-You are a high-level ecommerce semantic engine specialized in product title optimization.
+Return ONLY a valid JSON object.
 
-Your task is NOT to write marketing text.
+STRICT RULES:
+- No explanations
+- No text before or after JSON
+- No markdown
+- No comments
+- Only pure JSON
+- All fields must be filled with meaningful values (no empty strings)
 
-Your task is to EXTRACT and STRUCTURE the product into a clean semantic model.
+Expected format:
+{
+  "product_type": { "value": "specific product type" },
+  "primary_intent": { "value": "main use or purpose" },
+  "key_modifiers": [
+    { "value": "key attribute 1" },
+    { "value": "key attribute 2" }
+  ],
+  "variant_signal": { "value": "variant or distinguishing detail" },
+  "candidate_titles": [
+    { "value": "clean, natural ecommerce title" },
+    { "value": "alternative optimized title" }
+  ]
+}
 
+INSTRUCTIONS:
+- Identify the real product type (not generic words like 'item' or 'product')
+- Extract the main user intent (what it is used for)
+- Extract up to 3 relevant modifiers (material, style, function, season, audience)
+- Use natural language, not keyword stuffing
+- Titles must be clear, readable, and purchase-oriented
+
+Product title: ${title}
+Product description: ${description || ""}
+Language: ${language}
+Country: ${country}
+`;
 OUTPUT STRICTLY JSON.
 
 -------------------------
