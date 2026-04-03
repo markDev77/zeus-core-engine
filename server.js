@@ -39,6 +39,10 @@ const { generateAIContent } = require("./src/engines/ai.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
 const { buildFinalTitle } = require("./src/engines/title.engine");
 const { generateStructuredTitle } = require("./src/engines/title-v2/title.ai");
+const {
+  evaluateTitleV2,
+  evaluateAgainstV1
+} = require("./src/engines/title-v2/title.decision");
 const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
 
