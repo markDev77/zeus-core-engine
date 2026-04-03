@@ -1991,13 +1991,55 @@ try {
   console.error("❌ ZEUS TITLE V2 ERROR:", err.message);
 }
 
+// ==========================
+// ZEUS TITLE V2 (CONTROLLED REPLACEMENT)
+// ==========================
+const V2_ENABLED = process.env.ZEUS_TITLE_V2_ENABLED === "true";
+const V2_THRESHOLD = Number(process.env.ZEUS_TITLE_V2_THRESHOLD || 75);
+
+let aiTitleForV1 = aiResult; // default (v1)
+
+try {
+  if (V2_ENABLED && structuredTitle) {
+    const v2Evaluation = evaluateTitleV2(structuredTitle);
+
+    const decision = evaluateAgainstV1({
+      v1Title: cleanTitle,
+      v2Evaluation
+    });
+
+    const canUseV2 =
+      decision.winner === "v2" &&
+      v2Evaluation.score >= V2_THRESHOLD &&
+      typeof decision.v2 === "string" &&
+      decision.v2.length > 0;
+
+    if (canUseV2) {
+      console.log("🟢 ZEUS V2 ACTIVATED:", {
+        score: v2Evaluation.score,
+        title: decision.v2
+      });
+
+      aiTitleForV1 = decision.v2;
+
+    } else {
+      console.log("🟡 ZEUS V2 SKIPPED:", {
+        reason: decision.reason,
+        score: v2Evaluation.score
+      });
+    }
+  }
+} catch (err) {
+  console.error("❌ ZEUS V2 ACTIVATION ERROR:", err.message);
+}
+
 // 🔥 FINAL TITLE CONTROL
 const finalTitle = buildFinalTitle({
-  aiTitle: aiResult, // 🔥 ANTES ""
+  aiTitle: aiTitleForV1, // ✅ AQUÍ ESTÁ EL CAMBIO CLAVE
   originalTitle: cleanTitle,
   description: translatedHtml,
   variant: realProduct?.variants?.[0]?.title
-});
+});    
 
 cleanTitle = finalTitle;
 
