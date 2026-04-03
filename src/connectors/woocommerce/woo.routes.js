@@ -220,11 +220,11 @@ router.post("/woocommerce/optimize-inline", async (req, res) => {
     const finalTitle = buildTitleFromStructured(aiResult, title);
 
     const finalDescription = buildFinalDescription({
-      title: finalTitle,
-      originalHtml: description || "",
-      aiResult,
-      language: safeLanguage
-    });
+  title: finalTitle,
+  originalHtml: "", // 🔥 FORCE REPLACE MODE
+  aiResult,
+  language: safeLanguage
+});
 
     const finalTags = buildTags({ aiResult });
 
