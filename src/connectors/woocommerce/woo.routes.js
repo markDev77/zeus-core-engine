@@ -58,14 +58,16 @@ function buildTitleFromStructured(aiResult, fallbackTitle = "") {
     .trim();
 
   if (
-    cleanedIntent &&
-    cleanedIntent.length > 5 &&
-    !title.toLowerCase().includes(cleanedIntent)
-  ) {
+  cleanedIntent &&
+  cleanedIntent.length > 5 &&
+  !title.toLowerCase().includes(cleanedIntent)
+) {
+  if (cleanedIntent.startsWith("para ")) {
     title += " " + cleanedIntent;
+  } else {
+    title += " para " + cleanedIntent;
   }
 }
-
     if (
       differentiator &&
       differentiator.length > 8
