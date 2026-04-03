@@ -393,29 +393,30 @@ async function callOpenAI(input) {
     const isJsonMode = mode === "json";
 
     const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+  "https://api.openai.com/v1/chat/completions",
+  {
+    model: "gpt-4o-mini",
+    temperature,
+    messages: [
       {
-        model: "gpt-4o-mini",
-        temperature,
-        messages: [
-          {
-            role: "system",
-            content: isJsonMode
-              ? "You ONLY return valid JSON. No text, no explanation, no markdown."
-              : "You are an ecommerce optimization assistant."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ]
+        role: "system",
+        content: isJsonMode
+          ? "You are a strict JSON generator. You must ONLY return valid JSON. No explanations. No text outside JSON."
+          : "You are an ecommerce optimization assistant."
       },
       {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-        }
+        role: "user",
+        content: prompt
       }
-    );
+    ],
+    ...(isJsonMode ? { response_format: { type: "json_object" } } : {})
+  },
+  {
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+    }
+  }
+);
 
     return response?.data?.choices?.[0]?.message?.content || "";
 
