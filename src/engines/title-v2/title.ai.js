@@ -1,7 +1,7 @@
 // /src/engines/title-v2/title.ai.js
 
 const { normalizeTitleContract } = require("./title.contract");
-const { generateStructuredTitleRaw } = require("./title.ai.raw");
+const { generateAIContent } = require("../ai.engine");
 
 function safeJSONParse(text) {
   try {
@@ -127,8 +127,9 @@ Country: ${country}
 RETURN ONLY JSON.
 `;
 
- const aiRaw = await generateStructuredTitleRaw({
-  prompt
+ const aiRaw = await generateAIContent({
+  prompt,
+  temperature: 0.2
 });
     const parsed = safeJSONParse(aiRaw);
 
