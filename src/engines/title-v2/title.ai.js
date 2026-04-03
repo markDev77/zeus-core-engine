@@ -127,11 +127,11 @@ Country: ${country}
 RETURN ONLY JSON.
 `;
 
-    const aiRaw = await generateAIContent({
+  const aiRaw = await generateAIContent({
   prompt,
   temperature: 0.2,
-  force_json: true
-});
+  mode: "json"
+})
     const parsed = safeJSONParse(aiRaw);
 
     if (!parsed) {
