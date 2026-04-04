@@ -2,7 +2,7 @@
 
 const { buildFinalTitle } = require("../engines/title.engine");
 const { buildFinalDescription } = require("../engines/description.engine");
-const { generateSEO } = require("../engines/seo.engine");
+const { buildSEOIntro } = require("../engines/seo.engine"); // 🔥 FIX
 const { resolvePolicy } = require("../policies/policy.engine");
 
 async function processProduct({ source, product, store, policyContext }) {
@@ -15,24 +15,20 @@ async function processProduct({ source, product, store, policyContext }) {
     productId: product.id || null
   });
 
-  // 1. Policy
   const policy = resolvePolicy({
     source,
     platform: store?.platform,
     context: policyContext
   });
 
-  // 2. Normalize
   const base = normalizeProduct(product);
 
-  // 3. Title
   const title = await buildFinalTitle({
     title: base.title,
     language: store?.language,
     policy
   });
 
-  // 4. Description
   const description_html = await buildFinalDescription({
     title,
     originalHtml: base.description_html,
@@ -40,31 +36,22 @@ async function processProduct({ source, product, store, policyContext }) {
     policy
   });
 
-  // 5. SEO
-  const seo = await generateSEO({
+  // 🔥 SEO SIMPLE (SIN generateSEO)
+  const short_description = buildSEOIntro({
     title,
-    description: description_html,
-    language: store?.language
+    description: description_html
   });
 
-  // 6. Tags
-  const tags = buildTags({ title, seo, policy });
-
-  // 7. Category (placeholder)
-  const category = base.category || null;
-
-  // 8. Variants / Images
-  const variants = base.variants || [];
-  const images = base.images || [];
+  const tags = buildTags({ title, short_description, policy });
 
   const result = {
     title,
     description_html,
-    short_description: seo?.short_description || "",
+    short_description,
     tags,
-    category,
-    images,
-    variants,
+    category: base.category || null,
+    images: base.images || [],
+    variants: base.variants || [],
     meta: {
       source,
       policy: policy?.name || "default"
@@ -93,12 +80,11 @@ function normalizeProduct(product) {
   };
 }
 
-function buildTags({ title, seo, policy }) {
+function buildTags({ title, short_description, policy }) {
   const baseTags = [];
 
-  if (seo?.keywords) {
-    baseTags.push(...seo.keywords);
-  }
+  if (title) baseTags.push(title);
+  if (short_description) baseTags.push(short_description);
 
   if (policy?.tag_prefix) {
     baseTags.push(policy.tag_prefix);
