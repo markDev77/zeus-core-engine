@@ -75,7 +75,7 @@ const { applyShopifyCategory } = require("./src/connectors/shopify/shopify.categ
 // ==========================
 // CONNECTORS (WOOCOMMERCE)
 // ==========================
-const wooRoutes = require("./src/connectors/woocommerce/woo.routes");
+const wooRoutes = require("./src/routes/woo.route");
 
 // ==========================
 // LOGS
