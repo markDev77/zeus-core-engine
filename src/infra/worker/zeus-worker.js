@@ -1,16 +1,19 @@
+// src/infra/worker/zeus-worker.js
+
 const { Pool } = require("pg");
+const { processProduct } = require("../../pipeline/processProduct");
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// 🔒 CONFIG SAFE
-const WORKER_INTERVAL = 3000; // cada 3 seg
-const MAX_JOBS_PER_CYCLE = 2; // ultra conservador
+// CONFIG
+const WORKER_INTERVAL = 3000;
+const MAX_JOBS_PER_CYCLE = 2;
 
 // ==========================
-// FETCH JOBS (SAFE)
+// FETCH JOBS
 // ==========================
 async function fetchQueuedJobs() {
   const res = await pool.query(
@@ -52,33 +55,53 @@ async function markDone(id) {
   );
 }
 
+async function markFailed(id, error) {
+  await pool.query(
+    `
+    UPDATE zeus_jobs
+    SET status = 'failed'
+    WHERE id = $1
+    `,
+    [id]
+  );
+
+  console.error("❌ JOB FAILED", { id, error: error.message });
+}
+
 // ==========================
-// SAFE PROCESSOR (NO BUSINESS LOGIC)
+// PROCESSOR (REAL MODE)
 // ==========================
 async function processJob(job) {
   const { id, shop, payload } = job;
 
-  console.log("🧠 WORKER (SAFE) PROCESSING", { id, shop, payload });
+  console.log("⚙️ WORKER PROCESSING", { id, shop });
 
   try {
     await markProcessing(id);
 
-    // 🔒 SAFE MODE REAL
-    // NO ejecutar:
-    // - transformProductById
-    // - generateAIContent
-    // - shopifyRequest
-    // - consumeToken
+    if (!payload) {
+      throw new Error("Missing payload in job");
+    }
 
-    // solo simulación controlada
-    await new Promise((res) => setTimeout(res, 300));
+    const result = await processProduct({
+      source: payload.source,
+      product: payload.product,
+      store: payload.store,
+      policyContext: payload.policyContext
+    });
+
+    console.log("🧠 ZEUS RESULT", {
+      jobId: id,
+      title: result.title,
+      tags: result.tags?.length || 0
+    });
 
     await markDone(id);
 
-    console.log("✅ WORKER (SAFE) DONE", { id });
+    console.log("✅ WORKER DONE", { id });
 
   } catch (err) {
-    console.error("❌ WORKER ERROR", err.message);
+    await markFailed(id, err);
   }
 }
 
@@ -102,7 +125,7 @@ async function runWorkerCycle() {
   }
 }
 
-// 🔁 LOOP (NO BLOQUEANTE)
+// LOOP
 setInterval(runWorkerCycle, WORKER_INTERVAL);
 
-console.log("🚀 ZEUS WORKER STARTED (SAFE MODE)");
+console.log("🚀 ZEUS WORKER STARTED (REAL MODE)");
