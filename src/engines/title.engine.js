@@ -11,28 +11,28 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
         : aiTitle?.title || "";
 
     // GO-TO-MARKET: IA manda
-if (aiText && aiText.length > 10) {
-  let result = sanitize(trimLength(aiText, 70));
+    if (aiText && aiText.length > 10) {
+      let result = sanitize(trimLength(aiText, 70));
 
-  // 🔥 FIX: eliminar Title Case → dejar sentence case
-  result = result.toLowerCase();
-  result = result.charAt(0).toUpperCase() + result.slice(1);
+      // 🔥 FIX: sentence case
+      result = result.toLowerCase();
+      result = result.charAt(0).toUpperCase() + result.slice(1);
 
-  return result;
-}
+      return result;
+    }
 
-// fallback
-let fallback = sanitize(trimLength(originalTitle, 70));
+    // fallback
+    let fallback = sanitize(trimLength(originalTitle, 70));
 
-// 🔥 mismo comportamiento en fallback
-fallback = fallback.toLowerCase();
-fallback = fallback.charAt(0).toUpperCase() + fallback.slice(1);
+    fallback = fallback.toLowerCase();
+    fallback = fallback.charAt(0).toUpperCase() + fallback.slice(1);
 
-return fallback;
+    return fallback;
 
-} catch (err) {
-  console.error("ZEUS TITLE ENGINE ERROR:", err);
-  return originalTitle || "";
+  } catch (err) {
+    console.error("ZEUS TITLE ENGINE ERROR:", err);
+    return originalTitle || "";
+  }
 }
   
 // ---------------- HELPERS ----------------
