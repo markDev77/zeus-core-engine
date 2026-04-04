@@ -19,8 +19,22 @@ const seoDictionaryMX = {
   generic: []
 };
 
+// 🔒 SAFE NORMALIZER
+function safeString(value) {
+  if (!value) return "";
+
+  if (typeof value === "string") return value;
+
+  if (typeof value === "object") {
+    if (value.title) return String(value.title);
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+}
+
 function detectSEOCategory(title = "") {
-  const t = title.toLowerCase();
+  const t = safeString(title).toLowerCase();
 
   if (t.includes("mocas") || t.includes("zapato")) return "footwear";
   if (t.includes("salpicadura") || t.includes("deflector")) return "splash_guard";
@@ -30,26 +44,26 @@ function detectSEOCategory(title = "") {
 }
 
 function getPrimaryKeyword(title) {
-  const cat = detectSEOCategory(title);
+  const t = safeString(title);
+  const cat = detectSEOCategory(t);
   const list = seoDictionaryMX[cat] || [];
 
   return list[0] || null;
 }
 
 function injectKeywordInTitle(title) {
-  const keyword = getPrimaryKeyword(title);
-  if (!keyword) return title;
+  const safeTitle = safeString(title);
+  const keyword = getPrimaryKeyword(safeTitle);
+  if (!keyword) return safeTitle;
 
-  let t = title.toLowerCase();
+  let t = safeTitle.toLowerCase();
 
   const keywordMain = keyword.split(" ")[0];
 
-  // 🔥 evitar duplicación real
   if (t.includes(keywordMain)) {
-  return sentenceCase(trimSmart(cleanTitle(t), 60));
-}
+    return sentenceCase(trimSmart(cleanTitle(t), 60));
+  }
 
-  // 🔥 construir limpio
   let result = `${keyword} ${t}`;
 
   result = cleanTitle(result);
@@ -83,12 +97,13 @@ function trimSmart(text, max) {
 }
 
 function sentenceCase(text) {
-  const t = text.toLowerCase();
+  const t = safeString(text).toLowerCase();
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 function buildSEOIntro(title) {
-  const keyword = getPrimaryKeyword(title);
+  const safeTitle = safeString(title);
+  const keyword = getPrimaryKeyword(safeTitle);
 
   if (!keyword) return "";
 
