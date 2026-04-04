@@ -27,6 +27,7 @@ const usadropPolicy = require("./src/policies/shopify/usadrop/usadropDescription
 // ==========================
 const { canProcessStore, markStoreAuthError, markStoreAuthHealthy } = require("./src/infra/auth/auth-state.service");
 const zeusLogger = require("./src/infra/logging/zeus-logger");
+
 console.log("AUTH MODULE LOADED:", {
   canProcessStore: typeof canProcessStore
 });
@@ -37,6 +38,11 @@ console.log("AUTH MODULE LOADED:", {
 const { generateAIContent } = require("./src/engines/ai.engine");
 const { buildFinalDescription } = require("./src/engines/description.engine");
 const { buildFinalTitle } = require("./src/engines/title.engine");
+const { generateStructuredTitle } = require("./src/engines/title-v2/title.ai");
+const {
+  evaluateTitleV2,
+  evaluateAgainstV1
+} = require("./src/engines/title-v2/title.decision");
 const { injectKeywordInTitle, buildSEOIntro } = require("./src/engines/seo.engine");
 const { calculateZeusPriceUSD } = require("./src/engines/pricing.engine");
 
@@ -1203,19 +1209,13 @@ if (remaining <= 0) {
   const q = getShopQueue(normalizedShop);
   const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-  // 🔥 ZEUS HARD BLOCK DUPLICATE (POR PRODUCTO)
-const alreadyQueued = q.queue.some(j => j.productId === fn.__productId);
-
-if (alreadyQueued) {
-  console.log("⛔ BLOCK DUPLICATE IN QUEUE", {
+  q.queue.push({ jobId, jobName, fn });
+  log("QUEUE: enqueued", {
     shop: normalizedShop,
-    productId: fn.__productId
+    jobName,
+    jobId,
+    depth: q.queue.length
   });
-  return;
-}
-
-// 🔥 push con productId
-q.queue.push({ jobId, jobName, fn, productId: fn.__productId });
 
   processShopQueue(normalizedShop).catch((err) => {
     console.error("QUEUE processor error:", err.message);
@@ -1968,8 +1968,28 @@ const aiResult = await generateAIContent({
 });
 console.log("🔥 AI RESULT:", aiResult);
 
-console.log("TRACE 1 - AI TITLE:", aiResult?.title);
+// ==========================
+// ZEUS TITLE V2 (SHADOW MODE)
+// ==========================
+let structuredTitle = null;
 
+try {
+  structuredTitle = await generateStructuredTitle({
+  title: cleanTitle,
+  description: translatedHtml,
+  language,
+  country: store?.country || "GLOBAL"
+});
+
+  console.log("🔵 ZEUS TITLE V2 (SHADOW):", {
+    product_type: structuredTitle?.product_type?.value,
+    intent: structuredTitle?.primary_intent?.value,
+    modifiers: structuredTitle?.key_modifiers?.map(m => m.value)
+  });
+
+} catch (err) {
+  console.error("❌ ZEUS TITLE V2 ERROR:", err.message);
+}
 
 // 🔥 FINAL TITLE CONTROL
 const finalTitle = buildFinalTitle({
@@ -1977,18 +1997,9 @@ const finalTitle = buildFinalTitle({
   originalTitle: cleanTitle,
   description: translatedHtml,
   variant: realProduct?.variants?.[0]?.title
-});
+});    
 
-console.log("TRACE 2 - AFTER ENGINE:", finalTitle);
-    
 cleanTitle = finalTitle;
-    
-    console.log("🧠 ZEUS TITLE FINAL:", {
-  original: realProduct.title,
-  clean_input: cleanTitle,
-  ai: aiResult?.title,
-  final: finalTitle
-});
 
 // 🔥 MARKET POLICY
 const marketRules = getMarketRules({
@@ -1996,15 +2007,11 @@ const marketRules = getMarketRules({
   language
 });
 
-const finalTitleAfterPolicy = applyMarketRulesToTitle(
+cleanTitle = applyMarketRulesToTitle(
   cleanTitle,
   marketRules,
   { aiTitle: "" }
 );
-
-console.log("TRACE 3 - FINAL OUTPUT:", finalTitleAfterPolicy);
-
-cleanTitle = finalTitleAfterPolicy;
 
  const finalDescription = buildFinalDescription({
       title: cleanTitle,
@@ -2317,7 +2324,7 @@ log("ZEUS TOKEN CONSUMED", {
     store: row
   };
 }
-
+  
 app.post("/webhook/products-create", async (req, res) => {
   console.log("🔥 PRODUCT WEBHOOK BODY:", JSON.stringify(req.body, null, 2));
   res.status(200).send("ok");
@@ -2328,8 +2335,24 @@ app.post("/webhook/products-create", async (req, res) => {
   const productId = Number(req.body?.id);
   if (!productId) return;
 
-  // 🔴 DB QUEUE TEMPORALMENTE DESACTIVADA
-  
+  // ===============================
+  // 🔥 ZEUS DB QUEUE (SHADOW MODE)
+  // ===============================
+  try {
+    await enqueueJobDB({
+      shop,
+      productId
+    });
+
+    console.log("📦 DB QUEUE ENQUEUED", {
+      shop,
+      productId
+    });
+
+  } catch (err) {
+    console.error("❌ DB QUEUE ERROR:", err.message);
+  }
+
   let store;
 
   try {
