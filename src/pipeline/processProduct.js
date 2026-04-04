@@ -23,11 +23,11 @@ async function processProduct({ source, product, store, policyContext }) {
 
   const base = normalizeProduct(product);
 
-  const title = await buildFinalTitle({
-    title: base.title,
-    language: store?.language,
-    policy
-  });
+ const title = await buildFinalTitle({
+  aiTitle: null,
+  originalTitle: base.title,
+  language: store?.language
+});
 
   const description_html = await buildFinalDescription({
     title,
