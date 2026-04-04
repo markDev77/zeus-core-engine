@@ -10,103 +10,10 @@ function buildFinalTitle({ aiTitle, originalTitle, language }) {
         ? aiTitle
         : aiTitle?.title || "";
 
-// ==========================
-// 🔥 ZEUS FIX (CAP + CLEAN)
-// ==========================
-let title = aiText && aiText.length > 10 ? aiText : originalTitle;
-
-// 1. NORMALIZAR
-title = String(title)
-  .replace(/\s+/g, " ")
-  .trim();
-
-// 2. NORMALIZAR (SIN ROMPER ACENTOS)
-title = String(title)
-  .toLowerCase()
-  .trim();
-
-// 3. RECONSTRUIR PALABRAS CLAVE (mínimo viable)
-title = title
-  .replace(/calcomanias/g, "calcomanías")
-  .replace(/diseno/g, "diseño")
-  .replace(/decoracion/g, "decoración");
-
-// 4. CAPITALIZACIÓN LIMPIA
-title = title.charAt(0).toUpperCase() + title.slice(1);
-
-// 4.1 FIX SIGLAS
-title = title
-  .replace(/\bPu\b/g, "PU")
-  .replace(/\bLed\b/g, "LED")
-  .replace(/\bUsb\b/g, "USB");
-
-// 5. ELIMINAR DUPLICADOS
-const words = title.split(" ");
-const seen = new Set();
-
-title = words
-  .filter(w => {
-    const key = w.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  })
-  .join(" ");
-
-// 6. LIMPIEZA FINAL
-title = title
-  .replace(/\s{2,}/g, " ")
-  .trim()
-  .slice(0, 120);
-
-return title;
-    
-
     // GO-TO-MARKET: IA manda
-if (aiText && aiText.length > 10) {
-  let title = aiText;
-
-  // ==========================
-  // 🔥 ZEUS HARDENING V3
-  // ==========================
-
-  // 1. NORMALIZAR ESPACIOS
-  title = String(title || "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  // 2. ELIMINAR BASURA COMÚN
-  title = title
-    .replace(/\b(1\s?(pieza|piece|pc|unit|set))\b/gi, "")
-    .replace(/\b(producto|artículo|accesorio)\b/gi, "")
-    .trim();
-
-  // 3. EVITAR REPETICIÓN DE CONECTORES
-  const connectors = ["para", "for", "pour", "für"];
-  connectors.forEach(conn => {
-    const regex = new RegExp(`(${conn}\\s+){2,}`, "gi");
-    title = title.replace(regex, conn + " ");
-  });
-
-  // 4. ELIMINAR ADJETIVOS DÉBILES AISLADOS
-  title = title.replace(/\b(moderno|practico|práctico|funcional|elegante)\b/gi, "");
-
-  // 5. LIMPIEZA FINAL
-  title = title
-    .replace(/\s{2,}/g, " ")
-    .replace(/^[\s\-]+|[\s\-]+$/g, "")
-    .trim();
-
-  // 6. CONTROL DE LONGITUD (SMART TRIM)
-  if (title.length > 110) {
-    title = title.substring(0, 110).replace(/\s+\S*$/, "").trim();
-  }
-
-  // 7. CAPITALIZACIÓN FINAL
-  title = fixCapitalization(title);
-
-  return sanitize(title);
-}
+    if (aiText && aiText.length > 10) {
+      return sanitize(fixCapitalization(trimLength(aiText, 70)));
+    }
 
     // fallback
     return sanitize(capitalize(trimLength(originalTitle, 70)));
