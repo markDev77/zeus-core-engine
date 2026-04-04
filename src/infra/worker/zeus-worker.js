@@ -2,6 +2,7 @@
 
 const { Pool } = require("pg");
 const { processProduct } = require("../../pipeline/processProduct");
+const { writeWooProduct } = require("../../connectors/woo/woo.connector");
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -69,7 +70,7 @@ async function markFailed(id, error) {
 }
 
 // ==========================
-// PROCESSOR (REAL MODE)
+// PROCESSOR (PIPELINE + WRITE)
 // ==========================
 async function processJob(job) {
   const { id, shop, payload } = job;
@@ -94,6 +95,18 @@ async function processJob(job) {
       jobId: id,
       title: result.title,
       tags: result.tags?.length || 0
+    });
+
+    // 🔥 WRITE (SIMULADO)
+    const writeResult = await writeWooProduct({
+      store: payload.store,
+      product: payload.product,
+      zeusResult: result
+    });
+
+    console.log("🛒 WOO WRITE RESULT", {
+      jobId: id,
+      success: writeResult.success
     });
 
     await markDone(id);
@@ -128,4 +141,4 @@ async function runWorkerCycle() {
 // LOOP
 setInterval(runWorkerCycle, WORKER_INTERVAL);
 
-console.log("🚀 ZEUS WORKER STARTED (REAL MODE)");
+console.log("🚀 ZEUS WORKER STARTED (PIPELINE + WRITE MODE)");
