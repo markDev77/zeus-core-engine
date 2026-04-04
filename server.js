@@ -143,6 +143,55 @@ app.use(express.json({
 // ==========================
 app.use("/zeus", wooRoutes);
 
+// ==========================
+// ZEUS INLINE ENDPOINT (LTM COMPATIBLE)
+// ==========================
+
+app.post("/woocommerce/optimize-inline", async (req, res) => {
+  try {
+    const { title, description, language, categories } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ ok: false, error: "title required" });
+    }
+
+    const result = await processProduct({
+      source: "woocommerce",
+      product: {
+        id: null,
+        title,
+        description,
+        category: categories || []
+      },
+      store: {
+        platform: "woo",
+        language: language || "es"
+      }
+    });
+
+    return res.json({
+      ok: true,
+      title: result.title,
+      description: result.description_html,
+      tags: result.tags,
+      category: {
+        best_match: {
+          id: null // 🔒 no forzamos aún
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ INLINE ERROR", error.message);
+
+    return res.status(500).json({
+      ok: false,
+      error: "internal_error"
+    });
+  }
+});
+
+
 /*
 ========================================
 SHOPIFY REQUIRED WEBHOOKS (COMPLIANCE)
