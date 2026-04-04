@@ -20,11 +20,10 @@ title = String(title)
   .replace(/\s+/g, " ")
   .trim();
 
-// 2. NORMALIZAR Y LIMPIAR ENCODING
-title = title
-  .normalize("NFD")
-  .replace(/[\u0300-\u036f]/g, "")
-  .toLowerCase();
+// 2. NORMALIZAR (SIN ROMPER ACENTOS)
+title = String(title)
+  .toLowerCase()
+  .trim();
 
 // 3. RECONSTRUIR PALABRAS CLAVE (mínimo viable)
 title = title
