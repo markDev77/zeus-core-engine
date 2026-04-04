@@ -43,17 +43,9 @@ function applyMarketRulesToTitle(title, rules = {}, context = {}) {
   const { aiTitle } = context;
 
   // 🔥 PRIORIDAD AI (ZEUS)
- if (rules.title_source === "ai" && aiTitle) {
-  let result = normalizeSpaces(aiTitle);
-
-  // 🔥 FIX: quitar Title Case
-  result = result.toLowerCase();
-
-  // 🔥 mantener primera palabra en mayúscula
-  result = result.charAt(0).toUpperCase() + result.slice(1);
-
-  return trim(result, 140);
-}
+  if (rules.title_source === "ai" && aiTitle) {
+    return trim(normalizeSpaces(aiTitle), 140);
+  }
 
   if (!title) return "";
 
