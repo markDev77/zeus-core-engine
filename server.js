@@ -22,6 +22,9 @@ const crypto = require("crypto");
 const { Pool } = require("pg");
 const usadropPolicy = require("./src/policies/shopify/usadrop/usadropDescriptionLocalizer.policy");
 
+// 🔥 ZEUS PIPELINE
+const { processProduct } = require("./src/pipeline/processProduct");
+
 // ==========================
 // ZEUS INFRA (AUTH / ALERTS)
 // ==========================
