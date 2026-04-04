@@ -2007,10 +2007,10 @@ const marketRules = getMarketRules({
   language
 });
 
-cleanTitle = applyMarketRulesToTitle(
+applyMarketRulesToTitle(
   cleanTitle,
   marketRules,
-  { aiTitle: "" }
+  { aiTitle: aiResult?.title }
 );
 
  const finalDescription = buildFinalDescription({
