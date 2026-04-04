@@ -2987,6 +2987,55 @@ app.post("/stripe/webhook", async (req, res) => {
   }
 });
 
+
+/* ========================================
+   WOO WEBHOOK → ZEUS CORE
+======================================== */
+
+app.post("/webhook/woo/product-update", async (req, res) => {
+  try {
+    console.log("🔥 WOO WEBHOOK RECEIVED");
+
+    const product = req.body;
+
+    if (!product || !product.id) {
+      console.log("⛔ INVALID PRODUCT PAYLOAD");
+      return res.status(400).send("invalid product");
+    }
+
+    console.log("📦 PRODUCT:", {
+      id: product.id,
+      name: product.name
+    });
+
+    const result = await processProduct({
+      source: "woo",
+      product: {
+        id: product.id,
+        title: product.name,
+        description: product.description || product.short_description,
+        images: product.images || [],
+        variants: product.variations || []
+      },
+      store: {
+        platform: "woo",
+        language: "es"
+      }
+    });
+
+    console.log("🧠 ZEUS RESULT:", {
+      title: result.title
+    });
+
+    return res.status(200).send("ok");
+
+  } catch (error) {
+    console.error("❌ WEBHOOK ERROR:", error.message);
+    return res.status(500).send("error");
+  }
+});
+
+
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
