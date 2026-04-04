@@ -1968,6 +1968,8 @@ const aiResult = await generateAIContent({
 });
 console.log("🔥 AI RESULT:", aiResult);
 
+console.log("TRACE 1 - AI TITLE:", aiResult?.title);
+
 
 // 🔥 FINAL TITLE CONTROL
 const finalTitle = buildFinalTitle({
@@ -1975,8 +1977,10 @@ const finalTitle = buildFinalTitle({
   originalTitle: cleanTitle,
   description: translatedHtml,
   variant: realProduct?.variants?.[0]?.title
-});    
+});
 
+console.log("TRACE 2 - AFTER ENGINE:", finalTitle);
+    
 cleanTitle = finalTitle;
     
     console.log("🧠 ZEUS TITLE FINAL:", {
@@ -1992,11 +1996,15 @@ const marketRules = getMarketRules({
   language
 });
 
-cleanTitle = applyMarketRulesToTitle(
+const finalTitleAfterPolicy = applyMarketRulesToTitle(
   cleanTitle,
   marketRules,
   { aiTitle: "" }
 );
+
+console.log("TRACE 3 - FINAL OUTPUT:", finalTitleAfterPolicy);
+
+cleanTitle = finalTitleAfterPolicy;
 
  const finalDescription = buildFinalDescription({
       title: cleanTitle,
