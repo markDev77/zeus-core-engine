@@ -1203,13 +1203,19 @@ if (remaining <= 0) {
   const q = getShopQueue(normalizedShop);
   const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-  q.queue.push({ jobId, jobName, fn });
-  log("QUEUE: enqueued", {
+  // 🔥 ZEUS HARD BLOCK DUPLICATE (POR PRODUCTO)
+const alreadyQueued = q.queue.some(j => j.productId === fn.__productId);
+
+if (alreadyQueued) {
+  console.log("⛔ BLOCK DUPLICATE IN QUEUE", {
     shop: normalizedShop,
-    jobName,
-    jobId,
-    depth: q.queue.length
+    productId: fn.__productId
   });
+  return;
+}
+
+// 🔥 push con productId
+q.queue.push({ jobId, jobName, fn, productId: fn.__productId });
 
   processShopQueue(normalizedShop).catch((err) => {
     console.error("QUEUE processor error:", err.message);
