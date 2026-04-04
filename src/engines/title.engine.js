@@ -32,7 +32,7 @@ title = title
   .replace(/decoracion/g, "decoración");
 
 // 4. CAPITALIZACIÓN LIMPIA
-title = title.replace(/\b\w/g, l => l.toUpperCase());
+title = title.charAt(0).toUpperCase() + title.slice(1);
 
 // 4.1 FIX SIGLAS
 title = title
