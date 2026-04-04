@@ -1,3 +1,5 @@
+// src/infra/queue/db-queue.js
+
 const { Pool } = require("pg");
 
 // 🔥 pool independiente (NO depende de server)
@@ -6,14 +8,22 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-async function enqueueJobDB({ shop, productId }) {
+async function enqueueJobDB({ shop, productId, payload }) {
   try {
     if (!shop) {
       throw new Error("enqueueJobDB: shop requerido");
     }
 
-    if (!productId) {
-      throw new Error("enqueueJobDB: productId requerido");
+    // 🔥 NUEVO ZEUS: soporta payload completo
+    let finalPayload = null;
+
+    if (payload) {
+      finalPayload = payload;
+    } else if (productId) {
+      // 🔒 compatibilidad legacy (Shopify)
+      finalPayload = { productId };
+    } else {
+      throw new Error("enqueueJobDB: payload o productId requerido");
     }
 
     await pool.query(
@@ -29,9 +39,15 @@ async function enqueueJobDB({ shop, productId }) {
       [
         "product_create",
         shop,
-        JSON.stringify({ productId })
+        JSON.stringify(finalPayload)
       ]
     );
+
+    console.log("📦 DB QUEUE INSERT OK", {
+      shop,
+      hasPayload: !!payload,
+      productId: productId || null
+    });
 
   } catch (err) {
     console.error("❌ DB QUEUE INSERT ERROR:", err.message);
