@@ -51,17 +51,89 @@
 
 ## ÚLTIMO AVANCE
 
-(esto se actualiza cada sesión)
+- Se definió estrategia oficial:
+  - Shopify (UsaDrop) = LEGACY PROTECTED (no tocar)
+  - ZEUS nuevo se construye en paralelo
+  - Canal inicial: Woo → LTM MX
 
-Ejemplo:
-- Se creó processProduct.js
-- Pendiente: worker real
+- Se estableció arquitectura objetivo ZEUS:
+  - Core desacoplado (processProduct)
+  - Policy layer separada
+  - Connectors independientes
+  - Worker + DB queue como ejecución
+
+- Se creó primer componente del Core:
+  - src/pipeline/processProduct.js
+
+- processProduct:
+  - ya ejecuta title.engine
+  - ya ejecuta description.engine
+  - ya ejecuta seo.engine
+  - ya integra policy layer
+  - NO escribe en plataforma
+  - NO depende de Shopify
+  - NO depende de Woo
+
+Estado actual:
+ZEUS Core iniciado pero aún no ejecutado en pipeline real
 
 ---
 
 ## SIGUIENTE PASO
 
-(esto se usa como prompt siguiente)
+FASE 2 — ACTIVAR WORKER REAL
 
-Ejemplo:
-"Construir worker conectado a processProduct usando zeus_jobs"
+Objetivo:
+Conectar DB queue (zeus_jobs) → worker → processProduct
+
+Requerimientos:
+
+1. Tomar worker existente:
+   src/infra/worker/zeus-worker.js
+
+2. Quitar SAFE MODE:
+   - Eliminar simulación
+   - Ejecutar processProduct real
+
+3. Worker debe:
+   - leer jobs de zeus_jobs
+   - marcar status = processing
+   - ejecutar processProduct
+   - devolver resultado
+   - (sin escribir aún en Woo/LTM)
+
+4. Output del worker:
+   - log estructurado del resultado ZEUS
+   - validar que pipeline corre end-to-end
+
+IMPORTANTE:
+- No tocar server.js
+- No tocar Shopify
+- No conectar aún a Woo/LTM write
+- Solo validar ejecución del pipeline
+
+---
+## PROMPT SIGUIENTE CHAT
+
+Estamos construyendo ZEUS bajo arquitectura desacoplada.
+
+Contexto:
+- Shopify (UsaDrop) está en producción y NO se toca
+- ZEUS nuevo se está construyendo en paralelo
+- Ya existe processProduct.js como core pipeline
+
+Objetivo:
+Activar worker real conectado a DB queue (zeus_jobs) y ejecutar processProduct.
+
+Necesito:
+- Código completo actualizado de zeus-worker.js
+- Eliminando SAFE MODE
+- Conectado a processProduct
+- Sin writeback a plataforma aún
+- Con logs claros del resultado
+
+Reglas:
+- No usar server.js
+- No romper nada existente
+- No mezclar legacy con nuevo
+- Mantener arquitectura ZEUS limpia
