@@ -2999,9 +2999,9 @@ app.post("/webhook/woo/product-update", async (req, res) => {
     const product = req.body;
 
     if (!product || !product.id) {
-      console.log("⛔ INVALID PRODUCT PAYLOAD");
-      return res.status(400).send("invalid product");
-    }
+  console.log("⚠️ VALIDATION CALL OR EMPTY PAYLOAD");
+  return res.status(200).send("ok"); // 🔥 SIEMPRE OK PARA WOO
+}
 
     console.log("📦 PRODUCT:", {
       id: product.id,
