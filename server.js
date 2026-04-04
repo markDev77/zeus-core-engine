@@ -141,7 +141,7 @@ app.use(express.json({
 // ==========================
 // WOOCOMMERCE ROUTES
 // ==========================
-app.use("/", wooRoutes);
+app.use("/zeus", wooRoutes);
 
 /*
 ========================================
