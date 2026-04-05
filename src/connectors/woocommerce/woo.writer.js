@@ -1,11 +1,14 @@
 const axios = require("axios");
 
-async function writeWooProduct({ store, productId, data }) {
+async function writeWooProduct({ productId, data }) {
   try {
-    const { baseUrl, consumerKey, consumerSecret } = store;
+    const baseUrl = "https://lo-tengo.com.mx";
 
-    if (!baseUrl || !consumerKey || !consumerSecret) {
-      console.log("⛔ WOO CONFIG MISSING");
+    const consumerKey = process.env.WOO_KEY;
+    const consumerSecret = process.env.WOO_SECRET;
+
+    if (!consumerKey || !consumerSecret) {
+      console.log("⛔ WOO CREDENTIALS MISSING");
       return { success: false };
     }
 
@@ -34,10 +37,7 @@ async function writeWooProduct({ store, productId, data }) {
     return { success: true };
 
   } catch (error) {
-    console.error("❌ WOO WRITE ERROR", {
-      message: error.message
-    });
-
+    console.error("❌ WOO WRITE ERROR", error.message);
     return { success: false };
   }
 }
