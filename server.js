@@ -79,6 +79,7 @@ const { applyShopifyCategory } = require("./src/connectors/shopify/shopify.categ
 // CONNECTORS (WOOCOMMERCE)
 // ==========================
 const wooRoutes = require("./src/routes/woo.route");
+const { writeWooProduct } = require("./src/connectors/woocommerce/woo.writer");
 
 // ==========================
 // LOGS
@@ -3024,17 +3025,16 @@ app.post("/webhook/woo/product-update", async (req, res) => {
     });
 
     console.log("🧠 ZEUS RESULT:", {
-      title: result.title
-    });
-
-    return res.status(200).send("ok");
-
-  } catch (error) {
-    console.error("❌ WEBHOOK ERROR:", error.message);
-    return res.status(500).send("error");
-  }
+  title: result.title
 });
 
+// 🔥 WRITE BACK A WOO (AQUÍ VA)
+await writeWooProduct({
+  productId: product.id,
+  data: result
+});
+
+return res.status(200).send("ok");
 
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
