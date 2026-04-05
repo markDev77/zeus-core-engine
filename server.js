@@ -2997,24 +2997,28 @@ app.post("/webhook/woo/product-update", async (req, res) => {
   try {
     console.log("🔥 WOO WEBHOOK RECEIVED");
 
-    const product = req.body;
+    const product = req.body || {};
+    const productId = product.id || product.ID || null;
 
-    if (!product || !product.id) {
-  console.log("⚠️ VALIDATION CALL OR EMPTY PAYLOAD");
-  return res.status(200).send("ok"); // 🔥 SIEMPRE OK PARA WOO
-}
+    // 🔥 RESPONDER SIEMPRE A WOO (VALIDACIÓN)
+    res.status(200).send("ok");
+
+    if (!productId) {
+      console.log("⚠️ VALIDATION CALL OR EMPTY PAYLOAD");
+      return;
+    }
 
     console.log("📦 PRODUCT:", {
-      id: product.id,
-      name: product.name
+      id: productId,
+      name: product.name || product.title
     });
 
     const result = await processProduct({
       source: "woo",
       product: {
-        id: product.id,
-        title: product.name,
-        description: product.description || product.short_description,
+        id: productId,
+        title: product.name || product.title || "",
+        description: product.description || product.short_description || "",
         images: product.images || [],
         variants: product.variations || []
       },
@@ -3025,16 +3029,18 @@ app.post("/webhook/woo/product-update", async (req, res) => {
     });
 
     console.log("🧠 ZEUS RESULT:", {
-  title: result.title
-});
+      title: result.title
+    });
 
-// 🔥 WRITE BACK A WOO (AQUÍ VA)
-await writeWooProduct({
-  productId: product.id,
-  data: result
-});
+    await writeWooProduct({
+      productId: productId,
+      data: result
+    });
 
-return res.status(200).send("ok");
+  } catch (error) {
+    console.error("❌ WEBHOOK ERROR:", error.message);
+  }
+});
 
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
