@@ -153,25 +153,25 @@ app.use("/zeus", wooRoutes);
 
 app.post("/woocommerce/optimize-inline", async (req, res) => {
   try {
-    const { title, description, language, categories } = req.body;
+    const { id, title, description, language, categories } = req.body;
 
     if (!title) {
       return res.status(400).json({ ok: false, error: "title required" });
     }
 
     const result = await processProduct({
-      source: "woocommerce",
-      product: {
-        id: null,
-        title,
-        description,
-        category: categories || []
-      },
-      store: {
-        platform: "woo",
-        language: language || "es"
-      }
-    });
+  source: "woocommerce",
+  product: {
+    id: id || null,
+    title,
+    description,
+    category: categories || []
+  },
+  store: {
+    platform: "woo",
+    language: language || "es"
+  }
+});
 
     return res.json({
       ok: true,
