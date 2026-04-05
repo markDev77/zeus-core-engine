@@ -17,7 +17,7 @@ async function writeWooProduct({ productId, data }) {
     const response = await axios.put(
       url,
       {
-        name: data.title,
+        name: data.title + " 🔥",
         description: data.description_html,
         short_description: data.short_description
       },
