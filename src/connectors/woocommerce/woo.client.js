@@ -9,7 +9,7 @@ const CONSUMER_KEY = "ck_1f2ee08f6224be07d8f96a8cf2d72bc6be902f2e";
 const CONSUMER_SECRET = "cs_18fa66ba79f1edaa0405cf8f763a6e86ee931519";
 
 // ==========================
-// AUTH HEADER (CLAVE)
+// AUTH HEADER
 // ==========================
 function getAuthHeader() {
   const token = Buffer.from(`${CONSUMER_KEY}:${CONSUMER_SECRET}`).toString("base64");
@@ -17,7 +17,7 @@ function getAuthHeader() {
 }
 
 // ==========================
-// AXIOS INSTANCE (CORRECTO)
+// AXIOS INSTANCE
 // ==========================
 const wooApi = axios.create({
   baseURL: BASE_URL,
