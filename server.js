@@ -147,54 +147,18 @@ app.use(express.json({
 // ==========================
 app.use("/zeus", wooRoutes);
 
-// ==========================
-// ZEUS INLINE ENDPOINT (LTM COMPATIBLE)
-// ==========================
+/* ========================================
+   ⚠️ DEPRECATED — INLINE OPTIMIZATION REMOVED
+======================================== */
 
 app.post("/woocommerce/optimize-inline", async (req, res) => {
-  try {
-    const { id, title, description, language, categories } = req.body;
+  console.log("🚫 INLINE ENDPOINT CALLED — DEPRECATED");
 
-    if (!title) {
-      return res.status(400).json({ ok: false, error: "title required" });
-    }
-
-    const result = await processProduct({
-  source: "woocommerce",
-  product: {
-    id: id || null,
-    title,
-    description,
-    category: categories || []
-  },
-  store: {
-    platform: "woo",
-    language: language || "es"
-  }
+  return res.status(410).json({
+    ok: false,
+    error: "endpoint_deprecated_use_webhook"
+  });
 });
-
-    return res.json({
-      ok: true,
-      title: result.title,
-      description: result.description_html,
-      tags: result.tags,
-      category: {
-        best_match: {
-          id: null // 🔒 no forzamos aún
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error("❌ INLINE ERROR", error.message);
-
-    return res.status(500).json({
-      ok: false,
-      error: "internal_error"
-    });
-  }
-});
-
 
 /*
 ========================================
