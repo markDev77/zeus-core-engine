@@ -2964,15 +2964,7 @@ app.post("/webhook/woo/product-update", async (req, res) => {
     const product = req.body || {};
     const productId = product.id || product.ID || null;
 
-    // 🔥 LOOP PROTECTION (AQUÍ VA)
-const sourceHeader = req.headers["x-zeus-source"];
-
-if (sourceHeader === "zeus") {
-  console.log("⛔ LOOP BLOCKED (ZEUS ORIGIN)");
-  return res.status(200).send("ok");
-}
-
-    // 🔥 RESPONDER SIEMPRE A WOO (VALIDACIÓN)
+    // 🔴 RESPONDER SIEMPRE A WOO (UNA SOLA VEZ)
     res.status(200).send("ok");
 
     if (!productId) {
@@ -2980,19 +2972,67 @@ if (sourceHeader === "zeus") {
       return;
     }
 
+    // 🔥 IMPORTS (OK AQUÍ POR AHORA)
+    const wooClient = require("./src/connectors/woocommerce/woo.client");
+    const { buildWooWriteHash } = require("./src/connectors/woocommerce/woo.writer");
+
+    // 🔥 LEER PRODUCTO REAL DESDE WOO
+    const freshProduct = await wooClient.getProduct(productId);
+
+    const metaData = Array.isArray(freshProduct.meta_data)
+      ? freshProduct.meta_data
+      : [];
+
+    const getMeta = (key) => {
+      const found = metaData.find((m) => m && m.key === key);
+      return found ? found.value : null;
+    };
+
+    const lastOrigin = getMeta("_zeus_last_write_origin");
+    const lastHash = getMeta("_zeus_last_write_hash");
+    const lastWriteAt = getMeta("_zeus_last_write_at");
+
+    const currentHash = buildWooWriteHash({
+      name: freshProduct.name,
+      description: freshProduct.description,
+      short_description: freshProduct.short_description,
+      tags: freshProduct.tags || []
+    });
+
+    const ageMs = lastWriteAt
+      ? Date.now() - new Date(lastWriteAt).getTime()
+      : null;
+
+    const isRecentZeusWrite =
+      lastOrigin === "zeus" &&
+      lastHash &&
+      lastHash === currentHash &&
+      Number.isFinite(ageMs) &&
+      ageMs >= 0 &&
+      ageMs <= 5 * 60 * 1000;
+
+    // 🔴 LOOP PROTECTION REAL
+    if (isRecentZeusWrite) {
+      console.log("⛔ LOOP BLOCKED (SELF WRITE)", {
+        productId,
+        currentHash
+      });
+      return;
+    }
+
     console.log("📦 PRODUCT:", {
       id: productId,
-      name: product.name || product.title
+      name: freshProduct.name
     });
 
     const result = await processProduct({
       source: "woo",
       product: {
-        id: productId,
-        title: product.name || product.title || "",
-        description: product.description || product.short_description || "",
-        images: product.images || [],
-        variants: product.variations || []
+        id: freshProduct.id,
+        title: freshProduct.name || "",
+        description: freshProduct.description || freshProduct.short_description || "",
+        images: freshProduct.images || [],
+        variants: freshProduct.variations || []
       },
       store: {
         platform: "woo",
@@ -3005,7 +3045,7 @@ if (sourceHeader === "zeus") {
     });
 
     await writeWooProduct({
-      productId: productId,
+      productId,
       data: result
     });
 
