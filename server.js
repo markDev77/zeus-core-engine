@@ -2964,6 +2964,14 @@ app.post("/webhook/woo/product-update", async (req, res) => {
     const product = req.body || {};
     const productId = product.id || product.ID || null;
 
+    // 🔥 LOOP PROTECTION (AQUÍ VA)
+const sourceHeader = req.headers["x-zeus-source"];
+
+if (sourceHeader === "zeus") {
+  console.log("⛔ LOOP BLOCKED (ZEUS ORIGIN)");
+  return res.status(200).send("ok");
+}
+
     // 🔥 RESPONDER SIEMPRE A WOO (VALIDACIÓN)
     res.status(200).send("ok");
 
