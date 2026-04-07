@@ -1,44 +1,32 @@
-const express = require("express");
-
 /* ========================================
-   FIX CRÍTICO: handler explícito
+   FIX: eliminar cualquier llamada a optimize-inline
 ======================================== */
 
-async function wooProductUpdateHandler(req, res) {
-  try {
-    const product = req.body;
+// 🔴 BUSCA cualquier uso de:
+// /woocommerce/optimize-inline
 
-    if (!product || !product.id) {
-      console.log("⛔ INVALID WOO PAYLOAD");
-      return res.status(400).send("invalid_payload");
-    }
+// ❌ EJEMPLOS A ELIMINAR:
+// axios.post("/woocommerce/optimize-inline", ...)
+// fetch("/woocommerce/optimize-inline", ...)
+// cualquier forward interno hacia ese endpoint
 
-    const { processProductJob } = require("../../core/processProduct");
+// ==========================
+// SI EXISTE HANDLER COMO ESTE:
+// ==========================
 
-    await processProductJob({
-      job: {
-        shop:
-          (product.meta_data || []).find(m => m.key === "_zeus_store_id")?.value ||
-          "default",
-        payload: {
-          productId: product.id
-        }
-      },
-      services: req.app.locals.services
-    });
+// ❌ ELIMINAR COMPLETO
+router.post("/woocommerce/optimize-inline", ...);
 
-    return res.status(200).send("ok");
+// ==========================
+// SI EXISTE LLAMADA INTERNA:
+// ==========================
 
-  } catch (error) {
-    console.error("❌ WOO WEBHOOK ERROR", error.message);
-    return res.status(500).send("error");
-  }
-}
+// ❌ ELIMINAR COMPLETO
+await axios.post(`${BASE_URL}/woocommerce/optimize-inline`, payload);
 
-/* ========================================
-   EXPORT DIRECTO (SIN router)
-======================================== */
+// ==========================
+// NO REEMPLAZAR POR NADA
+// ==========================
 
-module.exports = {
-  wooProductUpdateHandler
-};
+// ✔️ El flujo correcto YA es:
+// webhook → processProductJob → pipeline → writer
