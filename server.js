@@ -2958,9 +2958,18 @@ app.post("/stripe/webhook", async (req, res) => {
    WOO WEBHOOK → ZEUS CORE (DELEGATED)
 ======================================== */
 
-const { handleWooProductUpdateWebhook } = require("./src/connectors/woocommerce/woo.webhook.controller");
-app.post("/webhook/woo/product-update", handleWooProductUpdateWebhook);
+const wooWebhookHandler = require("./src/connectors/woocommerce/woo.webhook.controller");
 
+app.post("/webhook/woo/product-update", (req, res) => {
+  console.log("🔥 SERVER ROUTE HIT");
+
+  if (typeof wooWebhookHandler !== "function") {
+    console.error("❌ HANDLER INVALID", typeof wooWebhookHandler);
+    return res.status(500).send("invalid_handler");
+  }
+
+  return wooWebhookHandler(req, res);
+});
 
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
