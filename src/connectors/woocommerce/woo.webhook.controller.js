@@ -1,5 +1,5 @@
 /* ========================================
-   WOO WEBHOOK CONTROLLER (SAFE EXPORT)
+   WOO WEBHOOK CONTROLLER (ALINEADO A PIPELINE REAL)
 ======================================== */
 
 async function handleWooProductUpdateWebhook(req, res) {
@@ -15,18 +15,19 @@ async function handleWooProductUpdateWebhook(req, res) {
       productId: product.id
     });
 
-    const processProductJob = require("../../pipeline/processProduct");
+    // ✅ IMPORT CORRECTO
+    const { runImportPipeline } = require("../../pipeline/importPipeline");
 
-    await processProductJob({
-      job: {
-        shop:
+    await runImportPipeline({
+      source: "woocommerce",
+      productId: product.id,
+      product,
+      platform: "woocommerce",
+      store: {
+        shopDomain:
           (product.meta_data || []).find(m => m.key === "_zeus_store_id")?.value ||
-          "default",
-        payload: {
-          productId: product.id
-        }
-      },
-      services: req.app.locals?.services || {}
+          null
+      }
     });
 
     return res.status(200).send("ok");
@@ -38,9 +39,8 @@ async function handleWooProductUpdateWebhook(req, res) {
 }
 
 /* ========================================
-   🔴 EXPORT DOBLE (ANTI-UNDEFINED)
+   EXPORT
 ======================================== */
 
-// 👇 SOPORTA AMBAS FORMAS DE IMPORT
 module.exports = handleWooProductUpdateWebhook;
 module.exports.handleWooProductUpdateWebhook = handleWooProductUpdateWebhook;
