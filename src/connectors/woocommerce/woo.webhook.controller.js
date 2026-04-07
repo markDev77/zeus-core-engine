@@ -23,6 +23,13 @@ async function handleWooProductUpdateWebhook(req, res) {
       productId: product.id
     });
 
+    // 🔥 BREAKPOINT REAL (NO DEBUG)
+    throw new Error("🔥 ZEUS BREAKPOINT WEBHOOK");
+
+    /* ========================================
+       LOOP PROTECTION
+    ======================================== */
+
     const currentHash = buildWooWriteHash({
       name: product.title || "",
       description: product.description || "",
@@ -44,6 +51,10 @@ async function handleWooProductUpdateWebhook(req, res) {
       return res.status(200).send("loop_blocked");
     }
 
+    /* ========================================
+       STORE CONTEXT
+    ======================================== */
+
     const storeContext = await resolveWooStoreContext(req);
 
     if (!storeContext?.baseUrl || !storeContext?.consumerKey || !storeContext?.consumerSecret) {
@@ -54,6 +65,10 @@ async function handleWooProductUpdateWebhook(req, res) {
 
       return res.status(500).send("store_context_not_resolved");
     }
+
+    /* ========================================
+       CORE PIPELINE
+    ======================================== */
 
     const zeusOutput = await processProduct({
       source: "woocommerce",
@@ -77,6 +92,10 @@ async function handleWooProductUpdateWebhook(req, res) {
         sourceContext: "webhook"
       }
     });
+
+    /* ========================================
+       WRITE
+    ======================================== */
 
     const writeResult = await writeWooProduct({
       productId: product.id,
