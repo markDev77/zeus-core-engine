@@ -23,9 +23,6 @@ async function handleWooProductUpdateWebhook(req, res) {
       productId: product.id
     });
 
-    // 🔥 BREAKPOINT REAL (NO DEBUG)
-    throw new Error("🔥 ZEUS BREAKPOINT WEBHOOK");
-
     /* ========================================
        LOOP PROTECTION
     ======================================== */
