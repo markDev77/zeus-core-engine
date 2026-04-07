@@ -2957,14 +2957,17 @@ app.post("/stripe/webhook", async (req, res) => {
    WOO WEBHOOK → ZEUS CORE (HARD OVERRIDE TEST)
 ======================================== */
 
-app.post("/webhook/woo/product-update", (req, res) => {
-  console.log("🔥🔥🔥 WOO WEBHOOK HARD TEST HIT 🔥🔥🔥");
+const wooWebhookHandler = require("./src/connectors/woocommerce/woo.webhook.controller");
 
-  return res.status(500).json({
-    ok: false,
-    source: "ZEUS_SERVER_TEST",
-    timestamp: Date.now()
-  });
+app.post("/webhook/woo/product-update", (req, res) => {
+  console.log("🟢 SERVER ROUTE HIT (WOO)");
+
+  if (typeof wooWebhookHandler !== "function") {
+    console.error("❌ HANDLER INVALID", typeof wooWebhookHandler);
+    return res.status(500).send("invalid_handler");
+  }
+
+  return wooWebhookHandler(req, res);
 });
 
 /* ========================================
