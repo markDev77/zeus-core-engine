@@ -1,105 +1,82 @@
-const { buildWooWriteHash, writeWooProduct } = require("./woo.writer");
-const { normalizeWooProductInput } = require("./woo.input.normalizer");
-const { isRecentZeusSelfWrite } = require("./woo.loop-guard");
-const { resolveWooStoreContext } = require("./woo.store-resolver");
+const { writeWooProduct } = require("./woo.writer");
 
-// ⚠️ Ajusta si tu export es distinto
-const processProduct = require("../../pipeline/processProduct");
+/* ========================================
+   RESOLVER STORE CONTEXT (MULTI-STORE)
+======================================== */
+function resolveWooStoreContext(product = {}) {
+  const meta = product.meta_data || [];
 
-async function handleWooProductUpdateWebhook(req, res) {
+  const getMeta = (key) => {
+    const found = meta.find((m) => m.key === key);
+    return found ? found.value : null;
+  };
+
+  const baseUrl =
+    getMeta("_zeus_store_base_url") ||
+    process.env.WOO_DEFAULT_BASE_URL ||
+    null;
+
+  const consumerKey =
+    getMeta("_zeus_consumer_key") ||
+    process.env.WOO_DEFAULT_CONSUMER_KEY ||
+    null;
+
+  const consumerSecret =
+    getMeta("_zeus_consumer_secret") ||
+    process.env.WOO_DEFAULT_CONSUMER_SECRET ||
+    null;
+
+  const storeId =
+    getMeta("_zeus_store_id") ||
+    "default";
+
+  return {
+    baseUrl,
+    consumerKey,
+    consumerSecret,
+    storeId,
+    source: "woo"
+  };
+}
+
+/* ========================================
+   CONTROLLER WOO → ZEUS → WRITE
+======================================== */
+async function handleWooProductUpdate({ product, zeusOutput }) {
   try {
-    console.log("🔥 WOO WEBHOOK RECEIVED");
+    const storeContext = resolveWooStoreContext(product);
 
-    const payload = req.body || {};
-    const normalizedProduct = normalizeWooProductInput(payload);
-    const productId = normalizedProduct.id;
-
-    // 🔴 RESPUESTA INMEDIATA A WOO
-    res.status(200).send("ok");
-
-    if (!productId) {
-      console.log("⚠️ VALIDATION CALL OR EMPTY PAYLOAD");
-      return;
-    }
-
-    // 🔥 RESOLVER CONTEXTO DE TIENDA (MULTI-STORE)
-    const storeContext = await resolveWooStoreContext(req);
-
-    if (!storeContext) {
-      console.log("⛔ STORE CONTEXT NOT RESOLVED");
-      return;
-    }
-
-    console.log("🏪 STORE CONTEXT", storeContext);
-
-    // 🔥 HASH DESDE PAYLOAD
-    const currentHash = buildWooWriteHash({
-      name: normalizedProduct.title,
-      description: normalizedProduct.description,
-      short_description: normalizedProduct.short_description,
-      tags: normalizedProduct.tags || []
-    });
-
-    // 🔥 LOOP PROTECTION DESDE PAYLOAD
-    const loopCheck = isRecentZeusSelfWrite({
-      metaData: normalizedProduct.meta_data || [],
-      currentHash
-    });
-
-    if (loopCheck.blocked) {
-      console.log("⛔ LOOP BLOCKED (SELF WRITE)", {
-        productId,
-        ...loopCheck.debug
+    if (!storeContext.baseUrl || !storeContext.consumerKey || !storeContext.consumerSecret) {
+      console.log("⛔ WOO STORE CONTEXT NOT RESOLVED", {
+        productId: product?.id,
+        storeContext
       });
-      return;
+
+      return {
+        success: false,
+        reason: "store_context_not_resolved"
+      };
     }
 
-    console.log("📦 NORMALIZED PRODUCT", {
-      id: normalizedProduct.id,
-      title: normalizedProduct.title
-    });
-
-    // 🔥 ZEUS CORE
-    const result = await processProduct({
-      source: "woo",
-      product: {
-        id: normalizedProduct.id,
-        title: normalizedProduct.title || "",
-        description: normalizedProduct.description || "",
-        short_description: normalizedProduct.short_description || "",
-        images: normalizedProduct.images || [],
-        variants: normalizedProduct.variants || [],
-        category: normalizedProduct.categories || [],
-        tags: normalizedProduct.tags || [],
-        meta_data: normalizedProduct.meta_data || []
-      },
-      store: {
-        platform: "woo",
-        language: "es"
-      },
-      policyContext: {
-        channel: "woocommerce",
-        sourceContext: "webhook"
-      }
-    });
-
-    console.log("🧠 ZEUS RESULT", {
-      productId,
-      title: result.title
-    });
-
-    // 🔥 WRITE MULTI-STORE
-    await writeWooProduct({
-      productId,
-      data: result,
+    const writeResult = await writeWooProduct({
+      productId: product.id,
+      data: zeusOutput,
       storeContext
     });
 
+    return writeResult;
+
   } catch (error) {
-    console.error("❌ WEBHOOK ERROR:", error.message);
+    console.error("❌ WOO CONTROLLER ERROR", error.message);
+
+    return {
+      success: false,
+      reason: error.message
+    };
   }
 }
 
 module.exports = {
-  handleWooProductUpdateWebhook
+  handleWooProductUpdate,
+  resolveWooStoreContext
 };
