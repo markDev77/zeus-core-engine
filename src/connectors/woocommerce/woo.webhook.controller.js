@@ -1,82 +1,46 @@
-const { writeWooProduct } = require("./woo.writer");
-
 /* ========================================
-   RESOLVER STORE CONTEXT (MULTI-STORE)
+   WOO WEBHOOK CONTROLLER (SAFE EXPORT)
 ======================================== */
-function resolveWooStoreContext(product = {}) {
-  const meta = product.meta_data || [];
 
-  const getMeta = (key) => {
-    const found = meta.find((m) => m.key === key);
-    return found ? found.value : null;
-  };
-
-  const baseUrl =
-    getMeta("_zeus_store_base_url") ||
-    process.env.WOO_DEFAULT_BASE_URL ||
-    null;
-
-  const consumerKey =
-    getMeta("_zeus_consumer_key") ||
-    process.env.WOO_DEFAULT_CONSUMER_KEY ||
-    null;
-
-  const consumerSecret =
-    getMeta("_zeus_consumer_secret") ||
-    process.env.WOO_DEFAULT_CONSUMER_SECRET ||
-    null;
-
-  const storeId =
-    getMeta("_zeus_store_id") ||
-    "default";
-
-  return {
-    baseUrl,
-    consumerKey,
-    consumerSecret,
-    storeId,
-    source: "woo"
-  };
-}
-
-/* ========================================
-   CONTROLLER WOO → ZEUS → WRITE
-======================================== */
-async function handleWooProductUpdate({ product, zeusOutput }) {
+async function handleWooProductUpdateWebhook(req, res) {
   try {
-    const storeContext = resolveWooStoreContext(product);
+    const product = req.body;
 
-    if (!storeContext.baseUrl || !storeContext.consumerKey || !storeContext.consumerSecret) {
-      console.log("⛔ WOO STORE CONTEXT NOT RESOLVED", {
-        productId: product?.id,
-        storeContext
-      });
-
-      return {
-        success: false,
-        reason: "store_context_not_resolved"
-      };
+    if (!product || !product.id) {
+      console.log("⛔ INVALID WOO PAYLOAD");
+      return res.status(400).send("invalid_payload");
     }
 
-    const writeResult = await writeWooProduct({
-      productId: product.id,
-      data: zeusOutput,
-      storeContext
+    console.log("🟢 WOO WEBHOOK RECEIVED", {
+      productId: product.id
     });
 
-    return writeResult;
+    const { processProductJob } = require("../../core/processProduct");
+
+    await processProductJob({
+      job: {
+        shop:
+          (product.meta_data || []).find(m => m.key === "_zeus_store_id")?.value ||
+          "default",
+        payload: {
+          productId: product.id
+        }
+      },
+      services: req.app.locals?.services || {}
+    });
+
+    return res.status(200).send("ok");
 
   } catch (error) {
-    console.error("❌ WOO CONTROLLER ERROR", error.message);
-
-    return {
-      success: false,
-      reason: error.message
-    };
+    console.error("❌ WOO WEBHOOK ERROR", error.message);
+    return res.status(500).send("error");
   }
 }
 
-module.exports = {
-  handleWooProductUpdate,
-  resolveWooStoreContext
-};
+/* ========================================
+   🔴 EXPORT DOBLE (ANTI-UNDEFINED)
+======================================== */
+
+// 👇 SOPORTA AMBAS FORMAS DE IMPORT
+module.exports = handleWooProductUpdateWebhook;
+module.exports.handleWooProductUpdateWebhook = handleWooProductUpdateWebhook;
