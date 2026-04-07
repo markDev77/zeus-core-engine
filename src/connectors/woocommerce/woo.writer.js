@@ -31,14 +31,6 @@ function normalizeWooBaseUrl(baseUrl = "") {
 }
 
 /* ========================================
-   AUTH HEADER
-======================================== */
-function buildBasicAuthHeader(consumerKey, consumerSecret) {
-  const token = Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
-  return `Basic ${token}`;
-}
-
-/* ========================================
    HASH PARA LOOP PROTECTION
 ======================================== */
 function buildWooWriteHash({
@@ -76,51 +68,10 @@ function buildWooMetaData({
   });
 
   return [
-    {
-      key: "_zeus_last_write_origin",
-      value: "zeus"
-    },
-    {
-      key: "_zeus_last_write_hash",
-      value: writeHash
-    },
-    {
-      key: "_zeus_last_write_at",
-      value: new Date().toISOString()
-    }
+    { key: "_zeus_last_write_origin", value: "zeus" },
+    { key: "_zeus_last_write_hash", value: writeHash },
+    { key: "_zeus_last_write_at", value: new Date().toISOString() }
   ];
-}
-
-/* ========================================
-   VALIDAR PERSISTENCIA
-======================================== */
-function validateWooWriteResponse({ responseData, expectedPayload }) {
-  const responseTags = normalizeTags(responseData?.tags || []);
-  const expectedTags = normalizeTags(expectedPayload?.tags || []).sort();
-
-  const responseHash = buildWooWriteHash({
-    name: responseData?.name || "",
-    description: responseData?.description || "",
-    short_description: responseData?.short_description || "",
-    tags: responseTags
-  });
-
-  const expectedHash = buildWooWriteHash({
-    name: expectedPayload?.name || "",
-    description: expectedPayload?.description || "",
-    short_description: expectedPayload?.short_description || "",
-    tags: expectedTags
-  });
-
-  return {
-    ok: responseHash === expectedHash,
-    expectedHash,
-    responseHash,
-    responseName: responseData?.name || "",
-    expectedName: expectedPayload?.name || "",
-    responseTags,
-    expectedTags
-  };
 }
 
 /* ========================================
@@ -144,11 +95,6 @@ async function writeWooProduct({ productId, data, storeContext }) {
 
     const baseUrl = normalizeWooBaseUrl(rawBaseUrl);
 
-    if (!baseUrl) {
-      console.log("⛔ INVALID BASE URL", { rawBaseUrl });
-      return { success: false, reason: "invalid_base_url" };
-    }
-
     const normalizedTags = normalizeTags(data?.tags || []);
 
     const payload = {
@@ -164,13 +110,15 @@ async function writeWooProduct({ productId, data, storeContext }) {
       })
     };
 
-    // ✅ FIX CRÍTICO AQUÍ
     const url = `${baseUrl}/wc/v3/products/${productId}`;
 
-    console.log("🟡 WOO WRITE START", {
+    // 🔥 DEBUG CRÍTICO
+    console.log("🚨 WOO WRITE DEBUG BEFORE REQUEST", {
       productId,
-      storeSource: storeContext?.source || "unknown",
-      url
+      url,
+      baseUrl,
+      payloadName: payload.name,
+      payloadTags: payload.tags
     });
 
     const response = await axios.put(url, payload, {
@@ -179,59 +127,22 @@ async function writeWooProduct({ productId, data, storeContext }) {
         password: consumerSecret
       },
       headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json"
+        "Content-Type": "application/json"
       },
       timeout: 30000,
       validateStatus: () => true
     });
 
-    if (response.status < 200 || response.status >= 300) {
-      console.error("❌ WOO WRITE HTTP ERROR", {
-        productId,
-        status: response.status,
-        data: response.data
-      });
-
-      return {
-        success: false,
-        reason: "http_error",
-        status: response.status,
-        data: response.data
-      };
-    }
-
-    const validation = validateWooWriteResponse({
-      responseData: response.data || {},
-      expectedPayload: payload
-    });
-
-    if (!validation.ok) {
-      console.error("❌ WOO WRITE VALIDATION FAILED", {
-        productId,
-        status: response.status,
-        validation
-      });
-
-      return {
-        success: false,
-        reason: "persistence_validation_failed",
-        status: response.status,
-        validation
-      };
-    }
-
-    console.log("✅ WOO WRITE SUCCESS", {
-      productId,
+    // 🔥 DEBUG CRÍTICO
+    console.log("🚨 WOO WRITE DEBUG RESPONSE RAW", {
       status: response.status,
-      validation
+      data: response.data
     });
 
     return {
       success: true,
       status: response.status,
-      productId: response.data?.id || productId,
-      validation
+      raw: response.data
     };
 
   } catch (error) {
