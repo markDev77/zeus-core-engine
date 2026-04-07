@@ -15,7 +15,7 @@ async function handleWooProductUpdateWebhook(req, res) {
       productId: product.id
     });
 
-    const { processProductJob } = require("../../core/processProduct");
+    const { processProductJob } = require("../../pipeline/processProduct");
 
     await processProductJob({
       job: {
