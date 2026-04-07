@@ -164,7 +164,8 @@ async function writeWooProduct({ productId, data, storeContext }) {
       })
     };
 
-    const url = `${baseUrl}/wp-json/wc/v3/products/${productId}`;
+    // ✅ FIX CRÍTICO AQUÍ
+    const url = `${baseUrl}/wc/v3/products/${productId}`;
 
     console.log("🟡 WOO WRITE START", {
       productId,
@@ -173,16 +174,11 @@ async function writeWooProduct({ productId, data, storeContext }) {
     });
 
     const response = await axios.put(url, payload, {
-      params: {
-        consumer_key: consumerKey,
-        consumer_secret: consumerSecret
-      },
       auth: {
         username: consumerKey,
         password: consumerSecret
       },
       headers: {
-        Authorization: buildBasicAuthHeader(consumerKey, consumerSecret),
         "Content-Type": "application/json",
         Accept: "application/json"
       },
