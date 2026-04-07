@@ -1,8 +1,9 @@
 const { buildWooWriteHash, writeWooProduct } = require("./woo.writer");
 const { normalizeWooProductInput } = require("./woo.input.normalizer");
 const { isRecentZeusSelfWrite } = require("./woo.loop-guard");
+const { resolveWooStoreContext } = require("./woo.store-resolver");
 
-// ⚠️ IMPORTANTE: usa tu export real (ajusta si es default)
+// ⚠️ Ajusta si tu export es distinto
 const processProduct = require("../../pipeline/processProduct");
 
 async function handleWooProductUpdateWebhook(req, res) {
@@ -13,7 +14,7 @@ async function handleWooProductUpdateWebhook(req, res) {
     const normalizedProduct = normalizeWooProductInput(payload);
     const productId = normalizedProduct.id;
 
-    // 🔴 RESPONDER SIEMPRE A WOO (UNA SOLA VEZ)
+    // 🔴 RESPUESTA INMEDIATA A WOO
     res.status(200).send("ok");
 
     if (!productId) {
@@ -21,7 +22,17 @@ async function handleWooProductUpdateWebhook(req, res) {
       return;
     }
 
-    // 🔥 HASH DESDE PAYLOAD (NO GET)
+    // 🔥 RESOLVER CONTEXTO DE TIENDA (MULTI-STORE)
+    const storeContext = await resolveWooStoreContext(req);
+
+    if (!storeContext) {
+      console.log("⛔ STORE CONTEXT NOT RESOLVED");
+      return;
+    }
+
+    console.log("🏪 STORE CONTEXT", storeContext);
+
+    // 🔥 HASH DESDE PAYLOAD
     const currentHash = buildWooWriteHash({
       name: normalizedProduct.title,
       description: normalizedProduct.description,
@@ -43,12 +54,12 @@ async function handleWooProductUpdateWebhook(req, res) {
       return;
     }
 
-    console.log("📦 NORMALIZED PRODUCT:", {
-      id: productId,
+    console.log("📦 NORMALIZED PRODUCT", {
+      id: normalizedProduct.id,
       title: normalizedProduct.title
     });
 
-    // 🔥 ZEUS CORE (SIN DEPENDER DE WOO GET)
+    // 🔥 ZEUS CORE
     const result = await processProduct({
       source: "woo",
       product: {
@@ -72,14 +83,16 @@ async function handleWooProductUpdateWebhook(req, res) {
       }
     });
 
-    console.log("🧠 ZEUS RESULT:", {
+    console.log("🧠 ZEUS RESULT", {
       productId,
       title: result.title
     });
 
+    // 🔥 WRITE MULTI-STORE
     await writeWooProduct({
       productId,
-      data: result
+      data: result,
+      storeContext
     });
 
   } catch (error) {
