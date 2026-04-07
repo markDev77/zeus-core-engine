@@ -2971,6 +2971,14 @@ app.post("/webhook/woo/product-update", (req, res) => {
 });
 
 /* ========================================
+   WOO OPTIMIZE (NUEVO)
+======================================== */
+
+const { handleWooOptimize } = require("./src/connectors/woocommerce/woo.optimize.endpoint");
+
+app.post("/woo/optimize", handleWooOptimize);
+
+/* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
 
