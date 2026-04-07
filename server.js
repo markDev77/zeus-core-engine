@@ -993,7 +993,8 @@ console.log("TOKENS DEBUG:", {
   plan,
   billing_status
 });
-  
+
+
 const result = await pool.query(
   `
   INSERT INTO stores (
