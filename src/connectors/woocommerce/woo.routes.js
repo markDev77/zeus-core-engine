@@ -1,32 +1,30 @@
-/* ========================================
-   FIX: eliminar cualquier llamada a optimize-inline
-======================================== */
+export async function handleWooWebhook(req, res) {
+  try {
+    const payload = req.body || {};
 
-// 🔴 BUSCA cualquier uso de:
-// /woocommerce/optimize-inline
+    // 🔥 STORE CONTEXT (FUENTE ÚNICA)
+    const storeId =
+      req.headers["x-store-id"] ||
+      payload.storeId ||
+      payload.store_id ||
+      "woo-default";
 
-// ❌ EJEMPLOS A ELIMINAR:
-// axios.post("/woocommerce/optimize-inline", ...)
-// fetch("/woocommerce/optimize-inline", ...)
-// cualquier forward interno hacia ese endpoint
+    // 🔥 INYECTAR EN PAYLOAD ZEUS
+    const zeusPayload = {
+      ...payload,
+      _context: {
+        ...(payload._context || {}),
+        storeId,
+        platform: "woocommerce",
+      },
+    };
 
-// ==========================
-// SI EXISTE HANDLER COMO ESTE:
-// ==========================
+    // 🔴 FLUJO OFICIAL ZEUS (NO TOCAR)
+    await processProductJob(zeusPayload);
 
-// ❌ ELIMINAR COMPLETO
-router.post("/woocommerce/optimize-inline", ...);
-
-// ==========================
-// SI EXISTE LLAMADA INTERNA:
-// ==========================
-
-// ❌ ELIMINAR COMPLETO
-await axios.post(`${BASE_URL}/woocommerce/optimize-inline`, payload);
-
-// ==========================
-// NO REEMPLAZAR POR NADA
-// ==========================
-
-// ✔️ El flujo correcto YA es:
-// webhook → processProductJob → pipeline → writer
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("WOO WEBHOOK ERROR", err);
+    return res.status(500).json({ ok: false });
+  }
+}
