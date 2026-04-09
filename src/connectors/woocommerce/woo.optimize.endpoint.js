@@ -1,71 +1,62 @@
-/* ========================================
-   WOO OPTIMIZE ENDPOINT (RESPONSE ONLY)
-======================================== */
-
-const { processProduct } = require("../../pipeline/processProduct");
+// ==========================================
+// ZEUS — WOO OPTIMIZE ENDPOINT (REAL ENGINE)
+// ==========================================
 
 async function handleWooOptimize(req, res) {
   try {
-    const body = req.body || {};
+    const { input } = req.body;
 
-    const input = body.input || {};
-    const taxonomy = body.taxonomy || {};
-    const requestId = body.requestId || null;
-
-    const title = input.title || "";
-    const description = input.description || "";
-
-    if (!title && !description) {
+    if (!input || !input.title) {
       return res.status(400).json({
         ok: false,
-        error: "missing_input"
+        error: "invalid_input"
       });
     }
 
-    console.log("🟣 ZEUS WOO OPTIMIZE REQUEST", {
-      requestId,
-      hasTitle: !!title
-    });
+    // 🔥 IMPORTANTE: usar services del server (NO require directo)
+    const services = req.app.locals?.services;
 
-    const result = await processProduct({
+    if (!services || !services.runZeusProductPipeline) {
+      console.error("❌ ZEUS SERVICES NOT AVAILABLE");
+      return res.status(500).json({
+        ok: false,
+        error: "services_unavailable"
+      });
+    }
+
+    // ==========================================
+    // 🔥 EJECUTAR CORE ENGINE REAL
+    // ==========================================
+
+    const result = await services.runZeusProductPipeline({
       source: "woocommerce",
-      product: {
-        id: null,
-        title,
-        description,
-        short_description: "",
-        images: [],
-        variants: [],
-        category: [],
-        tags: [],
-        meta_data: []
-      },
-      store: {
-        platform: "woocommerce",
-        language: "es"
-      },
-      policyContext: {
-        channel: "woocommerce",
-        sourceContext: "wp_worker"
+      productId: null,
+      payload: {
+        title: input.title,
+        description: input.description || ""
       }
     });
 
-    return res.status(200).json({
+    // ==========================================
+    // RESPONSE NORMALIZADO
+    // ==========================================
+
+    return res.json({
       ok: true,
-      requestId,
+      requestId: null,
       output: {
-        title: result.title || "",
-        description: result.description_html || "",
-        tags: result.tags || []
+        title: result?.title || input.title,
+        description: result?.description || input.description || "",
+        tags: result?.tags || []
       }
     });
 
-  } catch (error) {
-    console.error("❌ WOO OPTIMIZE ERROR", error.message);
+  } catch (err) {
+    console.error("❌ WOO OPTIMIZE ERROR", err);
 
     return res.status(500).json({
       ok: false,
-      error: error.message
+      error: "internal_error"
     });
   }
 }
