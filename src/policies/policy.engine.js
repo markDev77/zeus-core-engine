@@ -1,10 +1,12 @@
 // /src/policies/policy.engine.js
 
 const usadropPolicy = require("./Shopify/usadrop.policy");
+const { ltmPolicy } = require("./woocommerce/ltm.policy"); // 🔥 NUEVO
 
-function resolvePolicy({ source, platform }) {
+function resolvePolicy({ source, platform, store }) {
 
   const normalizedSource = String(source || "").toLowerCase();
+  const storeId = store?.storeId || "";
 
   // ==========================
   // 🔧 DEFAULT BASE POLICY
@@ -29,13 +31,24 @@ function resolvePolicy({ source, platform }) {
   };
 
   // ==========================
-  // 🔥 USADROP POLICY
+  // 🔥 USADROP POLICY (NO TOCAR)
   // ==========================
   if (platform === "shopify" && normalizedSource === "usadrop") {
     return {
       ...base,
       ...usadropPolicy,
       name: "usadrop"
+    };
+  }
+
+  // ==========================
+  // 🟢 LTM-MX POLICY (POR STORE)
+  // ==========================
+  if (platform === "woocommerce" && storeId === "ltm-mx") {
+    return {
+      ...base,
+      ...ltmPolicy({}),
+      name: "ltm-mx"
     };
   }
 
