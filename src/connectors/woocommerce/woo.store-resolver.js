@@ -39,6 +39,18 @@ async function resolveWooStoreContext(req) {
     if (normalizedShop) {
       try {
         store = await getStore(normalizedShop);
+
+        // 🔥 DEBUG CRÍTICO (VALIDACIÓN DB)
+        console.log("🧠 ZEUS STORE RESOLVED", {
+          normalizedShop,
+          found: !!store,
+          storeId: store?.id || null,
+          tokens: store?.tokens || null,
+          tokens_used: store?.tokens_used || null,
+          tokens_balance: store?.tokens_balance || null,
+          status: store?.status || null
+        });
+
       } catch (err) {
         console.error("⚠️ STORE LOOKUP ERROR", err.message);
       }
@@ -80,6 +92,13 @@ async function resolveWooStoreContext(req) {
     if (!store && normalizedFallback) {
       try {
         store = await getStore(normalizedFallback);
+
+        console.log("🧠 ZEUS STORE RESOLVED (fallback)", {
+          normalizedFallback,
+          found: !!store,
+          storeId: store?.id || null
+        });
+
       } catch (err) {
         console.error("⚠️ STORE LOOKUP ERROR (fallback)", err.message);
       }
