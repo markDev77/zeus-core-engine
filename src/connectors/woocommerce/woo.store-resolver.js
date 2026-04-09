@@ -1,5 +1,3 @@
-const { getStoreByShop } = require("../../db/stores"); // ajusta path si aplica
-
 async function resolveWooStoreContext(req) {
   try {
     // ========================================
@@ -31,21 +29,7 @@ async function resolveWooStoreContext(req) {
       : null;
 
     // ========================================
-    // 🔥 ZEUS STORE (DB) — NO ROMPE SI NO EXISTE
-    // ========================================
-
-    let store = null;
-
-    if (normalizedShop) {
-      try {
-        store = await getStoreByShop(normalizedShop);
-      } catch (err) {
-        console.error("⚠️ STORE DB LOOKUP ERROR", err.message);
-      }
-    }
-
-    // ========================================
-    // 🔥 CASO 1: HEADERS + STORE DB
+    // 🔥 CASO 1: HEADERS (ACTUAL PRODUCCIÓN)
     // ========================================
 
     if (baseUrl && consumerKey && consumerSecret) {
@@ -55,17 +39,17 @@ async function resolveWooStoreContext(req) {
         consumerSecret,
         source: "headers",
 
-        // 🔥 ZEUS CONTEXT (si existe)
-        storeId: store?.id || null,
-        tokens: store?.tokens || null,
-        tokens_used: store?.tokens_used || null,
-        tokens_balance: store?.tokens_balance || null,
-        status: store?.status || null
+        // 🔥 PREPARADO PARA ZEUS (SIN DB AÚN)
+        storeId: normalizedShop || baseUrl,
+        tokens: null,
+        tokens_used: null,
+        tokens_balance: null,
+        status: "active"
       };
     }
 
     // ========================================
-    // 🔥 CASO 2: ENV FALLBACK + STORE DB
+    // 🔥 FALLBACK ENV (NO TOCAR)
     // ========================================
 
     const fallbackBase = process.env.WOO_BASE_URL;
@@ -77,26 +61,18 @@ async function resolveWooStoreContext(req) {
           .toLowerCase()
       : null;
 
-    if (!store && normalizedFallback) {
-      try {
-        store = await getStoreByShop(normalizedFallback);
-      } catch (err) {
-        console.error("⚠️ STORE DB LOOKUP ERROR (fallback)", err.message);
-      }
-    }
-
     return {
       baseUrl: normalizedFallback,
       consumerKey: process.env.WOO_KEY,
       consumerSecret: process.env.WOO_SECRET,
       source: "env_fallback",
 
-      // 🔥 ZEUS CONTEXT
-      storeId: store?.id || null,
-      tokens: store?.tokens || null,
-      tokens_used: store?.tokens_used || null,
-      tokens_balance: store?.tokens_balance || null,
-      status: store?.status || null
+      // 🔥 PREPARADO PARA ZEUS
+      storeId: normalizedFallback,
+      tokens: null,
+      tokens_used: null,
+      tokens_balance: null,
+      status: "active"
     };
 
   } catch (error) {
