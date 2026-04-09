@@ -63,6 +63,11 @@ async function handleWooProductUpdateWebhook(req, res) {
       return res.status(500).send("store_context_not_resolved");
     }
 
+    // 🔥 STORE ID DERIVADO (SIN NUEVA LÓGICA)
+    const storeId =
+      storeContext.storeId ||
+      storeContext.baseUrl; // fallback estable
+
     /* ========================================
        CORE PIPELINE
     ======================================== */
@@ -82,7 +87,8 @@ async function handleWooProductUpdateWebhook(req, res) {
       },
       store: {
         platform: "woocommerce",
-        language: "es"
+        language: "es",
+        storeId // 🔥 INYECCIÓN CONTROLADA
       },
       policyContext: {
         channel: "woocommerce",
