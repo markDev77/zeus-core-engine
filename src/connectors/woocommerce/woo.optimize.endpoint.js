@@ -1,6 +1,10 @@
 // ==========================================
-// ZEUS — WOO OPTIMIZE ENDPOINT (REAL ENGINE)
+// ZEUS — WOO OPTIMIZE (FORCED AI ENGINE)
 // ==========================================
+
+const { generateAIContent } = require("../../engines/ai.engine");
+const { buildFinalTitle } = require("../../engines/title.engine");
+const { buildFinalDescription } = require("../../engines/description.engine");
 
 async function handleWooOptimize(req, res) {
   try {
@@ -13,41 +17,54 @@ async function handleWooOptimize(req, res) {
       });
     }
 
-    // 🔥 IMPORTANTE: usar services del server (NO require directo)
-    const services = req.app.locals?.services;
+    const cleanTitle = input.title;
+    const cleanDescription = input.description || "";
 
-    if (!services || !services.runZeusProductPipeline) {
-      console.error("❌ ZEUS SERVICES NOT AVAILABLE");
-      return res.status(500).json({
-        ok: false,
-        error: "services_unavailable"
-      });
-    }
-
-    // ==========================================
-    // 🔥 EJECUTAR CORE ENGINE REAL
-    // ==========================================
-
-    const result = await services.runZeusProductPipeline({
-      source: "woocommerce",
-      productId: null,
-      payload: {
-        title: input.title,
-        description: input.description || ""
-      }
+    console.log("🟣 ZEUS WOO OPTIMIZE REQUEST", {
+      title: cleanTitle
     });
 
     // ==========================================
-    // RESPONSE NORMALIZADO
+    // 🔥 AI REAL (SIN PIPELINE INTERMEDIO)
     // ==========================================
+    const aiResult = await generateAIContent({
+      title: cleanTitle,
+      description: cleanDescription,
+      language: "es"
+    });
+
+    console.log("🔥 AI RESULT:", aiResult);
+
+    // ==========================================
+    // 🔥 TITLE ENGINE
+    // ==========================================
+    const finalTitle = buildFinalTitle({
+      aiTitle: aiResult,
+      originalTitle: cleanTitle,
+      description: cleanDescription
+    });
+
+    // ==========================================
+    // 🔥 DESCRIPTION ENGINE
+    // ==========================================
+    const finalDescription = buildFinalDescription({
+      title: finalTitle,
+      originalHtml: cleanDescription,
+      aiResult,
+      language: "es"
+    });
+
+    console.log("✅ ZEUS FINAL OUTPUT", {
+      finalTitle
+    });
 
     return res.json({
       ok: true,
       requestId: null,
       output: {
-        title: result?.title || input.title,
-        description: result?.description || input.description || "",
-        tags: result?.tags || []
+        title: finalTitle,
+        description: finalDescription,
+        tags: [finalTitle]
       }
     });
 
