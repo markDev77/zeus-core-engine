@@ -66,14 +66,16 @@ async function handleWooProductUpdateWebhook(req, res) {
     // 🔥 STORE ID DERIVADO (SIN NUEVA LÓGICA)
     const storeId =
       storeContext.storeId ||
-      storeContext.baseUrl; // fallback estable
+      storeContext.baseUrl;
 
     /* ========================================
        CORE PIPELINE
     ======================================== */
 
     const zeusOutput = await processProduct({
-      source: "woocommerce",
+      source: "ltm-mx", // 🔥 ACTIVADOR DE POLICY
+      platform: "woocommerce",
+
       product: {
         id: product.id,
         title: product.title || "",
@@ -85,11 +87,13 @@ async function handleWooProductUpdateWebhook(req, res) {
         tags: product.tags || [],
         meta_data: product.meta_data || []
       },
+
       store: {
         platform: "woocommerce",
         language: "es",
-        storeId // 🔥 INYECCIÓN CONTROLADA
+        storeId
       },
+
       policyContext: {
         channel: "woocommerce",
         sourceContext: "webhook"
