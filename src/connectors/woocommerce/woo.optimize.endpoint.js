@@ -2,6 +2,9 @@
 // ZEUS — WOO OPTIMIZE (FORCED AI ENGINE)
 // ==========================================
 
+const { resolveWooStoreContext } = require("./woo.store-resolver");
+const { consumeToken } = require("../../services/storeService");
+
 const { generateAIContent } = require("../../engines/ai.engine");
 const { buildFinalTitle } = require("../../engines/title.engine");
 const { buildFinalDescription } = require("../../engines/description.engine");
@@ -23,6 +26,39 @@ async function handleWooOptimize(req, res) {
     console.log("🟣 ZEUS WOO OPTIMIZE REQUEST", {
       title: cleanTitle
     });
+
+    /* ========================================
+       🔥 STORE CONTEXT (DB REAL)
+    ======================================== */
+
+    const storeContext = await resolveWooStoreContext(req);
+
+    const shop = storeContext?.baseUrl;
+
+    console.log("🧠 ZEUS STORE CONTEXT (OPTIMIZE)", {
+      shop,
+      tokens: storeContext?.tokens,
+      tokens_used: storeContext?.tokens_used
+    });
+
+    /* ========================================
+       🔥 TOKEN CONTROL (NO ROMPE FLUJO)
+    ======================================== */
+
+    if (shop) {
+      const tokenResult = await consumeToken(shop);
+
+      if (!tokenResult?.success) {
+        console.log("⛔ TOKEN BLOCK", { shop });
+
+        return res.status(402).json({
+          ok: false,
+          error: "token_limit_reached"
+        });
+      }
+
+      console.log("💰 TOKEN CONSUMED", { shop });
+    }
 
     // ==========================================
     // 🔥 AI REAL (SIN PIPELINE INTERMEDIO)
