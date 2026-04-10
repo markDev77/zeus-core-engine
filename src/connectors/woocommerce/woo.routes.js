@@ -19,6 +19,18 @@ export async function handleWooWebhook(req, res) {
       "woo-default";
 
     /* ========================================
+       🔥 DEBUG CONTROL (NO ROMPE)
+    ======================================== */
+
+    console.log("🧠 ZEUS STORE CONTEXT", {
+      storeId,
+      tokens: storeContext?.tokens,
+      tokens_used: storeContext?.tokens_used,
+      tokens_balance: storeContext?.tokens_balance,
+      status: storeContext?.status
+    });
+
+    /* ========================================
        🔥 INYECTAR CONTEXTO ZEUS
     ======================================== */
 
@@ -29,10 +41,10 @@ export async function handleWooWebhook(req, res) {
         storeId,
         platform: "woocommerce",
 
-        // 🔥 CONTEXTO REAL (NO ROMPE)
-        tokens: storeContext?.tokens || null,
-        tokens_used: storeContext?.tokens_used || null,
-        tokens_balance: storeContext?.tokens_balance || null,
+        // 🔥 CONTEXTO REAL (PREPARADO PARA TOKENS)
+        tokens: storeContext?.tokens ?? null,
+        tokens_used: storeContext?.tokens_used ?? null,
+        tokens_balance: storeContext?.tokens_balance ?? null,
         status: storeContext?.status || "active"
       },
     };
