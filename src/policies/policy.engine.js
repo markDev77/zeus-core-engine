@@ -1,63 +1,81 @@
-// /src/policies/policy.engine.js
+// src/policies/policy.engine.js
 
-const usadropPolicy = require("./Shopify/usadrop.policy");
-const { ltmPolicy } = require("./woocommerce/ltm.policy"); // 🔥 NUEVO
+const ltmPolicy = require("./woocommerce/ltm.policy");
 
-function resolvePolicy({ source, platform, store }) {
+/**
+ * Registro de policies disponibles
+ * Clave = policy_key
+ */
+const POLICY_REGISTRY = {
+  "ltm-mx": ltmPolicy,
 
-  const normalizedSource = String(source || "").toLowerCase();
-  const storeId = store?.storeId || "";
+  // futuros:
+  // "usadrop": usadropPolicy,
+  // "default": defaultPolicy
+};
 
-  // ==========================
-  // 🔧 DEFAULT BASE POLICY
-  // ==========================
-  const base = {
-    name: "default",
+/**
+ * Fallback por plataforma + source
+ */
+function resolveFallbackPolicy({ platform, source }) {
+  if (platform === "woocommerce" && source === "ltm-mx") {
+    return ltmPolicy;
+  }
 
-    pricing: false,
-    fallback_price: false,
-    inventory_fixed: false,
-    weight_fixed: false,
-    description_mode: "standard",
+  return null;
+}
 
-    // 🔥 SAFE METHODS (NUNCA ROMPE)
-    resolvePricing: ({ usd }) => {
-      return Number(usd || 0);
-    },
-
-    resolveInventory: () => {
-      return 0;
+/**
+ * Default policy (no-op)
+ */
+function defaultPolicy({ input }) {
+  return {
+    ...input,
+    _policy: {
+      applied: "default",
+      reason: "no_policy_match"
     }
   };
+}
 
-  // ==========================
-  // 🔥 USADROP POLICY (NO TOCAR)
-  // ==========================
-  if (platform === "shopify" && normalizedSource === "usadrop") {
-    return {
-      ...base,
-      ...usadropPolicy,
-      name: "usadrop"
-    };
+/**
+ * Resolver principal
+ */
+function resolvePolicy({ policyKey, platform, source }) {
+  // 1. Directo por policy_key
+  if (policyKey && POLICY_REGISTRY[policyKey]) {
+    return POLICY_REGISTRY[policyKey];
   }
 
-  // ==========================
-  // 🟢 LTM-MX POLICY (POR STORE)
-  // ==========================
-  if (platform === "woocommerce" && storeId === "ltm-mx") {
-    return {
-      ...base,
-      ...ltmPolicy({}),
-      name: "ltm-mx"
-    };
-  }
+  // 2. Fallback contextual
+  const fallback = resolveFallbackPolicy({ platform, source });
+  if (fallback) return fallback;
 
-  // ==========================
-  // 🔄 FALLBACK
-  // ==========================
-  return base;
+  // 3. Default
+  return defaultPolicy;
+}
+
+/**
+ * Ejecutar policy
+ */
+async function applyPolicy({
+  input,
+  policyKey,
+  platform,
+  source,
+  store,
+  context
+}) {
+  const policy = resolvePolicy({ policyKey, platform, source });
+
+  return await policy({
+    input,
+    store,
+    context
+  });
 }
 
 module.exports = {
-  resolvePolicy
+  resolvePolicy,
+  applyPolicy
 };
