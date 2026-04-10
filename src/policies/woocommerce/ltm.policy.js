@@ -3,34 +3,33 @@
    ZEUS Policy Layer
 ======================================== */
 
-function ltmPolicy({ input, store, context }) {
+function ltmPolicy({ product, store, context }) {
   try {
+    // 🔥 STORE CONTEXT
     const storeId = store?.storeId || "unknown";
 
-    /**
-     * =========================
-     * PASSTHROUGH (SIN IMPACTO)
-     * =========================
-     * No modifica nada del pipeline
-     */
-    const output = {
-      ...input,
+    // 👉 DEBUG CONTROLADO (NO RUIDO)
+    // console.log("LTM POLICY EXEC", { storeId });
 
-      _policy: {
-        applied: "ltm-mx",
+    /* ========================================
+       BASE RESPONSE (NO MODIFICA NADA)
+    ======================================== */
+
+    return {
+      product,        // passthrough
+      meta: {
+        policy: "ltm-mx",
         storeId
       }
     };
-
-    return output;
 
   } catch (err) {
     console.error("❌ LTM POLICY ERROR", err);
 
     return {
-      ...input,
-      _policy: {
-        applied: "ltm-mx-error"
+      product,
+      meta: {
+        policy: "ltm-mx-error"
       }
     };
   }
