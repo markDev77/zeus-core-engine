@@ -32,7 +32,6 @@ async function handleWooOptimize(req, res) {
     ======================================== */
 
     const storeContext = await resolveWooStoreContext(req);
-
     const shop = storeContext?.baseUrl;
 
     console.log("🧠 ZEUS STORE CONTEXT (OPTIMIZE)", {
@@ -42,22 +41,16 @@ async function handleWooOptimize(req, res) {
     });
 
     /* ========================================
-       🔥 TOKEN CONTROL (NO ROMPE FLUJO)
+       🔥 HARD BLOCK (VALIDACIÓN REAL)
     ======================================== */
 
-    if (shop) {
-      const tokenResult = await consumeToken(shop);
+    if (!storeContext || storeContext.tokens <= 0) {
+      console.log("⛔ HARD BLOCK - NO TOKENS", { shop });
 
-      if (!tokenResult?.success) {
-        console.log("⛔ TOKEN BLOCK", { shop });
-
-        return res.status(402).json({
-          ok: false,
-          error: "token_limit_reached"
-        });
-      }
-
-      console.log("💰 TOKEN CONSUMED", { shop });
+      return res.status(402).json({
+        ok: false,
+        error: "no_tokens_available"
+      });
     }
 
     // ==========================================
@@ -93,6 +86,20 @@ async function handleWooOptimize(req, res) {
     console.log("✅ ZEUS FINAL OUTPUT", {
       finalTitle
     });
+
+    /* ========================================
+       🔥 TOKEN CONSUME (POST SUCCESS)
+    ======================================== */
+
+    if (shop) {
+      const tokenResult = await consumeToken(shop);
+
+      if (!tokenResult?.success) {
+        console.log("⚠️ TOKEN CONSUME FAILED (post execution)", { shop });
+      } else {
+        console.log("💰 TOKEN CONSUMED", { shop });
+      }
+    }
 
     return res.json({
       ok: true,
