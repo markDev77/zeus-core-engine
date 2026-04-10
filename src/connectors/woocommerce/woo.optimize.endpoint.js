@@ -1,12 +1,13 @@
 // ==========================================
-// ZEUS — WOO OPTIMIZE (PIPELINE INTEGRATION)
+// ZEUS — WOO OPTIMIZE (FORCED AI ENGINE)
 // ==========================================
 
 const { resolveWooStoreContext } = require("./woo.store-resolver");
 const { consumeToken } = require("../../services/storeService");
 
 const { generateAIContent } = require("../../engines/ai.engine");
-const { processProduct } = require("../../pipeline/processProduct");
+const { buildFinalTitle } = require("../../engines/title.engine");
+const { buildFinalDescription } = require("../../engines/description.engine");
 
 async function handleWooOptimize(req, res) {
   try {
@@ -27,7 +28,7 @@ async function handleWooOptimize(req, res) {
     });
 
     /* ========================================
-       🔥 STORE CONTEXT
+       🔥 STORE CONTEXT (DB REAL)
     ======================================== */
 
     const storeContext = await resolveWooStoreContext(req);
@@ -45,7 +46,7 @@ async function handleWooOptimize(req, res) {
     });
 
     /* ========================================
-       🔥 HARD BLOCK
+       🔥 HARD BLOCK (REAL BALANCE)
     ======================================== */
 
     if (!storeContext || balance <= 0) {
@@ -57,49 +58,52 @@ async function handleWooOptimize(req, res) {
       });
     }
 
-    /* ========================================
-       🔥 AI (SE MANTIENE AQUÍ)
-    ======================================== */
-
+    // ==========================================
+    // 🔥 AI REAL (1 SOLA LLAMADA)
+    // ==========================================
     const aiResult = await generateAIContent({
       title: cleanTitle,
       description: cleanDescription,
-      language: storeContext?.language || "es"
+      language: "es"
     });
 
     console.log("🔥 AI RESULT:", aiResult);
 
-    /* ========================================
-       🔥 PIPELINE ZEUS
-    ======================================== */
+    // ==========================================
+    // 🔥 TITLE ENGINE
+    // ==========================================
+    const finalTitle = buildFinalTitle({
+      aiTitle: aiResult,
+      originalTitle: cleanTitle,
+      description: cleanDescription
+    });
 
-    const pipelineResult = await processProduct({
-      source: storeContext?.policy_key || "ltm-mx",
-      product: {
-        title: cleanTitle,
-        description: cleanDescription,
-        aiResult // 👈 lo pasamos para uso futuro
-      },
-      store: storeContext,
-      policyContext: {
-        trigger: "woo-optimize-endpoint"
-      }
+    // ==========================================
+    // 🔥 DESCRIPTION ENGINE
+    // ==========================================
+    const finalDescription = buildFinalDescription({
+      title: finalTitle,
+      originalHtml: cleanDescription,
+      aiResult,
+      language: "es"
     });
 
     console.log("✅ ZEUS FINAL OUTPUT", {
-      title: pipelineResult.title
+      finalTitle
     });
 
     /* ========================================
-       🔥 TOKEN CONSUME
+       🔥 TOKEN CONSUME (POST SUCCESS - ZEUS STYLE)
     ======================================== */
 
     if (shop) {
       try {
         await consumeToken(shop);
+
         console.log("💰 TOKEN CONSUMED", { shop });
 
       } catch (err) {
+
         if (err.message === "NO TOKENS AVAILABLE") {
           console.warn("⛔ TOKEN LIMIT REACHED (post)", { shop });
         } else {
@@ -111,17 +115,13 @@ async function handleWooOptimize(req, res) {
       }
     }
 
-    /* ========================================
-       🔥 RESPONSE (MISMO CONTRATO)
-    ======================================== */
-
     return res.json({
       ok: true,
       requestId: null,
       output: {
-        title: pipelineResult.title,
-        description: pipelineResult.description_html,
-        tags: pipelineResult.tags || []
+        title: finalTitle,
+        description: finalDescription,
+        tags: [finalTitle]
       }
     });
 
