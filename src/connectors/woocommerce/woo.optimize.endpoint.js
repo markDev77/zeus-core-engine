@@ -34,18 +34,23 @@ async function handleWooOptimize(req, res) {
     const storeContext = await resolveWooStoreContext(req);
     const shop = storeContext?.baseUrl;
 
+    const tokens = storeContext?.tokens || 0;
+    const tokensUsed = storeContext?.tokens_used || 0;
+    const balance = tokens - tokensUsed;
+
     console.log("🧠 ZEUS STORE CONTEXT (OPTIMIZE)", {
       shop,
-      tokens: storeContext?.tokens,
-      tokens_used: storeContext?.tokens_used
+      tokens,
+      tokens_used: tokensUsed,
+      balance
     });
 
     /* ========================================
-       🔥 HARD BLOCK (VALIDACIÓN REAL)
+       🔥 HARD BLOCK (REAL BALANCE)
     ======================================== */
 
-    if (!storeContext || storeContext.tokens <= 0) {
-      console.log("⛔ HARD BLOCK - NO TOKENS", { shop });
+    if (!storeContext || balance <= 0) {
+      console.log("⛔ HARD BLOCK - NO TOKENS", { shop, balance });
 
       return res.status(402).json({
         ok: false,
@@ -54,7 +59,7 @@ async function handleWooOptimize(req, res) {
     }
 
     // ==========================================
-    // 🔥 AI REAL (SIN PIPELINE INTERMEDIO)
+    // 🔥 AI REAL (1 SOLA LLAMADA)
     // ==========================================
     const aiResult = await generateAIContent({
       title: cleanTitle,
@@ -88,16 +93,25 @@ async function handleWooOptimize(req, res) {
     });
 
     /* ========================================
-       🔥 TOKEN CONSUME (POST SUCCESS)
+       🔥 TOKEN CONSUME (POST SUCCESS - ZEUS STYLE)
     ======================================== */
 
     if (shop) {
-      const tokenResult = await consumeToken(shop);
+      try {
+        await consumeToken(shop);
 
-      if (!tokenResult?.success) {
-        console.log("⚠️ TOKEN CONSUME FAILED (post execution)", { shop });
-      } else {
         console.log("💰 TOKEN CONSUMED", { shop });
+
+      } catch (err) {
+
+        if (err.message === "NO TOKENS AVAILABLE") {
+          console.warn("⛔ TOKEN LIMIT REACHED (post)", { shop });
+        } else {
+          console.warn("⚠️ TOKEN CONSUME ERROR", {
+            shop,
+            error: err.message
+          });
+        }
       }
     }
 
