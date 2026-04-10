@@ -2,7 +2,7 @@
 
 const { buildFinalTitle } = require("../engines/title.engine");
 const { buildFinalDescription } = require("../engines/description.engine");
-const { buildSEOIntro } = require("../engines/seo.engine");
+const { buildSEOIntro } = require("../engines/seo.engine"); // 🔥 FIX
 const { resolvePolicy } = require("../policies/policy.engine");
 
 async function processProduct({ source, product, store, policyContext }) {
@@ -15,34 +15,19 @@ async function processProduct({ source, product, store, policyContext }) {
     productId: product.id || null
   });
 
-  /**
-   * =========================
-   * 🔍 RESOLVE POLICY
-   * =========================
-   */
   const policy = resolvePolicy({
     source,
     platform: store?.platform,
-    store
+    context: policyContext
   });
 
-  /**
-   * =========================
-   * 🔧 NORMALIZE INPUT
-   * =========================
-   */
   const base = normalizeProduct(product);
 
-  /**
-   * =========================
-   * 🧠 ENGINES
-   * =========================
-   */
-  const title = await buildFinalTitle({
-    aiTitle: null,
-    originalTitle: base.title,
-    language: store?.language
-  });
+ const title = await buildFinalTitle({
+  aiTitle: null,
+  originalTitle: base.title,
+  language: store?.language
+});
 
   const description_html = await buildFinalDescription({
     title,
@@ -51,6 +36,7 @@ async function processProduct({ source, product, store, policyContext }) {
     policy
   });
 
+  // 🔥 SEO SIMPLE (SIN generateSEO)
   const short_description = buildSEOIntro({
     title,
     description: description_html
@@ -58,12 +44,7 @@ async function processProduct({ source, product, store, policyContext }) {
 
   const tags = buildTags({ title, short_description, policy });
 
-  /**
-   * =========================
-   * 📦 BASE OUTPUT
-   * =========================
-   */
-  let result = {
+  const result = {
     title,
     description_html,
     short_description,
@@ -77,44 +58,14 @@ async function processProduct({ source, product, store, policyContext }) {
     }
   };
 
-  /**
-   * =========================
-   * 🔥 APPLY POLICY (NUEVO)
-   * =========================
-   */
-  if (typeof policy === "function") {
-    // (por si en el futuro alguna policy regresa función directa)
-    result = await policy({
-      input: result,
-      store,
-      context: policyContext
-    });
-
-  } else if (policy?.name) {
-    // si policy es objeto con métodos
-    if (policy?.apply) {
-      result = await policy.apply({
-        input: result,
-        store,
-        context: policyContext
-      });
-    }
-  }
-
   console.log("✅ ZEUS PIPELINE DONE", {
     productId: product.id || null,
-    title: result.title,
-    policy: result?._policy?.applied || policy?.name
+    title: result.title
   });
 
   return result;
 }
 
-/**
- * =========================
- * NORMALIZE
- * =========================
- */
 function normalizeProduct(product) {
   return {
     id: product.id || null,
@@ -129,11 +80,6 @@ function normalizeProduct(product) {
   };
 }
 
-/**
- * =========================
- * TAGS
- * =========================
- */
 function buildTags({ title, short_description, policy }) {
   const baseTags = [];
 
