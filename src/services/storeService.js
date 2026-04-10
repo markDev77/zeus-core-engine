@@ -125,7 +125,7 @@ async function upsertStore(data) {
 
 /*
 ========================================
-TOKEN ENGINE
+TOKEN ENGINE (FIX ZEUS CORE)
 ========================================
 */
 
@@ -134,11 +134,10 @@ async function consumeToken(shop) {
     `
     UPDATE stores
     SET 
-      tokens = tokens - 1,
       tokens_used = tokens_used + 1,
       updated_at = NOW()
     WHERE shop = $1
-      AND tokens > 0
+      AND (tokens - tokens_used) > 0
     `,
     [shop]
   );
