@@ -1,40 +1,52 @@
-/* ========================================
-   LTM-MX POLICY (BASE - NO IMPACT)
-   ZEUS Policy Layer
-======================================== */
+// src/policies/woocommerce/ltm.policy.js
 
-function ltmPolicy({ product, store, context }) {
-  try {
-    // 🔥 STORE CONTEXT
-    const storeId = store?.storeId || "unknown";
+module.exports = async function ltmPolicy({ input, store, context }) {
+  let output = { ...input };
 
-    // 👉 DEBUG CONTROLADO (NO RUIDO)
-    // console.log("LTM POLICY EXEC", { storeId });
+  /**
+   * =========================
+   * CONTENT POLICY
+   * =========================
+   */
+  // ya viene optimizado por engines
+  // aquí solo puedes ajustar comportamiento si se requiere
 
-    /* ========================================
-       BASE RESPONSE (NO MODIFICA NADA)
-    ======================================== */
+  /**
+   * =========================
+   * PRICING POLICY
+   * =========================
+   */
+  if (output.price) {
+    const price = parseFloat(output.price);
 
-    return {
-      product,        // passthrough
-      meta: {
-        policy: "ltm-mx",
-        storeId
-      }
-    };
-
-  } catch (err) {
-    console.error("❌ LTM POLICY ERROR", err);
-
-    return {
-      product,
-      meta: {
-        policy: "ltm-mx-error"
-      }
-    };
+    // ejemplo simple (puedes ajustar después)
+    if (price < 5) output.price = (price + 5).toFixed(2);
+    else if (price < 20) output.price = (price * 2).toFixed(2);
+    else output.price = (price * 1.6).toFixed(2);
   }
-}
 
-module.exports = {
-  ltmPolicy
+  /**
+   * =========================
+   * INVENTORY POLICY
+   * =========================
+   */
+  output.stock = 11;
+
+  /**
+   * =========================
+   * WEIGHT POLICY
+   * =========================
+   */
+  output.weight = 1;
+
+  /**
+   * =========================
+   * METADATA
+   * =========================
+   */
+  output._policy = {
+    applied: "ltm-mx"
+  };
+
+  return output;
 };
