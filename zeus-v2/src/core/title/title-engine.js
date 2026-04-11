@@ -1,17 +1,33 @@
-// title.engine.js
+// title-engine.js
+// Adapter + lógica integrada (modo standalone para validación)
 
-const { buildTitle } = require("./title.builder");
-const { sanitizeTitle } = require("./title.sanitizer");
-
-function generateTitle(input, context) {
+function buildTitle(input) {
   if (!input || !input.title) return "";
-
-  const builtTitle = buildTitle(input, context);
-  const finalTitle = sanitizeTitle(builtTitle, context);
-
-  return finalTitle;
+  return input.title;
 }
 
-module.exports = {
-  generateTitle,
-};
+function sanitizeTitle(title) {
+  if (!title) return "";
+
+  return title
+    .replace(/[-_,]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function runTitleEngine(input) {
+  if (!input || !input.product) return input;
+
+  const built = buildTitle(input.product);
+  const clean = sanitizeTitle(built);
+
+  return {
+    ...input,
+    product: {
+      ...input.product,
+      title: clean
+    }
+  };
+}
+
+module.exports = runTitleEngine;
