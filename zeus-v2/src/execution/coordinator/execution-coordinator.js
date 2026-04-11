@@ -10,7 +10,7 @@ function runExecutionCoordinator(executionInput) {
     // 2. POLICY (aplica reglas de negocio sobre el output del core)
     const policyOutput = runPolicy(coreOutput, executionInput.context);
 
-    // 3. MERGE CONTROLADO (ORDEN CORRECTO)
+    // 3. MERGE CONTROLADO (ORDEN CORRECTO + COMMIT FORZADO)
     const finalResult = {
         ...coreOutput,
         ...policyOutput,
@@ -22,11 +22,12 @@ function runExecutionCoordinator(executionInput) {
             // policy puede agregar (precio, inventario, etc.)
             ...((policyOutput && policyOutput.product) || {}),
 
-            // 🔴 ÚLTIMO PASO: FORZAR CONSISTENCIA DEL CORE (COMMIT REAL)
-            title: coreOutput.core?.normalized_title || coreOutput.product?.title
+            // 🔴 ÚLTIMO PASO: FORZAR CONSISTENCIA DEL CORE (SOURCE OF TRUTH)
+            title: coreOutput.core?.normalized_title || coreOutput.product?.title,
+            description_html: coreOutput.core?.normalized_description_html || coreOutput.product?.description_html
         },
 
-        // 🔴 core nunca se toca
+        // 🔴 core nunca se sobrescribe
         core: coreOutput.core
     };
 
