@@ -3,23 +3,36 @@ const runPolicy = require('../../policy');
 const runObservability = require('../../observability');
 
 function runExecutionCoordinator(executionInput) {
-
     // 1. CORE (transformación neutral)
     const coreOutput = runCore(executionInput);
 
-    // 2. POLICY (aplica reglas de negocio)
+    // 2. POLICY (aplica reglas de negocio sobre el output del core)
     const policyOutput = runPolicy(coreOutput, executionInput.context);
 
-    // 3. OBSERVABILITY (read-only)
+    // 3. MERGE CONTROLADO
+    // Core define la base canónica.
+    // Policy solo extiende / ajusta sin romper product ni core.
+    const finalResult = {
+        ...coreOutput,
+        ...policyOutput,
+        product: {
+            ...(coreOutput.product || {}),
+            ...((policyOutput && policyOutput.product) || {})
+        },
+        core: coreOutput.core
+    };
+
+    // 4. OBSERVABILITY (read-only)
     const observabilityOutput = runObservability({
         input: executionInput,
         core: coreOutput,
-        policy: policyOutput
+        policy: policyOutput,
+        final: finalResult
     });
 
-    // 4. OUTPUT FINAL
+    // 5. OUTPUT FINAL
     return {
-        result: policyOutput,
+        result: finalResult,
         observability: observabilityOutput
     };
 }
