@@ -1,8 +1,13 @@
+const runTitleEngine = require('./title/title-engine');
+
 function runCore(input) {
-    return {
-        ...input,
-        core: {}
-    };
+
+    let output = { ...input };
+
+    // TITLE ENGINE (primer módulo real)
+    output = runTitleEngine(output);
+
+    return output;
 }
 
 module.exports = runCore;
