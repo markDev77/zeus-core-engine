@@ -1,17 +1,18 @@
-const { executePipeline } = require("./src/execution/execution-pipeline");
+const { runExecutionCoordinator } = require('./src/execution/coordinator/execution-coordinator');
 
-(async () => {
-  const result = await executePipeline({
+const input = {
     product: {
-      title: "CABLE USB - ALTA CALIDAD!!",
-      description_html: "<p>Test</p>",
-      images: [],
-      variants: [],
-      category: null,
-      source: "test"
-    }
-  });
+        id: "123",
+        title: "CABLE USB - ALTA CALIDAD!!",
+        description_html: "<p>Test</p>",
+        images: [],
+        variants: [],
+        category: null,
+        source: "test"
+    },
+    context: {}
+};
 
-  console.log("RESULT:");
-  console.log(result.product.title);
-})();
+const result = runExecutionCoordinator(input);
+
+console.log(JSON.stringify(result, null, 2));
