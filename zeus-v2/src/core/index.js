@@ -16,9 +16,6 @@ function runCore(input) {
     // NORMALIZER
     output = runProductNormalizer(output);
 
-    // ===== TITLE (MOVIDO AQUÍ) =====
-    output = runTitleEngine(output);
-
     // SIGNATURE
     output = runProductSignature(output);
 
@@ -30,6 +27,9 @@ function runCore(input) {
 
     // POLICY PREP
     output = runPolicyPrepEngine(output);
+
+    // ===== TITLE (ÚLTIMO PASO) =====
+    output = runTitleEngine(output);
 
     return output;
 }
