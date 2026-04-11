@@ -3,6 +3,7 @@ const runDescriptionEngine = require('./description/description-engine');
 const runProductNormalizer = require('./normalizer/product-normalizer');
 const runProductSignature = require('./signature/product-signature');
 const runAttributeExtraction = require('./attributes/attribute-extractor');
+const runCategoryHintEngine = require('./category/category-hint-engine');
 
 function runCore(input) {
 
@@ -22,6 +23,9 @@ function runCore(input) {
 
     // ATTRIBUTES
     output = runAttributeExtraction(output);
+
+    // CATEGORY HINT
+    output = runCategoryHintEngine(output);
 
     return output;
 }
