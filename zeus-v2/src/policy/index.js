@@ -1,15 +1,19 @@
 const runBasePolicyEngine = require('./base-policy-engine');
 const runPricingEngine = require('./pricing/pricing-engine');
+const runInventoryEngine = require('./inventory/inventory-engine');
 
 function runPolicy(input) {
 
     let output = { ...input };
 
-    // BASE POLICY
+    // BASE
     output = runBasePolicyEngine(output);
 
-    // PRICING (CRÍTICO)
+    // PRICING
     output = runPricingEngine(output);
+
+    // INVENTORY
+    output = runInventoryEngine(output);
 
     return output;
 }
