@@ -2981,6 +2981,16 @@ app.post("/woo/optimize", handleWooOptimize);
 
 app.get('/zeus-v2-test', async (req, res) => {
   try {
+    // ===== 1. CORE AISLADO =====
+    const { generateTitle } = require('./zeus-v2/src/core/title/title.engine');
+
+    const coreInput = {
+      title: "CABLE USB - ALTA CALIDAD!!"
+    };
+
+    const coreResult = generateTitle(coreInput, {});
+
+    // ===== 2. FLOW COMPLETO (NO TOCAR) =====
     const { runApp } = require('./zeus-v2/src/app');
 
     const input = {
@@ -2998,8 +3008,13 @@ app.get('/zeus-v2-test', async (req, res) => {
 
     const result = await runApp(input);
 
+    // ===== RESPONSE =====
     res.json({
       ok: true,
+      core_test: {
+        input: coreInput.title,
+        output: coreResult
+      },
       flow: "app → orchestration → execution",
       result
     });
@@ -3012,7 +3027,6 @@ app.get('/zeus-v2-test', async (req, res) => {
     });
   }
 });
-
 
 
 /* ========================================
