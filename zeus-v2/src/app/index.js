@@ -1,9 +1,9 @@
-// Nuevo entrypoint oficial ZEUS v2
+// Entrada oficial ZEUS v2 alineada a blueprint
 
-const orchestration = require('../orchestration');
+const { runOrchestration } = require('../orchestration');
 
 function runApp(input) {
-    return orchestration(input);
+    return runOrchestration(input);
 }
 
 module.exports = {
