@@ -2978,6 +2978,43 @@ const { handleWooOptimize } = require("./src/connectors/woocommerce/woo.optimize
 
 app.post("/woo/optimize", handleWooOptimize);
 
+
+app.get('/zeus-v2-test', async (req, res) => {
+  try {
+    const { runApp } = require('./zeus-v2/src/app');
+
+    const input = {
+      product: {
+        id: "123",
+        title: "Test Product",
+        description_html: "<p>Test</p>",
+        images: [],
+        variants: [],
+        category: null,
+        source: "test"
+      },
+      metadata: {}
+    };
+
+    const result = await runApp(input);
+
+    res.json({
+      ok: true,
+      flow: "app → orchestration → execution",
+      result
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      error: err.message,
+      stack: err.stack
+    });
+  }
+});
+
+
+
 /* ========================================
    SERVER START (ÚNICO Y FINAL)
 ======================================== */
