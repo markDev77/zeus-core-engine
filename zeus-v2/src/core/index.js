@@ -6,30 +6,40 @@ const runAttributeExtraction = require('./attributes/attribute-extractor');
 const runCategoryHintEngine = require('./category/category-hint-engine');
 const runPolicyPrepEngine = require('./policy-prep/policy-prep-engine');
 
+/**
+ * ZEUS CORE ENGINE
+ * Orquesta ejecución de engines internos
+ *
+ * REGLAS:
+ * - Orden determinístico
+ * - Sin lógica de negocio
+ * - Cada engine respeta su responsabilidad
+ */
+
 function runCore(input) {
 
     let output = { ...input };
 
-    // DESCRIPTION
+    // 1. DESCRIPTION (no depende de otros engines)
     output = runDescriptionEngine(output);
 
-    // NORMALIZER
+    // 2. NORMALIZER (limpia input base)
     output = runProductNormalizer(output);
 
-    // SIGNATURE
+    // 3. SIGNATURE (usa título base limpio)
     output = runProductSignature(output);
 
-    // ATTRIBUTES
+    // 4. ATTRIBUTES (usa contenido base)
     output = runAttributeExtraction(output);
 
-    // CATEGORY HINT
+    // 5. CATEGORY HINT (derivado semántico)
     output = runCategoryHintEngine(output);
 
-    // POLICY PREP
-    output = runPolicyPrepEngine(output);
-
-    // ===== TITLE (ÚLTIMO PASO) =====
+    // 6. TITLE ENGINE (🔴 genera normalized_title)
     output = runTitleEngine(output);
+
+    // 7. POLICY PREP (🔴 depende de normalized_title y signature)
+    output = runPolicyPrepEngine(output);
 
     return output;
 }
