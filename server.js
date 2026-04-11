@@ -2988,7 +2988,11 @@ app.get('/zeus-v2-test', async (req, res) => {
       title: "CABLE USB - ALTA CALIDAD!!"
     };
 
-    const coreResult = generateTitle(coreInput, {});
+    const coreOutput = runTitleEngine({
+      product: {
+        title: coreInput.title
+      }
+    });
 
     // ===== 2. FLOW COMPLETO (NO TOCAR) =====
     const { runApp } = require('./zeus-v2/src/app');
@@ -3013,7 +3017,7 @@ app.get('/zeus-v2-test', async (req, res) => {
       ok: true,
       core_test: {
         input: coreInput.title,
-        output: coreResult
+        output: coreOutput.product.title
       },
       flow: "app → orchestration → execution",
       result
