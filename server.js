@@ -2982,7 +2982,7 @@ app.post("/woo/optimize", handleWooOptimize);
 app.get('/zeus-v2-test', async (req, res) => {
   try {
     // ===== 1. CORE AISLADO =====
-    const { generateTitle } = require('./zeus-v2/src/core/title/title.engine');
+    const { generateTitle } = require('./zeus-v2/src/core/title/title-engine');
 
     const coreInput = {
       title: "CABLE USB - ALTA CALIDAD!!"
