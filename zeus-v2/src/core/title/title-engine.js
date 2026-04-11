@@ -1,22 +1,28 @@
-const sanitizeTitle = require('./title-sanitizer');
+// title.engine.js
+// Orquestador de generación de título
+// NO contiene lógica interna de construcción
 
-function runTitleEngine(input) {
+const { buildTitle } = require("./title.builder");
+const { sanitizeTitle } = require("./title.sanitizer");
 
-    const product = input.product || {};
-    const rawTitle = product.title || '';
+/**
+ * @param {Object} input
+ * @param {string} input.title
+ * @param {Object} context
+ * @returns {string}
+ */
+function generateTitle(input, context) {
+  if (!input || !input.title) return "";
 
-    const cleanTitle = sanitizeTitle(rawTitle);
+  // Paso 1: construir título
+  const builtTitle = buildTitle(input, context);
 
-    // Construcción simple (v1)
-    const title_optimized = cleanTitle;
+  // Paso 2: sanitizar
+  const finalTitle = sanitizeTitle(builtTitle, context);
 
-    return {
-        ...input,
-        core: {
-            ...input.core,
-            title_optimized
-        }
-    };
+  return finalTitle;
 }
 
-module.exports = runTitleEngine;
+module.exports = {
+  generateTitle,
+};
