@@ -2,6 +2,7 @@ const runBasePolicyEngine = require('./base-policy-engine');
 const runPricingEngine = require('./pricing/pricing-engine');
 const runInventoryEngine = require('./inventory/inventory-engine');
 const runPolicySelector = require('./selector/policy-selector');
+const runPolicyOverrideEngine = require('./override/policy-override-engine');
 
 function runPolicy(input) {
 
@@ -16,8 +17,11 @@ function runPolicy(input) {
     // INVENTORY
     output = runInventoryEngine(output);
 
-    // SELECTOR (ESTE ES EL QUE TE FALTA)
+    // SELECTOR
     output = runPolicySelector(output);
+
+    // OVERRIDE (NUEVO)
+    output = runPolicyOverrideEngine(output);
 
     return output;
 }
