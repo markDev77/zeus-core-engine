@@ -2,6 +2,7 @@ const runTitleEngine = require('./title/title-engine');
 const runDescriptionEngine = require('./description/description-engine');
 const runProductNormalizer = require('./normalizer/product-normalizer');
 const runProductSignature = require('./signature/product-signature');
+const runAttributeExtraction = require('./attributes/attribute-extractor');
 
 function runCore(input) {
 
@@ -18,6 +19,9 @@ function runCore(input) {
 
     // SIGNATURE
     output = runProductSignature(output);
+
+    // ATTRIBUTES
+    output = runAttributeExtraction(output);
 
     return output;
 }
