@@ -2998,18 +2998,17 @@ app.get('/zeus-v2-test', async (req, res) => {
     const { runApp } = require('./zeus-v2/src/app');
 
     const input = {
-      product: {
-        id: "123",
-        title: "Test Product",
-        description_html: "<p>Test</p>",
-        images: [],
-        variants: [],
-        category: null,
-        source: "test"
-      },
-      metadata: {}
-    };
-
+  product: {
+    id: "123",
+    title: "CABLE USB - ALTA CALIDAD!!",
+    description_html: "<p>Test</p>",
+    images: [],
+    variants: [],
+    category: null,
+    source: "test"
+  },
+  context: {}
+};
     const result = await runApp(input);
 
     // ===== RESPONSE =====
