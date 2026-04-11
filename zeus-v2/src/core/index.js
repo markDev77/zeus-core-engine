@@ -10,25 +10,33 @@ function runCore(input) {
 
     let output = { ...input };
 
-    // TITLE
-    output = runTitleEngine(output);
+    // ===== TITLE (ACTIVADO CORRECTAMENTE) =====
+    const titleResult = runTitleEngine(output);
 
-    // DESCRIPTION
+    output = {
+        ...titleResult,
+        product: {
+            ...titleResult.product,
+            title: titleResult.product.title
+        }
+    };
+
+    // ===== DESCRIPTION =====
     output = runDescriptionEngine(output);
 
-    // NORMALIZER
+    // ===== NORMALIZER =====
     output = runProductNormalizer(output);
 
-    // SIGNATURE
+    // ===== SIGNATURE =====
     output = runProductSignature(output);
 
-    // ATTRIBUTES
+    // ===== ATTRIBUTES =====
     output = runAttributeExtraction(output);
 
-    // CATEGORY HINT
+    // ===== CATEGORY HINT =====
     output = runCategoryHintEngine(output);
 
-    // POLICY PREP
+    // ===== POLICY PREP =====
     output = runPolicyPrepEngine(output);
 
     return output;
