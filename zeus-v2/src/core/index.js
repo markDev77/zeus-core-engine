@@ -4,6 +4,7 @@ const runProductNormalizer = require('./normalizer/product-normalizer');
 const runProductSignature = require('./signature/product-signature');
 const runAttributeExtraction = require('./attributes/attribute-extractor');
 const runCategoryHintEngine = require('./category/category-hint-engine');
+const runPolicyPrepEngine = require('./policy-prep/policy-prep-engine');
 
 function runCore(input) {
 
@@ -26,6 +27,9 @@ function runCore(input) {
 
     // CATEGORY HINT
     output = runCategoryHintEngine(output);
+
+    // POLICY PREP
+    output = runPolicyPrepEngine(output);
 
     return output;
 }
