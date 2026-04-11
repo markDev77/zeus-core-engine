@@ -8,7 +8,7 @@ function runPolicy(input) {
     // BASE POLICY
     output = runBasePolicyEngine(output);
 
-    // PRICING
+    // PRICING (CRÍTICO)
     output = runPricingEngine(output);
 
     return output;
