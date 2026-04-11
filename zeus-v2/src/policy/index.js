@@ -16,7 +16,7 @@ function runPolicy(input) {
     // INVENTORY
     output = runInventoryEngine(output);
 
-    // SELECTOR (CRÍTICO)
+    // SELECTOR (ESTE ES EL QUE TE FALTA)
     output = runPolicySelector(output);
 
     return output;
