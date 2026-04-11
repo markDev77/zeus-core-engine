@@ -1,32 +1,21 @@
-// src/core/commit/core.commit.js
+function commitCoreToProduct(output) {
+    if (!output) return output;
 
-/**
- * CORE COMMIT LAYER
- * Sincroniza metadata (core.*) hacia output ejecutable (product.*)
- * NO genera datos
- * NO contiene lógica de negocio
- * SOLO refleja estado final del core
- *
- * @param {Object} product
- * @param {Object} core
- * @returns {Object} product actualizado
- */
-function commitCoreToProduct(product, core) {
-  if (!product || !core) return product;
+    // asegurar estructura
+    output.product = output.product || {};
+    output.core = output.core || {};
 
-  // TITLE
-  if (core.normalized_title) {
-    product.title = core.normalized_title;
-  }
+    // TITLE
+    if (output.core.normalized_title) {
+        output.product.title = output.core.normalized_title;
+    }
 
-  // DESCRIPTION
-  if (core.normalized_description_html) {
-    product.description_html = core.normalized_description_html;
-  }
+    // DESCRIPTION
+    if (output.core.normalized_description_html) {
+        output.product.description_html = output.core.normalized_description_html;
+    }
 
-  return product;
+    return output;
 }
 
-module.exports = {
-  commitCoreToProduct
-};
+module.exports = commitCoreToProduct;
