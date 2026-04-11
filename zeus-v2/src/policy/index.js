@@ -1,6 +1,7 @@
 const runBasePolicyEngine = require('./base-policy-engine');
 const runPricingEngine = require('./pricing/pricing-engine');
 const runInventoryEngine = require('./inventory/inventory-engine');
+const runPolicySelector = require('./selector/policy-selector');
 
 function runPolicy(input) {
 
@@ -14,6 +15,9 @@ function runPolicy(input) {
 
     // INVENTORY
     output = runInventoryEngine(output);
+
+    // SELECTOR (CRÍTICO)
+    output = runPolicySelector(output);
 
     return output;
 }
