@@ -1,5 +1,7 @@
 const runTitleEngine = require('./title/title-engine');
 const runDescriptionEngine = require('./description/description-engine');
+const runProductNormalizer = require('./normalizer/product-normalizer');
+const runProductSignature = require('./signature/product-signature');
 
 function runCore(input) {
 
@@ -10,6 +12,12 @@ function runCore(input) {
 
     // DESCRIPTION
     output = runDescriptionEngine(output);
+
+    // NORMALIZER
+    output = runProductNormalizer(output);
+
+    // SIGNATURE
+    output = runProductSignature(output);
 
     return output;
 }
