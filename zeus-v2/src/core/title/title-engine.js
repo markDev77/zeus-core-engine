@@ -1,5 +1,4 @@
 // title-engine.js
-// Adapter + lógica integrada (modo standalone para validación)
 
 function buildTitle(input) {
   if (!input || !input.title) return "";
@@ -23,9 +22,9 @@ function runTitleEngine(input) {
 
   return {
     ...input,
-    product: {
-      ...input.product,
-      title: clean
+    core: {
+      ...(input.core || {}),
+      normalized_title: clean
     }
   };
 }
