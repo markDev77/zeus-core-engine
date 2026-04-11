@@ -1,6 +1,6 @@
 const runTitleEngine = require('./title/title-engine');
 const runDescriptionEngine = require('./description/description-engine');
-const runProductNormalizer = require('./normalizer/product-normalizer');
+const runProductNormalizer = require('./normalize/product-normalizer');
 const runProductSignature = require('./signature/product-signature');
 const runAttributeExtraction = require('./attributes/attribute-extractor');
 const runCategoryHintEngine = require('./category/category-hint-engine');
