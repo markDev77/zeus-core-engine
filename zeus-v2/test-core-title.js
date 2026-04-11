@@ -1,19 +1,17 @@
-const { generateTitle } = require("./src/core/title/title.engine");
+const runCore = require('./src/core');
 
-try {
-  const input = {
-    title: "CABLE USB - ALTA CALIDAD!!"
-  };
+const input = {
+    product: {
+        id: "123",
+        title: "CABLE USB - ALTA CALIDAD!!",
+        description_html: "<p>Test</p>",
+        images: [],
+        variants: [],
+        category: null,
+        source: "test"
+    }
+};
 
-  const context = {};
+const result = runCore(input);
 
-  const result = generateTitle(input, context);
-
-  console.log("CORE_TITLE_TEST_OK");
-  console.log("INPUT:", input.title);
-  console.log("OUTPUT:", result);
-} catch (error) {
-  console.error("CORE_TITLE_TEST_FAIL");
-  console.error(error);
-  process.exit(1);
-}
+console.log(JSON.stringify(result, null, 2));
